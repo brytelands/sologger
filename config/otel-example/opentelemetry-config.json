@@ -1,0 +1,9 @@
+{
+  "logConfig": {
+    "service.name": "solana-devnet-oltp-logging-service"
+  },
+  "endpoint": "http://localhost:4317",
+  "metricsEndpoint": "http://localhost:4317",
+  "tracesEndpoint": "http://localhost:4317",
+  "logLevel": "INFO"
+}

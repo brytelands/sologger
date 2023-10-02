@@ -1,0 +1,54 @@
+version: "3.7"
+
+networks:
+  parseable:
+
+services:
+
+  parseable:
+    image: parseable/parseable:latest
+    command: ["parseable", "s3-store"]
+    ports:
+     - "80:80"
+    environment:
+      - P_STAGING_DIR=/parseable/staging
+      - P_USERNAME=admin
+      - P_PASSWORD=
+      - P_S3_URL=https://s3.amazonaws.com
+      - P_S3_BUCKET=sologger-parseable
+      - P_S3_ACCESS_KEY=
+      - P_S3_SECRET_KEY=
+      - P_S3_REGION=us-east-1
+    networks:
+      - parseable
+    volumes:
+      - ./staging:/parseable/staging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash-oss:8.10.0-amd64
+    ports:
+      - 9200:9200
+      - 50000:50000/tcp
+      - 50000:50000/udp
+    command: logstash -f /etc/logstash/conf.d/logstash.conf
+    volumes:
+      - ./logstash.conf:/etc/logstash/conf.d/logstash.conf
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - parseable
+    depends_on:
+      - parseable
+
+  sologger-logstash:
+    image: brytelands/sologger-logstash:latest
+    tty: true
+    environment:
+      SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
+    volumes:
+      - ./sologger-config.json:/config/sologger-config.json
+      - ./log4rs-config.yml:/config/log4rs-config.yml
+    networks:
+      - parseable
+    depends_on:
+      - logstash

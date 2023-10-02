@@ -1,0 +1,7 @@
+{
+    "opentelemetryConfigLocation": "/config/opentelemetry-config.json",
+    "rpcUrl": "wss://api.devnet.solana.com",
+    "programsSelector" : {
+        "programs" : ["*"]
+    }
+}

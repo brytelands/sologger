@@ -1,0 +1,16 @@
+refresh_rate: 30 seconds
+appenders:
+  logstash:
+    kind: logstash
+    hostname: logstash
+    port: 50000
+    buffer_size: 10
+    log_queue_len: 1000
+    buffer_lifetime: 1s
+    extra_fields:
+      node_id: "5D1fNXzvv5NjV1ysLjirC4WY92RNsVH18vjmcszZd8on"
+      node_name: "solana-devnet-logs"
+root:
+  level: error
+  appenders:
+    - logstash

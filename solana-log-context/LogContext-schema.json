@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "LogContext",
+  "description": "This is the structured log format for a Solana Program log message.",
+  "type": "object",
+  "properties": {
+    "log_messages": {
+      "description": "The log messages produced by the program, via the msg! or emit! macros. These logs being with 'Program log:'",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_logs": {
+      "description": "The data messages containing serialized data produced by the program, usually via the emit! or emit_cpi! macros provided by Anchor. These logs begin with 'Program data:'",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "raw_logs": {
+      "description": "This is the raw log output from the program. This will contain all logs, regardless of prefix.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "errors": {
+      "description": "The errors produced by the program. These logs being with 'Program failed to complete:', for example 'Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)'",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "transaction_error": {
+      "description": "The transaction error produced by the program. This value is not parsed from the raw logs, but is provided by the RPC log subscription response as to why a transaction might be rejected.",
+      "type": "string"
+    },
+    "program_id": {
+      "description": "The program id of the program that produced the logs.",
+      "type": "string"
+    },
+    "parent_program_id": {
+      "description": "The program id of the program that invoked the program that produced the logs.",
+      "type": "string"
+    },
+    "depth": {
+      "description": "The depth of the program invocation. This is 1 for the first program invoked, 2 for the second, and so on.",
+      "type": "integer"
+    },
+    "id": {
+      "description": "The unique ID of the program invocation. This value is a combination of the program ID, the slot and the instruction index.",
+      "type": "integer"
+    },
+    "instruction_index": {
+      "description": "This is the index of the instruction that produced the logs. This is used to determine the order of logs produced by a program.",
+      "type": "integer"
+    },
+    "invoke_result": {
+      "description": "The result of the program invocation from logs prefixed with 'Program return'. Example: 'Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA='",
+      "type": "string"
+    },
+    "slot": {
+      "description": "The period of time for which each leader ingests transactions and produces a block.",
+      "type": "integer"
+    },
+    "signature": {
+      "description": "The signature of the transaction that invoked the program.",
+      "type": "string"
+    }
+  }
+}

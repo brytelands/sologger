@@ -1,0 +1,8 @@
+{
+    "log4rsConfigLocation": "/config/logstash-config.yml",
+    "opentelemetryConfigLocation": "/config/opentelemetry_config.json",
+    "rpcUrl": "wss://api.devnet.solana.com",
+    "programsSelector" : {
+        "programs" : ["*"]
+    }
+}

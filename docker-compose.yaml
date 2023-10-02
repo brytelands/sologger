@@ -1,0 +1,18 @@
+version: '3.7'
+
+#services:
+#  server:
+#    build:
+#      context: .
+#      target: final
+
+services:
+  sologger-logstash:
+    image: brytelands/sologger-logstash:latest
+    tty: true
+    environment:
+      SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
+      RUST_BACKTRACE: 1
+    volumes:
+      - ./config/demo/sologger-config.json:/config/sologger-config.json
+      - ./config/demo/log4rs-config.yml:/config/log4rs-config.yml

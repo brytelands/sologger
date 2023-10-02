@@ -1,0 +1,23 @@
+[package]
+name = "solana_log_transformer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Will Kennedy"]
+description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
+license = "Apache License, Version 2.0"
+repository = "https://github.com/wkennedy/solana-log-parser"
+readme = "README.md"
+keywords = ["solana", "logging", "json", "parsing"]
+categories = ["Development tools::Logging"]
+exclude=["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/.gitignore", "/.gitattributes", "/.gitmodules", "/.travis.yml", "/.cargo-ok", "/.git", "/.idea"]
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1.0.75"
+solana-rpc-client = "1.16.14"
+solana-rpc-client-api = "1.16.14"
+solana-transaction-status = "1.16.14"
+solana-sdk = "1.16.14"
+solana_log_context = { path = "../solana-log-context" }

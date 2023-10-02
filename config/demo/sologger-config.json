@@ -1,0 +1,7 @@
+{
+    "log4rsConfigLocation": "/config/log4rs-config.yml",
+    "rpcUrl": "wss://api.devnet.solana.com",
+    "programsSelector" : {
+        "programs" : ["*"]
+    }
+}

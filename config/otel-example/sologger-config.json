@@ -1,0 +1,7 @@
+{
+    "opentelemetryConfigLocation": "./config/otel-example/opentelemetry-config.json",
+    "rpcUrl": "wss://api.devnet.solana.com",
+    "programsSelector" : {
+        "programs" : ["11111111111111111111111111111111", "Config1111111111111111111111111111111111111", "Stake11111111111111111111111111111111111111", "Vote111111111111111111111111111111111111111", "BPFLoaderUpgradeab1e11111111111111111111111", "Ed25519SigVerify111111111111111111111111111", "KeccakSecp256k11111111111111111111111111111"]
+    }
+}

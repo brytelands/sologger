@@ -1,0 +1,9 @@
+{
+  "logConfig": {
+    "service.name": "basic-otlp-logging-example"
+  },
+  "endpoint": "http://localhost:4317",
+  "metricsEndpoint": "http://localhost:4318/v1/metrics",
+  "tracesEndpoint": "http://localhost:4318/v1/traces",
+  "logLevel": "info"
+}

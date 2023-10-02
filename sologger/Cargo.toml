@@ -1,0 +1,45 @@
+[package]
+name = "sologger"
+version = "0.1.0"
+edition = "2021"
+authors = ["Will Kennedy"]
+description = "Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP"
+license = "Apache License, Version 2.0"
+repository = "https://github.com/wkennedy/solana-log-parser"
+readme = "README.md"
+keywords = ["solana", "logstash", "opentelemetry", "logging"]
+categories = ["Development tools::Logging"]
+exclude=["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/.gitignore", "/.gitattributes", "/.gitmodules", "/.travis.yml", "/.cargo-ok", "/.git", "/.idea"]
+
+[lib]
+doctest = false
+
+[dependencies]
+serde_derive = "1.0.188"
+url = "2.2.2"
+log = "0.4.19"
+bs58 = "0.5.0"
+futures-util = "0.3.28"
+anyhow = "1.0.75"
+serde = { version = "1.0.171" }
+serde_json = {version = "1.0.104"}
+regex = "1.9.5"
+solana-pubsub-client = { version = "1.16.14", optional = true }
+solana-rpc-client-api = { version = "1.16.14", optional = true }
+solana-sdk = { version = "1.16.14", optional = true }
+solana_log_context = { path = "../solana-log-context" }
+solana_log_transformer = { path = "../solana-log-transformer" }
+solana_log_transport = { path = "../solana-log-transport", features = ["otel", "logstash"]}
+tokio = { version = "1.32.0", features = ["full"] }
+tokio-metrics = { version = "0.3.0", optional = true}
+tokio-rustls = "0.24.1"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+signal-hook = { version = "0.3"}
+
+[features]
+default = ["solana_client_subscriber"]
+solana_client_subscriber = ["solana-pubsub-client", "solana-rpc-client-api", "solana-sdk"]
+enable_otel = ["solana_log_transport/otel"]
+enable_logstash = ["solana_log_transport/logstash"]
+enable_tokio_rt_metrics = ["tokio-metrics"]

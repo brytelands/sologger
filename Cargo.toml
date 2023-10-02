@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "solana-log-context",
+    "solana-log-transport",
+    "solana-log-transformer",
+    "sologger"
+]

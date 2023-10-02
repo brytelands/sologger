@@ -1,0 +1,9 @@
+{
+  "logConfig": {
+    "service.name": "solana-oltp-logging-service"
+  },
+  "endpoint": "http://otel-collector:4317",
+  "metricsEndpoint": "http://otel-collector:4318/v1/metrics",
+  "tracesEndpoint": "http://otel-collector:4318/v1/traces",
+  "logLevel": "INFO"
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SologgerConfig",
+  "description": "This is the main configuration file for sologger. The location of this file is specified by the `SOLOGGER_APP_CONFIG_LOC` environment variable or as the first argument via the cargo run command.",
+  "type": "object",
+  "required": [
+    "rpcUrl"
+  ],
+  "properties": {
+    "allWithVotes": {
+      "description": "Set to true to subscribe to all transactions, including simple vote transactions. Otherwise, subscribe to all transactions except for simple vote transactions",
+      "default": false,
+      "type": "boolean"
+    },
+    "commitmentLevel": {
+      "description": "The measure of the network confirmation and stake levels on a particular block.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "log4rsConfigLocation": {
+      "description": "The location of the log4rs config file",
+      "default": "",
+      "type": "string"
+    },
+    "opentelemetryConfigLocation": {
+      "description": "The location of the opentelemetry config file",
+      "default": "",
+      "type": "string"
+    },
+    "rpcUrl": {
+      "description": "The URL of the RPC endpoint to connect to",
+      "type": "string"
+    }
+  }
+}
