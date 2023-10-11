@@ -2,8 +2,8 @@
 resolver = "2"
 
 members = [
-    "solana-log-context",
-    "solana-log-transport",
-    "solana-log-transformer",
+    "sologger-log-context",
+    "sologger-log-transport",
+    "sologger-log-transformer",
     "sologger"
 ]

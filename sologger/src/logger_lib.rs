@@ -1,4 +1,4 @@
-use solana_log_transport::opentelemetry_lib::get_otel_config;
+use sologger_log_transport::opentelemetry_lib::get_otel_config;
 use std::path::Path;
 
 use crate::sologger_config::SologgerConfig;
@@ -15,7 +15,7 @@ pub fn init_logger_logstash(sologger_config: &SologgerConfig) {
     if !Path::new(&sologger_config.log4rs_config_location).exists() {
         panic!("Log4rs config file not found");
     };
-    solana_log_transport::logstash_lib::init_logstash_logger(
+    sologger_log_transport::logstash_lib::init_logstash_logger(
         &sologger_config.log4rs_config_location,
     )
     .expect("Logger not initialized");
@@ -24,7 +24,7 @@ pub fn init_logger_logstash(sologger_config: &SologgerConfig) {
 #[cfg(feature = "enable_otel")]
 pub fn init_logger_otel(sologger_config: &SologgerConfig) {
     let config = get_otel_config(&sologger_config.opentelemetry_config_location);
-    let _ = solana_log_transport::opentelemetry_lib::init_logs_opentelemetry(&config);
+    let _ = sologger_log_transport::opentelemetry_lib::init_logs_opentelemetry(&config);
 }
 
 // #[cfg(test)]

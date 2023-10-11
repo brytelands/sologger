@@ -1,7 +1,7 @@
 use anyhow::Result;
 use log::{error, info};
 
-use solana_log_context::solana_log_context::LogContext;
+use sologger_log_context::sologger_log_context::LogContext;
 
 pub async fn log_contexts_from_logs(log_contexts: &Vec<LogContext>) -> Result<()> {
     for log_context in log_contexts {

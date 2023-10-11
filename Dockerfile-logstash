@@ -20,9 +20,9 @@ WORKDIR /app
 # Leverage a bind mount to the src directory to avoid having to copy the
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
-RUN --mount=type=bind,source=solana-log-context,target=solana-log-context \
-    --mount=type=bind,source=solana-log-transport,target=solana-log-transport \
-    --mount=type=bind,source=solana-log-transformer,target=solana-log-transformer \
+RUN --mount=type=bind,source=sologger-log-context,target=sologger-log-context \
+    --mount=type=bind,source=sologger-log-transport,target=sologger-log-transport \
+    --mount=type=bind,source=sologger-log-transformer,target=sologger-log-transformer \
     --mount=type=bind,source=sologger,target=sologger \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \

@@ -1,4 +1,4 @@
-//! # solana-log-context
+//! # sologger-log-context
 //!
 //!**Overview**
 //!
@@ -226,4 +226,4 @@
 
 pub mod programs_selector;
 mod rpc_response;
-pub mod solana_log_context;
+pub mod sologger_log_context;

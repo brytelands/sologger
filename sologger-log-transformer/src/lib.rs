@@ -1,4 +1,4 @@
-//!# solana-log-transformer
+//!# sologger-log-transformer
 //!
 //!**Overview**
 //!
@@ -11,7 +11,7 @@
 //!    let logs_contexts = from_rpc_response(&response, &ProgramsSelector::new_all_programs()).unwrap();
 //!```
 //!
-//!Please see the solana-log-context crate for more information regarding LogContext.
+//!Please see the sologger-log-context crate for more information regarding LogContext.
 
 pub mod log_context_transformer;
 

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use sologger::logger_lib::{init_logger_logstash};
+    use sologger::logger_lib::{init_logger};
     use sologger::sologger_config::SologgerConfig;
 
     #[tokio::test]
@@ -18,6 +18,6 @@ mod tests {
         );
         println!("current dir: {:?}", std::env::current_dir());
         let sologger_config = serde_json::from_value::<SologgerConfig>(config).unwrap();
-        init_logger_logstash(&sologger_config);
+        init_logger(&sologger_config);
     }
 }

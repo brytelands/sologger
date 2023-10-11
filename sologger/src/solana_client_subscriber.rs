@@ -2,8 +2,8 @@ use crate::log_processor::log_contexts_from_logs;
 use anyhow::Result;
 use futures_util::StreamExt;
 use log::trace;
-use solana_log_context::programs_selector::ProgramsSelector;
-use solana_log_context::solana_log_context::LogContext;
+use sologger_log_context::programs_selector::ProgramsSelector;
+use sologger_log_context::sologger_log_context::LogContext;
 use solana_pubsub_client::nonblocking::pubsub_client::PubsubClient;
 use solana_rpc_client_api::config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter};
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::unbounded_channel;
-use solana_log_transformer::log_context_transformer::from_rpc_response;
+use sologger_log_transformer::log_context_transformer::from_rpc_response;
 use crate::sologger_config::SologgerConfig;
 
 #[cfg(feature = "solana_client_subscriber")]

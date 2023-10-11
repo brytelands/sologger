@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::Result;
 use log::{trace, Log};
 
-use solana_log_context::programs_selector::ProgramsSelector;
+use sologger_log_context::programs_selector::ProgramsSelector;
 use sologger::log_subscriber;
 use sologger::logger_lib::init_logger;
 use sologger::sologger_config::SologgerConfig;

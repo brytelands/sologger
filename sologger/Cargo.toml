@@ -27,9 +27,9 @@ regex = "1.9.5"
 solana-pubsub-client = { version = "1.16.14", optional = true }
 solana-rpc-client-api = { version = "1.16.14", optional = true }
 solana-sdk = { version = "1.16.14", optional = true }
-solana_log_context = { path = "../solana-log-context" }
-solana_log_transformer = { path = "../solana-log-transformer" }
-solana_log_transport = { path = "../solana-log-transport", features = ["otel", "logstash"]}
+sologger_log_context = { path = "../sologger-log-context" }
+sologger_log_transformer = { path = "../sologger-log-transformer" }
+sologger_log_transport = { path = "../sologger-log-transport", features = ["otel", "logstash"]}
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-metrics = { version = "0.3.0", optional = true}
 tokio-rustls = "0.24.1"
@@ -40,6 +40,6 @@ signal-hook = { version = "0.3"}
 [features]
 default = ["solana_client_subscriber"]
 solana_client_subscriber = ["solana-pubsub-client", "solana-rpc-client-api", "solana-sdk"]
-enable_otel = ["solana_log_transport/otel"]
-enable_logstash = ["solana_log_transport/logstash"]
+enable_otel = ["sologger_log_transport/otel"]
+enable_logstash = ["sologger_log_transport/logstash"]
 enable_tokio_rt_metrics = ["tokio-metrics"]

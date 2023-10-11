@@ -1,4 +1,4 @@
-use solana_log_transport::logstash_lib::init_logstash_logger;
+use sologger_log_transport::logstash_lib::init_logstash_logger;
 use crate::a::foo;
 
 #[test]

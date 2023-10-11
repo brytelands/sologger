@@ -1,4 +1,4 @@
-# solana-log-context
+# sologger-log-context
 
 **Overview**
 

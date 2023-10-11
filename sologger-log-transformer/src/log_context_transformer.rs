@@ -8,8 +8,8 @@ use solana_transaction_status::{
     VersionedConfirmedBlock, VersionedTransactionWithStatusMeta,
 };
 
-use solana_log_context::programs_selector::ProgramsSelector;
-use solana_log_context::solana_log_context::LogContext;
+use sologger_log_context::programs_selector::ProgramsSelector;
+use sologger_log_context::sologger_log_context::LogContext;
 
 /// Extracts log messages from a VersionedConfirmedBlock and returns a vector of LogContexts
 pub fn from_version_confirmed_block(
@@ -113,8 +113,8 @@ pub fn from_encoded_transaction(
         slot,
         signature.to_string(),
     );
-    for solana_log_context in log_contexts {
-        block_log_contexts.push(solana_log_context);
+    for sologger_log_context in log_contexts {
+        block_log_contexts.push(sologger_log_context);
     }
     Ok(block_log_contexts)
 }
@@ -147,8 +147,8 @@ pub fn from_encoded_confirmed_transaction(
 
     let log_contexts =
         LogContext::parse_logs(&logs, transaction_error, program_selector, slot, signature);
-    for solana_log_context in log_contexts {
-        block_log_contexts.push(solana_log_context);
+    for sologger_log_context in log_contexts {
+        block_log_contexts.push(sologger_log_context);
     }
     Ok(block_log_contexts)
 }
@@ -177,8 +177,8 @@ pub fn from_transaction(
         slot,
         signature.to_string(),
     );
-    for solana_log_context in log_contexts {
-        block_log_contexts.push(solana_log_context);
+    for sologger_log_context in log_contexts {
+        block_log_contexts.push(sologger_log_context);
     }
     Ok(block_log_contexts)
 }
@@ -207,8 +207,8 @@ pub fn from_versioned_transaction(
         slot,
         signature.to_string(),
     );
-    for solana_log_context in log_contexts {
-        block_log_contexts.push(solana_log_context);
+    for sologger_log_context in log_contexts {
+        block_log_contexts.push(sologger_log_context);
     }
     Ok(block_log_contexts)
 }
@@ -287,7 +287,7 @@ mod tests {
         from_encoded_confirmed_block, from_encoded_confirmed_transaction, from_rpc_logs_response,
         from_rpc_response, from_ui_confirmed_block, from_version_confirmed_block,
     };
-    use solana_log_context::programs_selector::ProgramsSelector;
+    use sologger_log_context::programs_selector::ProgramsSelector;
 
     #[test]
     fn test_block() {

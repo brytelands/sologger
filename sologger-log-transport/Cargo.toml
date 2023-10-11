@@ -1,11 +1,11 @@
 [package]
-name = "solana_log_transport"
+name = "sologger_log_transport"
 version = "0.1.0"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides support for both LogStash and OpenTelemetry exports for logs."
 license = "Apache License, Version 2.0"
-repository = "https://github.com/wkennedy/solana-log-parser"
+repository = "https://github.com/brytelands/sologger"
 readme = "README.md"
 keywords = ["solana", "logstash", "opentelemetry", "logging"]
 categories = ["Development tools::Logging"]

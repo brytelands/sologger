@@ -474,7 +474,7 @@ fn trim_whitespace(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::programs_selector::ProgramsSelector;
-    use crate::solana_log_context::LogContext;
+    use crate::sologger_log_context::LogContext;
     use std::time::SystemTime;
 
     //TODO fix test for ID

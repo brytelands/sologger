@@ -1,4 +1,4 @@
-//!# solana-log-transport
+//!# sologger-log-transport
 //!
 //!**Overview**
 //!

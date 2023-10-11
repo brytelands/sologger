@@ -1,11 +1,11 @@
 [package]
-name = "solana_log_transformer"
+name = "sologger_log_context"
 version = "0.1.0"
 edition = "2021"
 authors = ["Will Kennedy"]
-description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
+description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
 license = "Apache License, Version 2.0"
-repository = "https://github.com/wkennedy/solana-log-parser"
+repository = "https://github.com/brytelands/sologger"
 readme = "README.md"
 keywords = ["solana", "logging", "json", "parsing"]
 categories = ["Development tools::Logging"]
@@ -15,9 +15,10 @@ exclude=["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/.g
 doctest = false
 
 [dependencies]
-anyhow = "1.0.75"
-solana-rpc-client = "1.16.14"
-solana-rpc-client-api = "1.16.14"
-solana-transaction-status = "1.16.14"
-solana-sdk = "1.16.14"
-solana_log_context = { path = "../solana-log-context" }
+log = "0.4.19"
+regex = { version = "1.9.5" }
+serde = { version = "1.0.188", features = ["serde_derive", "derive"]}
+serde_json = {version = "1.0.107"}
+serde_derive = "1.0.188"
+bs58 = "0.5.0"
+lazy_static = "1.4.0"
