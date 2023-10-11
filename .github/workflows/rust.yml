@@ -35,7 +35,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: llvm-cov
-          args: --features 'enable_logstash' --workspace --lcov --output-path lcov.info
+          args: --features 'enable_logstash logstash otel' --workspace --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
