@@ -66,4 +66,21 @@ docker run -d -t --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml
 docker run -d -t -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json sologger-logstash
 ```
 
+### Libraries
+
+If you don't want to use Sologger and want help parsing logs in your application, then you can use the following libraries:
+
+**sologger-log-context**
+
+This library provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs.
+
+**sologger**-log-transformer
+
+This library provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses.
+
+**sologger-log-transport**
+
+This is a library that provides support for both LogStash and OpenTelemetry exports for logs.
+
+
 
