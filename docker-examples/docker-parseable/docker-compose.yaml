@@ -6,35 +6,32 @@ networks:
 services:
 
   parseable:
-    image: parseable/parseable:latest
-    command: ["parseable", "s3-store"]
+    image: parseable/parseable
+    command: ["parseable", "local-store"]
     ports:
-     - "80:80"
+      - "8000:8000"
     environment:
+      - P_FS_DIR=/parseable/data
       - P_STAGING_DIR=/parseable/staging
       - P_USERNAME=admin
-      - P_PASSWORD=
-      - P_S3_URL=https://s3.amazonaws.com
-      - P_S3_BUCKET=sologger-parseable
-      - P_S3_ACCESS_KEY=
-      - P_S3_SECRET_KEY=
-      - P_S3_REGION=us-east-1
+      - P_PASSWORD=admin
     networks:
       - parseable
     volumes:
+      - ./data:/parseable/data
       - ./staging:/parseable/staging
 
   logstash:
     image: docker.elastic.co/logstash/logstash-oss:8.10.0-amd64
     ports:
-      - 9200:9200
-      - 50000:50000/tcp
-      - 50000:50000/udp
+      - "9200:9200"
+      - "50000:50000/tcp"
+      - "50000:50000/udp"
     command: logstash -f /etc/logstash/conf.d/logstash.conf
     volumes:
       - ./logstash.conf:/etc/logstash/conf.d/logstash.conf
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
     networks:
       - parseable
     depends_on:

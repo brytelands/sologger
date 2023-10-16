@@ -14,4 +14,12 @@ docker compose up
 
 **View Logs**
 
-Go to http://localhost:8000/login and login with the user name admin and the password admin. The click on the logs link in the left hand navigation bar (http://localhost:8000/logstashlogs/logs). You should see a list of logs. Click on the log to see the details.
+Go to http://localhost:8000/login and login with the user name admin and the password admin. The click on the logs link in the left hand navigation bar (http://localhost:8000/solanadevnet/logs). You should see a list of logs. Click on the log to see the details.
+
+**Query Logs**
+
+Here is an example of how to query data using the UI:
+
+```sql
+SELECT solana_data_program_id, solana_data_transaction_error, solana_data_errors, solana_data_raw_logs FROM solanadevnet where "level" = 'ERROR';
+```
