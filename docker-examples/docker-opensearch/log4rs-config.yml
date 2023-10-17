@@ -10,11 +10,17 @@ appenders:
     extra_fields:
       node_id: "5D1fNXzvv5NjV1ysLjirC4WY92RNsVH18vjmcszZd8on"
       node_name: "solana-devnet-logs"
+
+# This is where you want to set your log level for your sologger instance. This will set the log level
+# for the sologger application itself. This is useful for debugging sologger.
 root:
   level: error
   appenders:
     - logstash
 
+# This is where you want to set your log level for your on-chain application.
+# There are only two levels to set here: info and error. To listen to all logs emitted from your
+# Solana program, set the level to info. If you only want to listen to errors, set the level to error.
 loggers:
   sologger::log_processor:
     level: info
