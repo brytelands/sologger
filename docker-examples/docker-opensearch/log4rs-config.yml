@@ -14,3 +14,10 @@ root:
   level: error
   appenders:
     - logstash
+
+loggers:
+  sologger::log_processor:
+    level: info
+    appenders:
+      - logstash
+    additive: false

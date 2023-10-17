@@ -20,8 +20,8 @@ services:
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
     ports:
-      - 9200:9200 # REST API
-      - 9600:9600 # Performance Analyzer
+      - "9200:9200" # REST API
+      - "9600:9600" # Performance Analyzer
     networks:
       - opensearch-net # All of the containers will join the same Docker bridge network
   opensearch-node2:
@@ -49,7 +49,7 @@ services:
     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     container_name: opensearch-dashboards
     ports:
-      - 5601:5601 # Map host port 5601 to container port 5601
+      - "5601:5601" # Map host port 5601 to container port 5601
     expose:
       - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
     environment:
@@ -59,20 +59,20 @@ services:
   logstash:
     image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.9.0
     ports:
-      - 50000:50000/tcp
-      - 50000:50000/udp
+      - "50000:50000/tcp"
+      - "50000:50000/udp"
     command: logstash -f /etc/logstash/conf.d/logstash.conf
     volumes:
       - ./logstash.conf:/etc/logstash/conf.d/logstash.conf
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
     networks:
       - opensearch-net
     depends_on:
       - opensearch-node1
 
   sologger-logstash:
-    image: sologger-logstash:latest
+    image: brytelands/sologger-logstash:latest
     tty: true
     environment:
       SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
