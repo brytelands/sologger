@@ -6,7 +6,7 @@ sologger is a group of libraries and binaries that can be used to parse raw logs
 
 **Demo video using Sologger with OpenSearch**
 
-![Demo video](https://youtu.be/eYz7gHfTzl0)
+[![Watch the demo](https://img.youtube.com/vi/eYz7gHfTzl0/hqdefault.jpg)](https://www.youtube.com/embed/eYz7gHfTzl0)
 
 ### Quick Start
 
