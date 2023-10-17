@@ -4,11 +4,16 @@
 
 sologger is a group of libraries and binaries that can be used to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP. This helps improve the observability of your programs running on chain.
 
+**Demo video using Sologger with OpenSearch**
+
+![Demo video](https://youtu.be/eYz7gHfTzl0)
+
 ### Quick Start
 
 If you just want to run Sologger with a log mangement system, then you can use one of the following docker compose files to get up and running quickly.
 
 - [sologger with Parseable](./docker-examples/docker-parseable/) This is the easiest way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
+- [sologger with Opensearch](./docker-examples/docker-opensearch/) This is the preferred way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
 
 ### Build
 
