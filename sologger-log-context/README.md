@@ -14,7 +14,7 @@ This library provides functionality to turn raw logs output by Solana RPCs into 
     let log_contexts = LogContext::parse_logs(&logs, "".to_string(), &programs_selector, 1, "12345".to_string());
 ```
 
-These json schema for the log context can be found here: [LogC-schema](LogContext-schema.json)
+These json schema for the log context can be found here: [LogContext-schema](LogContext-schema.json)
 
 For example, if we have a list of raw logs retrieved from the Solana RPC, we can parse them into structured logs using the LogContext::parse_logs function. The first parameter is the raw logs, the second parameter is the program ID, the third parameter is the programs selector, the fourth parameter is the slot, and the fifth parameter is the signature.
 
