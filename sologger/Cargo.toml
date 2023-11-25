@@ -1,6 +1,6 @@
 [package]
 name = "sologger"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP"
@@ -24,9 +24,9 @@ anyhow = "1.0.75"
 serde = { version = "1.0.171" }
 serde_json = {version = "1.0.104"}
 regex = "1.9.5"
-solana-pubsub-client = { version = "1.16.14", optional = true }
-solana-rpc-client-api = { version = "1.16.14", optional = true }
-solana-sdk = { version = "1.16.14", optional = true }
+solana-pubsub-client = { version = "1.16.20", optional = true }
+solana-rpc-client-api = { version = "1.16.20", optional = true }
+solana-sdk = { version = "1.16.20", optional = true }
 sologger_log_context = "0.1.0"
 sologger_log_transformer = "0.1.0"
 sologger_log_transport = { version = "0.1.0", features = ["otel", "logstash"]}

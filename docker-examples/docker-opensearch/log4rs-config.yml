@@ -23,7 +23,7 @@ root:
 # Solana program, set the level to info. If you only want to listen to errors, set the level to error.
 loggers:
   sologger::log_processor:
-    level: error
+    level: info
     appenders:
       - logstash
     additive: false
