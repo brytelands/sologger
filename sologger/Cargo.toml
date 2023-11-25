@@ -28,7 +28,7 @@ solana-pubsub-client = { version = "1.16.20", optional = true }
 solana-rpc-client-api = { version = "1.16.20", optional = true }
 solana-sdk = { version = "1.16.20", optional = true }
 sologger_log_context = "0.1.0"
-sologger_log_transformer = "0.1.0"
+sologger_log_transformer = "0.1.1"
 sologger_log_transport = { version = "0.1.0", features = ["otel", "logstash"]}
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-metrics = { version = "0.3.0", optional = true}
