@@ -3,10 +3,9 @@ use std::str::FromStr;
 
 use anyhow::Result as AnyResult;
 use log::{Level, trace};
-use opentelemetry_api::{Key, KeyValue, metrics, trace::Tracer};
-use opentelemetry_api::global::logger_provider;
-use opentelemetry_api::logs::LogError;
-use opentelemetry_api::trace::TraceError;
+use opentelemetry::{Key, KeyValue, metrics, trace::Tracer};
+use opentelemetry::global::logger_provider;
+use opentelemetry::logs::LogError;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{Protocol, WithExportConfig};
 use opentelemetry_sdk::{Resource, runtime, trace as sdktrace};
@@ -64,7 +63,7 @@ pub fn init_logs_opentelemetry(
 
 // TODO add configuration
 #[cfg(feature = "otel")]
-pub fn init_tracer( config: &OpentelemetryConfig) -> Result<sdktrace::Tracer, TraceError> {
+pub fn init_tracer(config: &OpentelemetryConfig) -> Result<opentelemetry_sdk::trace::Tracer, opentelemetry::trace::TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
@@ -81,7 +80,7 @@ pub fn init_tracer( config: &OpentelemetryConfig) -> Result<sdktrace::Tracer, Tr
 
 // TODO add configuration
 #[cfg(feature = "otel")]
-pub fn init_metrics(config: &OpentelemetryConfig) -> metrics::Result<MeterProvider> {
+pub fn init_metrics(config: &OpentelemetryConfig) -> opentelemetry::metrics::Result<MeterProvider> {
     let export_config = opentelemetry_otlp::ExportConfig {
         endpoint: config.metrics_endpoint.to_string(),
         protocol: Protocol::Grpc,
