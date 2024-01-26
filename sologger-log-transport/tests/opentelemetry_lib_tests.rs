@@ -1,4 +1,4 @@
-use opentelemetry_api::logs::LoggerProvider;
+use opentelemetry::logs::LoggerProvider;
 use sologger_log_transport::opentelemetry_lib::{get_otel_config, init_logs_opentelemetry_with_config_path, init_metrics, init_tracer};
 
 #[tokio::test]
