@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_context"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
@@ -16,7 +16,7 @@ doctest = false
 
 [dependencies]
 log = "0.4.19"
-regex = { version = "1.9.5" }
+regex = { version = "1.10.3" }
 serde = { version = "1.0.188", features = ["serde_derive", "derive"]}
 serde_json = {version = "1.0.107"}
 serde_derive = "1.0.188"
