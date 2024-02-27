@@ -6,7 +6,7 @@ networks:
 services:
 
   parseable:
-    image: parseable/parseable
+    image: parseable/parseable:latest
     command: ["parseable", "local-store"]
     ports:
       - "8000:8000"

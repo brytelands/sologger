@@ -24,9 +24,9 @@ anyhow = "1.0.79"
 serde = { version = "1.0.171" }
 serde_json = {version = "1.0.104"}
 regex = "1.10.3"
-solana-pubsub-client = { version = "1.17.17", optional = true }
-solana-rpc-client-api = { version = "1.17.17", optional = true }
-solana-sdk = { version = "1.17.17", optional = true }
+solana-pubsub-client = { version = "1.17.23", optional = true }
+solana-rpc-client-api = { version = "1.17.23", optional = true }
+solana-sdk = { version = "1.17.23", optional = true }
 sologger_log_context = "0.1.1"
 sologger_log_transformer = "0.1.2"
 sologger_log_transport = { version = "0.1.1", features = ["otel", "logstash"]}
