@@ -16,8 +16,8 @@ doctest = false
 
 [dependencies]
 anyhow = "1.0.79"
-solana-rpc-client = "1.17.17"
-solana-rpc-client-api = "1.17.17"
-solana-transaction-status = "1.17.17"
-solana-sdk = "1.17.17"
+solana-rpc-client = "1.17.23"
+solana-rpc-client-api = "1.17.23"
+solana-transaction-status = "1.17.23"
+solana-sdk = "1.17.23"
 sologger_log_context = "0.1.1"
