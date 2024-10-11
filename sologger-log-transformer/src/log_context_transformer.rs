@@ -270,6 +270,7 @@ mod tests {
     use solana_rpc_client::rpc_client::RpcClient;
     use solana_rpc_client_api::config::{RpcBlockConfig, RpcTransactionConfig};
     use solana_rpc_client_api::response::{Response, RpcLogsResponse, RpcResponseContext};
+    use solana_sdk::clock::UnixTimestamp;
     use solana_sdk::commitment_config::CommitmentConfig;
     use solana_sdk::signature::{Keypair, Signature, Signer};
     use solana_sdk::system_transaction;
@@ -336,6 +337,7 @@ mod tests {
             transactions: Some(vec![transaction]),
             signatures: None,
             rewards: None,
+            num_reward_partitions: Some(1),
             block_time: None,
             block_height: None,
         };
@@ -471,8 +473,9 @@ mod tests {
             parent_slot: 0,
             transactions: vec![transaction_with_status_meta],
             rewards: vec![],
-            block_time: None,
-            block_height: None,
+            num_partitions: Some(1),
+            block_time: Some(UnixTimestamp::default()),
+            block_height: Some(100),
         };
         let logs_contexts = from_version_confirmed_block(
             confirmed_block,
@@ -528,8 +531,9 @@ mod tests {
             parent_slot: 0,
             transactions: vec![transaction],
             rewards: vec![],
-            block_time: None,
-            block_height: None,
+            num_partitions: Some(1),
+            block_time: Some(UnixTimestamp::default()),
+            block_height: Some(100),
         };
         let logs_contexts = from_encoded_confirmed_block(
             confirmed_block,
