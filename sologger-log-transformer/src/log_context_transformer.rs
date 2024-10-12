@@ -272,22 +272,15 @@ mod tests {
     use solana_rpc_client_api::response::{Response, RpcLogsResponse, RpcResponseContext};
     use solana_sdk::clock::UnixTimestamp;
     use solana_sdk::commitment_config::CommitmentConfig;
+    use solana_sdk::instruction::InstructionError;
+    use solana_sdk::message::Message;
     use solana_sdk::signature::{Keypair, Signature, Signer};
     use solana_sdk::system_transaction;
-    use solana_sdk::transaction::VersionedTransaction;
+    use solana_sdk::transaction::{Transaction, TransactionError, VersionedTransaction};
     use solana_transaction_status::option_serializer::OptionSerializer;
-    use solana_transaction_status::{
-        EncodedConfirmedBlock,
-        EncodedTransaction, EncodedTransactionWithStatusMeta, TransactionDetails,
-        TransactionStatusMeta, UiConfirmedBlock, UiMessage, UiParsedMessage, UiTransaction,
-        UiTransactionEncoding, UiTransactionStatusMeta, VersionedConfirmedBlock,
-        VersionedTransactionWithStatusMeta,
-    };
+    use solana_transaction_status::{ConfirmedBlock, EncodedConfirmedBlock, EncodedTransaction, EncodedTransactionWithStatusMeta, TransactionDetails, TransactionStatusMeta, UiConfirmedBlock, UiMessage, UiParsedMessage, UiRawMessage, UiTransaction, UiTransactionEncoding, UiTransactionStatusMeta, VersionedConfirmedBlock, VersionedTransactionWithStatusMeta};
 
-    use crate::log_context_transformer::{
-        from_encoded_confirmed_block, from_encoded_confirmed_transaction, from_rpc_logs_response,
-        from_rpc_response, from_ui_confirmed_block, from_version_confirmed_block,
-    };
+    use crate::log_context_transformer::{from_confirmed_block, from_encoded_confirmed_block, from_encoded_confirmed_transaction, from_encoded_transaction, from_rpc_logs_response, from_rpc_response, from_ui_confirmed_block, from_version_confirmed_block};
     use sologger_log_context::programs_selector::ProgramsSelector;
 
     #[test]
@@ -544,4 +537,52 @@ mod tests {
 
         assert_eq!(logs_contexts.len(), 1);
     }
+
+    // Test for error cases in from_encoded_transaction
+    #[test]
+    fn test_from_encoded_transaction_error_cases() {
+        let signature = Signature::new_unique();
+        let ui_raw_message = UiRawMessage {
+            header: Default::default(),
+            account_keys: vec![],
+            recent_blockhash: "".to_string(),
+            instructions: vec![],
+            address_table_lookups: None,
+        };
+        let ui_transaction = UiTransaction {
+            signatures: vec![signature.to_string()],
+            message: UiMessage::Raw(ui_raw_message),
+        };
+        let transaction_status_meta = UiTransactionStatusMeta {
+            err: Some(TransactionError::AccountNotFound),
+            status: Err(TransactionError::AccountNotFound),
+            fee: 0,
+            pre_balances: vec![],
+            post_balances: vec![],
+            inner_instructions: OptionSerializer::None,
+            log_messages: OptionSerializer::None,
+            pre_token_balances: OptionSerializer::None,
+            post_token_balances: OptionSerializer::None,
+            rewards: OptionSerializer::None,
+            loaded_addresses: OptionSerializer::None,
+            return_data: OptionSerializer::None,
+            compute_units_consumed: OptionSerializer::None,
+        };
+        let transaction = EncodedTransactionWithStatusMeta {
+            transaction: EncodedTransaction::Json(ui_transaction),
+            meta: Some(transaction_status_meta),
+            version: None,
+        };
+
+        let result = from_encoded_transaction(
+            &transaction,
+            123,
+            &ProgramsSelector::new_all_programs(),
+        )
+            .unwrap();
+
+        assert_eq!(result.len(), 0);
+        // You might want to add more assertions here to check the error handling
+    }
+    
 }
