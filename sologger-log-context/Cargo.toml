@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_context"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
@@ -15,10 +15,17 @@ exclude=["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/.g
 doctest = false
 
 [dependencies]
-log = "0.4.21"
-regex = { version = "1.10.4" }
-serde = { version = "1.0.197", features = ["serde_derive", "derive"]}
-serde_json = {version = "1.0.115"}
-serde_derive = "1.0.197"
-bs58 = "0.5.0"
-lazy_static = "1.4.0"
+log = "0.4.22"
+regex = { version = "1.11.0" }
+serde = { version = "1.0.210", features = ["serde_derive", "derive"]}
+serde_json = {version = "1.0.128"}
+serde_derive = "1.0.210"
+bs58 = "0.5.1"
+lazy_static = "1.5.0"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "log_context_benchmarks"
+harness = false

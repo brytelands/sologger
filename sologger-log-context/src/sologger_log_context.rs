@@ -1149,4 +1149,165 @@ mod tests {
 
         let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
     }
+
+
+    #[test]
+    fn log_parser_empty_logs_test() {
+        let logs: Vec<String> = vec![];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert!(log_contexts.is_empty());
+    }
+
+    #[test]
+    fn log_parser_nested_invocations_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program B222222222222222222222222222222222222222 invoke [2]".to_string(),
+            "Program C333333333333333333333333333333333333333 invoke [3]".to_string(),
+            "Program C333333333333333333333333333333333333333 success".to_string(),
+            "Program B222222222222222222222222222222222222222 success".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 3);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
+        assert_eq!(log_contexts[2].program_id, "C333333333333333333333333333333333333333");
+        assert_eq!(log_contexts[0].depth, 1);
+        assert_eq!(log_contexts[1].depth, 2);
+        assert_eq!(log_contexts[2].depth, 3);
+    }
+
+    #[test]
+    fn log_parser_mismatched_invoke_success_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program B222222222222222222222222222222222222222 invoke [2]".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 2);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
+    }
+
+    #[test]
+    fn log_parser_program_return_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program return: A111111111111111111111111111111111111111 SomeReturnValue".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 1);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[0].invoke_result, "SomeReturnValue");
+    }
+
+    #[test]
+    fn log_parser_program_consumption_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program consumption: 50000".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 1);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[0].raw_logs.len(), 3);
+        assert!(log_contexts[0].raw_logs.contains(&"Program consumption: 50000".to_string()));
+    }
+
+    #[test]
+    fn log_parser_multiple_instructions_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+            "Program B222222222222222222222222222222222222222 invoke [1]".to_string(),
+            "Program B222222222222222222222222222222222222222 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 2);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
+        assert_eq!(log_contexts[0].instruction_index, 0);
+        assert_eq!(log_contexts[1].instruction_index, 1);
+    }
+
+    #[test]
+    fn log_parser_transaction_error_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program A111111111111111111111111111111111111111 failed: custom program error: 0x1".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "Transaction failed".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 1);
+        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(log_contexts[0].transaction_error, "Transaction failed");
+        assert_eq!(log_contexts[0].errors.len(), 1);
+        assert_eq!(log_contexts[0].errors[0], "custom program error: 0x1");
+    }
 }

@@ -7,7 +7,7 @@
 ################################################################################
 # Create a stage for building the application.
 
-ARG RUST_VERSION=1.77.0
+ARG RUST_VERSION=1.81.0
 ARG APP_NAME=sologger
 FROM rust:${RUST_VERSION}-slim-bookworm AS build
 ARG APP_NAME

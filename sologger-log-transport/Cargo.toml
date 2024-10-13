@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transport"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides support for both LogStash and OpenTelemetry exports for logs."
@@ -16,23 +16,23 @@ doctest = false
 
 [dependencies]
 log = "0.4.19"
-opentelemetry-otlp = {version = "0.14.0", features = ["grpc-tonic", "http", "opentelemetry-http", "reqwest-client", "tonic", "logs", "metrics", "trace"], optional = true}
-opentelemetry-appender-log = {version = "0.2.0", default-features = false, optional = true}
-opentelemetry = {version = "0.21.0", features = ["logs", "metrics", "trace"]}
-opentelemetry_sdk = {version = "0.21.2", features = ["rt-tokio", "metrics", "logs", "trace"], optional = true}
-opentelemetry-stdout = {version = "0.2.0", features = ["logs", "metrics", "trace"], optional = true}
+opentelemetry-otlp = {version = "0.26.0", features = ["grpc-tonic", "http", "opentelemetry-http", "reqwest-client", "tonic", "logs", "metrics", "trace"], optional = true}
+opentelemetry-appender-log = {version = "0.26.0", default-features = false, optional = true}
+opentelemetry = {version = "0.26.0", features = ["logs", "metrics", "trace"]}
+opentelemetry_sdk = {version = "0.26.0", features = ["rt-tokio", "metrics", "logs", "trace"], optional = true}
+opentelemetry-stdout = {version = "0.26.0", features = ["logs", "metrics", "trace"], optional = true}
 opentelemetry_api = { version = "0.20.0", features = ["metrics", "logs", "trace"], optional = true}
-opentelemetry-semantic-conventions = {version = "0.13.0", optional = true}
+opentelemetry-semantic-conventions = {version = "0.26.0", optional = true}
 qoollo-logstash-rs = { version = "0.2.0", optional = true }
 qoollo-log4rs-logstash = { version = "0.2.0", optional = true }
-log4rs = { version = "1.3.0", features = ["json_format"] }
-anyhow = "1.0.81"
-serde = "1.0.197"
-serde_json = "1.0.115"
+log4rs = { version = "1.3.0", features = ["json_format", "serde_json", "config_parsing"] }
+anyhow = "1.0.89"
+serde = "1.0.210"
+serde_json = "1.0.128"
 
 [dev-dependencies]
 tokio-test = "0.4.3"
-tokio = { version = "1.32.0", features = ["macros"] }
+tokio = { version = "1.40.0", features = ["macros"] }
 
 [features]
 logstash = ["qoollo-logstash-rs", "qoollo-log4rs-logstash"]
