@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transformer"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
@@ -20,10 +20,10 @@ solana-rpc-client = "2.0.13"
 solana-rpc-client-api = "2.0.13"
 solana-transaction-status = "2.0.13"
 solana-sdk = "2.0.13"
-sologger_log_context = {path = "../sologger-log-context"}
+sologger_log_context = "0.2.0"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5.1"
 
 [[bench]]
 name = "log_context_transformer_benchmarks"
