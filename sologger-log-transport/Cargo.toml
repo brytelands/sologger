@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transport"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides support for both LogStash and OpenTelemetry exports for logs."
