@@ -5,13 +5,18 @@ use sologger_log_context::sologger_log_context::LogContext;
 fn generate_sample_logs(n: usize) -> Vec<String> {
     let mut logs = Vec::with_capacity(n);
     for i in 0..n {
-        logs.push(format!("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 invoke [1]"));
-        logs.push(format!("Program log: Instruction: Initialize {}", i));
-        logs.push(format!("Program 11111111111111111111111111111111 invoke [2]"));
-        logs.push(format!("Program 11111111111111111111111111111111 success"));
-        logs.push(format!("Program log: Initialized new event. Current value {}", i));
-        logs.push(format!("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 consumed 59783 of 200000 compute units"));
-        logs.push(format!("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 success"));
+        logs.push("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 invoke [1]".to_string());
+        logs.push("Program log: Instruction: Initialize".to_string());
+        logs.push("Program 11111111111111111111111111111111 invoke [2]".to_string());
+        logs.push("Program 11111111111111111111111111111111 success".to_string());
+        logs.push("Program log: Initialized new event. Current value".to_string());
+        logs.push("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 consumed 59783 of 200000 compute units".to_string());
+        logs.push("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 success".to_string());
+        logs.push("Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]".to_string());
+        logs.push("Program log: Create".to_string());
+        logs.push("Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 5475 of 200000 compute units".to_string());
+        logs.push("Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)".to_string());
+        logs.push("Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to complete".to_string());
     }
     logs
 }
