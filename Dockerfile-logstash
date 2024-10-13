@@ -26,7 +26,8 @@ RUN --mount=type=bind,source=sologger-log-context,target=sologger-log-context \
     --mount=type=bind,source=sologger,target=sologger \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
-    --mount=type=bind,source=config/docker,target=config/docker \
+    --mount=type=bind,source=config/docker/,target=config \
+    --mount=type=bind,source=config,target=config \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
