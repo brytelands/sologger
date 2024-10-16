@@ -1,6 +1,6 @@
 [package]
 name = "sologger"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP"
@@ -27,7 +27,7 @@ regex = "1.11.0"
 solana-pubsub-client = { version = "2.0.13", optional = true }
 solana-rpc-client-api = { version = "2.0.13", optional = true }
 solana-sdk = { version = "2.0.13", optional = true }
-sologger_log_context = "0.2.0"
+sologger_log_context = "0.2.1"
 sologger_log_transformer = "0.2.0"
 sologger_log_transport = "0.2.0"
 tokio = { version = "1.40.0", features = ["full"] }

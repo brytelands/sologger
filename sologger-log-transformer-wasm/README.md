@@ -2,7 +2,7 @@
 
 **Overview**
 
-This library provides utility to extract and structure logs from Solana API logSubscribe responses.
+This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support.
 
 **Example Usage**
 
