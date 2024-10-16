@@ -1,9 +1,9 @@
 [package]
-name = "sologger_log_transformer"
+name = "sologger_log_transformer_wasm"
 version = "0.2.1"
 edition = "2021"
 authors = ["Will Kennedy"]
-description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
+description = "This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support."
 license = "Apache-2.0"
 repository = "https://github.com/brytelands/sologger"
 readme = "README.md"
@@ -12,19 +12,21 @@ categories = ["development-tools::debugging"]
 exclude=["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/.gitignore", "/.gitattributes", "/.gitmodules", "/.travis.yml", "/.cargo-ok", "/.git", "/.idea"]
 
 [lib]
+crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
 anyhow = "1.0.89"
-solana-rpc-client = "2.0.13"
-solana-rpc-client-api = "2.0.13"
-solana-transaction-status = "2.0.13"
-solana-sdk = "2.0.13"
 sologger_log_context = "0.2.1"
+serde = {version = "1.0.210", features = ["derive"]}
+serde_derive = "1.0.210"
+thiserror = "1.0.64"
+semver = "1.0.23"
+serde-wasm-bindgen = "0.6.5"
+web-sys = { version = "0.3", features = ["console"] }
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2.95"
 
 [dev-dependencies]
-criterion = "0.5.1"
-
-[[bench]]
-name = "log_context_transformer_benchmarks"
-harness = false
+wasm-bindgen-test = "0.3"
+serde_json = "1.0"

@@ -224,6 +224,46 @@
 //!}
 //!```
 
+use wasm_bindgen::JsValue;
+use wasm_bindgen::prelude::wasm_bindgen;
+use crate::programs_selector::ProgramsSelector;
+use crate::sologger_log_context::LogContext;
+
 pub mod programs_selector;
 mod rpc_response;
 pub mod sologger_log_context;
+
+#[wasm_bindgen]
+pub struct WasmLogParser {
+    programs_selector: ProgramsSelector,
+}
+
+#[wasm_bindgen]
+impl WasmLogParser {
+    #[wasm_bindgen(constructor)]
+    pub fn new(program_ids: Vec<String>) -> Self {
+        console_error_panic_hook::set_once();
+        Self {
+            programs_selector: ProgramsSelector::new(&program_ids),
+        }
+    }
+
+    pub fn parse_logs(&self, logs: Vec<String>, transaction_error: String, slot: u64, signature: String) -> JsValue {
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            transaction_error,
+            &self.programs_selector,
+            slot,
+            signature,
+        );
+        serde_wasm_bindgen::to_value(&log_contexts).unwrap()
+    }
+}
+
+#[wasm_bindgen]
+pub fn parse_logs_basic(logs: Vec<String>, program_ids: Vec<String>) -> JsValue {
+    console_error_panic_hook::set_once();
+    let programs_selector = ProgramsSelector::new(&program_ids);
+    let log_contexts = LogContext::parse_logs_basic(&logs, &programs_selector);
+    serde_wasm_bindgen::to_value(&log_contexts).unwrap()
+}
