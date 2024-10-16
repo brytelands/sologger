@@ -5,6 +5,57 @@ use sologger_log_context::programs_selector::ProgramsSelector;
 use sologger_log_context::sologger_log_context::LogContext;
 use thiserror::Error;
 
+/// Extracts log messages from a Response<RpcLogsResponse> and returns a vector of LogContexts
+pub fn from_rpc_response(
+    response: &Response<RpcLogsResponse>,
+    program_selector: &ProgramsSelector,
+) -> anyhow::Result<Vec<LogContext>> {
+    let transaction_error = match response.value.err.clone() {
+        None => "".to_string(),
+        Some(err) => {
+            format!("{}", err)
+        }
+    };
+
+    let sig = response.value.signature.to_string();
+    let log_contexts = LogContext::parse_logs(
+        &response.value.logs,
+        transaction_error,
+        program_selector,
+        response.context.slot,
+        sig,
+    );
+
+    Ok(log_contexts)
+}
+
+/// Extracts log messages from a RpcLogsResponse and returns a vector of LogContexts
+pub fn from_rpc_logs_response(
+    rpc_logs_response: &RpcLogsResponse,
+    slot: u64,
+    program_selector: &ProgramsSelector,
+) -> anyhow::Result<Vec<LogContext>> {
+    let transaction_error = match rpc_logs_response.err.clone() {
+        None => "".to_string(),
+        Some(err) => {
+            format!("{}", err)
+        }
+    };
+
+    let sig = rpc_logs_response.signature.to_string();
+    let log_contexts = LogContext::parse_logs(
+        &rpc_logs_response.logs,
+        transaction_error,
+        program_selector,
+        slot,
+        sig,
+    );
+
+    Ok(log_contexts)
+}
+
+// The following code is copied from Solana libraries. Including the Solana libraries to support these structs and enums is not WASM friendly.
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RpcLogsResponse {
@@ -229,7 +280,6 @@ impl From<AddressLoaderError> for TransactionError {
         }
     }
 }
-
 
 #[derive(Debug, Error, PartialEq, Eq, Clone)]
 pub enum AddressLoaderError {
@@ -574,56 +624,8 @@ pub struct Response<T> {
     pub value: T,
 }
 
+// End of Solana copied code
 
-
-/// Extracts log messages from a Response<RpcLogsResponse> and returns a vector of LogContexts
-pub fn from_rpc_response(
-    response: &Response<RpcLogsResponse>,
-    program_selector: &ProgramsSelector,
-) -> anyhow::Result<Vec<LogContext>> {
-    let transaction_error = match response.value.err.clone() {
-        None => "".to_string(),
-        Some(err) => {
-            format!("{}", err)
-        }
-    };
-
-    let sig = response.value.signature.to_string();
-    let log_contexts = LogContext::parse_logs(
-        &response.value.logs,
-        transaction_error,
-        program_selector,
-        response.context.slot,
-        sig,
-    );
-
-    Ok(log_contexts)
-}
-
-/// Extracts log messages from a RpcLogsResponse and returns a vector of LogContexts
-pub fn from_rpc_logs_response(
-    rpc_logs_response: &RpcLogsResponse,
-    slot: u64,
-    program_selector: &ProgramsSelector,
-) -> anyhow::Result<Vec<LogContext>> {
-    let transaction_error = match rpc_logs_response.err.clone() {
-        None => "".to_string(),
-        Some(err) => {
-            format!("{}", err)
-        }
-    };
-
-    let sig = rpc_logs_response.signature.to_string();
-    let log_contexts = LogContext::parse_logs(
-        &rpc_logs_response.logs,
-        transaction_error,
-        program_selector,
-        slot,
-        sig,
-    );
-
-    Ok(log_contexts)
-}
 
 #[cfg(test)]
 mod tests {

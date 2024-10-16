@@ -1,0 +1,38 @@
+version: "3.7"
+
+networks:
+  parseable:
+
+services:
+
+  parseable:
+    image: parseable/parseable:latest
+    command: ["parseable", "local-store"]
+    ports:
+      - "8000:8000"
+    environment:
+      - P_FS_DIR=/parseable/data
+      - P_STAGING_DIR=/parseable/staging
+      - P_USERNAME=admin
+      - P_PASSWORD=admin
+    networks:
+      - parseable
+    volumes:
+      - ./data:/parseable/data
+      - ./staging:/parseable/staging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash-oss:8.10.0-amd64
+    ports:
+      - "9200:9200"
+      - "50000:50000/tcp"
+      - "50000:50000/udp"
+    command: logstash -f /etc/logstash/conf.d/logstash.conf
+    volumes:
+      - ./logstash.conf:/etc/logstash/conf.d/logstash.conf
+    environment:
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+    networks:
+      - parseable
+    depends_on:
+      - parseable

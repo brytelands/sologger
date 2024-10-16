@@ -6,9 +6,53 @@
 //!
 //!**Example Usage**
 //!
-//!```rust
-//!    //Extract logs from a Response<RpcLogsResponse> struct for all program IDs
-//!    let logs_contexts = from_rpc_response(&response, &ProgramsSelector::new_all_programs()).unwrap();
+//!```javascript
+//!    const logs = ["Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 invoke [1]",
+//!         "Program log: Instruction: Initialize",
+//!         "Program 11111111111111111111111111111111 invoke [2]",
+//!         "Program 11111111111111111111111111111111 success",
+//!         "Program log: Initialized new event. Current value",
+//!         "Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 consumed 59783 of 200000 compute units",
+//!         "Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 success",
+//!         "Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]",
+//!         "Program log: Create",
+//!         "Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 5475 of 200000 compute units",
+//!         "Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)",
+//!         "Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to complete"
+//!     ];
+//! 
+//!     const transformer = new WasmLogContextTransformer(["9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7", "AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"]);
+//! 
+//!     // Example usage of from_rpc_logs_response
+//!     const rpcLogsResponse = {
+//!         signature: "test_signature",
+//!         err: null,
+//!         logs: logs
+//!     };
+//!     const slot = 123456789;
+//! 
+//!     try {
+//!         const result = transformer.from_rpc_logs_response(rpcLogsResponse, BigInt(slot));
+//!         console.log(JSON.parse(JSON.stringify(result)));
+//!     } catch (error) {
+//!         console.error("Error:", error);
+//!     }
+//! 
+//!     // Example usage of from_rpc_response
+//!     const rpcResponse = {
+//!         context: {
+//!             slot: 12324,
+//!             api_version: null
+//!         },
+//!         value: rpcLogsResponse
+//!     };
+//! 
+//!     try {
+//!         const result = transformer.from_rpc_response(rpcResponse);
+//!         console.log(JSON.parse(JSON.stringify(result)));
+//!     } catch (error) {
+//!         console.error("Error:", error);
+//!     }
 //!```
 //!
 //!Please see the sologger-log-context crate for more information regarding LogContext.
@@ -56,66 +100,7 @@ mod tests {
     use super::*;
     use wasm_bindgen_test::*;
     use serde_json::json;
-
-    // wasm_bindgen_test_configure!(run_in_browser);
-
-    // #[wasm_bindgen_test]
-    // fn test_wasm_log_context_transformer_new() {
-    //     let transformer = WasmLogContextTransformer::new(vec!["11111111111111111111111111111111".to_string()]);
-    //     assert!(transformer.program_selector.is_program_selected("11111111111111111111111111111111".as_ref()));
-    // }
-
-    // #[wasm_bindgen_test]
-    // async fn test_from_rpc_logs_response() {
-    //     let transformer = WasmLogContextTransformer::new(vec!["*".to_string()]);
-    //     let rpc_logs_response = json!({
-    //         "signature": "test_signature",
-    //         "err": null,
-    //         "logs": [
-    //             "Program 11111111111111111111111111111111 invoke [1]",
-    //             "Program 11111111111111111111111111111111 success"
-    //         ]
-    //     });
-    // 
-    //     let result = transformer.from_rpc_logs_response(
-    //         serde_wasm_bindgen::to_value(&rpc_logs_response).unwrap(),
-    //         123456789
-    //     ).unwrap();
-    // 
-    //     let log_contexts: Vec<serde_json::Value> = serde_wasm_bindgen::from_value(result).unwrap();
-    //     assert_eq!(log_contexts.len(), 1);
-    //     assert_eq!(log_contexts[0]["program_id"], "11111111111111111111111111111111");
-    //     assert_eq!(log_contexts[0]["slot"], 123456789);
-    // }
-    // 
-    // #[wasm_bindgen_test]
-    // async fn test_from_rpc_response() {
-    //     let transformer = WasmLogContextTransformer::new(vec!["*".to_string()]);
-    //     let rpc_response = json!({
-    //         "context": {
-    //             "slot": 12324,
-    //             "api_version": null
-    //         },
-    //         "value": {
-    //             "signature": "test_signature",
-    //             "err": null,
-    //             "logs": [
-    //                 "Program 11111111111111111111111111111111 invoke [1]",
-    //                 "Program 11111111111111111111111111111111 success"
-    //             ]
-    //         }
-    //     });
-    // 
-    //     let result = transformer.from_rpc_response(
-    //         serde_wasm_bindgen::to_value(&rpc_response).unwrap()
-    //     ).unwrap();
-    // 
-    //     let log_contexts: Vec<serde_json::Value> = serde_wasm_bindgen::from_value(result).unwrap();
-    //     assert_eq!(log_contexts.len(), 1);
-    //     assert_eq!(log_contexts[0]["program_id"], "11111111111111111111111111111111");
-    //     assert_eq!(log_contexts[0]["slot"], 12324);
-    // }
-    // 
+    
     #[wasm_bindgen_test]
     async fn test_error_handling() {
         let transformer = WasmLogContextTransformer::new(vec!["*".to_string()]);

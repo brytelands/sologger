@@ -1,18 +1,5 @@
-# sologger-log-transformer-wasm
+import {WasmLogContextTransformer} from '../pkg/sologger_log_transformer_wasm.js';
 
-**Overview**
-
-This library provides utility to extract and structure logs from Solana API logSubscribe responses.
-
-**Example Usage**
-
-To run the example:
-```shell
-cd wasm-examples
-node basic.mjs
-```
-
-```javascript
 async function run() {
     const logs = ["Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 invoke [1]",
         "Program log: Instruction: Initialize",
@@ -61,6 +48,5 @@ async function run() {
         console.error("Error:", error);
     }
 }
-```    
 
-Please see the sologger-log-context crate for more information regarding LogContext.
+run().catch(console.error);
