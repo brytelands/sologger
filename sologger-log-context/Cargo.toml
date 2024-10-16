@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_context"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
