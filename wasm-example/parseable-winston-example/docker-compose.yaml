@@ -1,0 +1,22 @@
+version: "3.7"
+
+networks:
+  parseable:
+
+services:
+
+  parseable:
+    image: parseable/parseable:latest
+    command: ["parseable", "local-store"]
+    ports:
+      - "8000:8000"
+    environment:
+      - P_FS_DIR=/parseable/data
+      - P_STAGING_DIR=/parseable/staging
+      - P_USERNAME=admin
+      - P_PASSWORD=admin
+    networks:
+      - parseable
+    volumes:
+      - ./data:/parseable/data
+      - ./staging:/parseable/staging
