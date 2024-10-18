@@ -92,10 +92,10 @@ async function main() {
                         solana: JSON.parse(sanitizeLogMessage(solana_log))
                     };
 
-                    if(err !== undefined && err != null) {
-                        logger.info('Dev Solana logs', sanitizedLog);
-                    } else {
+                    if(sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
                         logger.error('Dev Solana logs', sanitizedLog);
+                    } else {
+                        logger.info('Dev Solana logs', sanitizedLog);
                     }
                 });
 
