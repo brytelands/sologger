@@ -9,7 +9,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@handsontable/vue3']
   },
-  publicPath: '/sologger/',
+  base: '/sologger/',
   publicDir: 'public',
   build: {
     outDir: 'dist',
