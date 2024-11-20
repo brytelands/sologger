@@ -11,15 +11,5 @@ export default defineConfig({
   },
   base: '/sologger/',
   publicDir: 'public',
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    rollupOptions: {
-      input: {
-        main: './index.html',
-        error: './error.html'
-      }
-    }
-  }
 })
 
