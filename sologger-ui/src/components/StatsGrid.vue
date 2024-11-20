@@ -22,7 +22,7 @@
         <p class="dark:text-white">{{ lastUpdateTime }}</p>
       </div>
     </div>
-    <div class="bg-surface-800 dark:bg-surface-50 p-4 rounded h-48">
+    <div class="bg-surface-50 p-4 rounded h-48">
       <Line :data="chartData"
             :options="chartOptions"
             class="w-full h-full"

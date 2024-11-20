@@ -73,7 +73,7 @@ nav {
   border-bottom: 1px solid var(--p-surface-700);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   nav {
     background-color: var(--p-surface-900);
     border-bottom-color: var(--p-surface-800);

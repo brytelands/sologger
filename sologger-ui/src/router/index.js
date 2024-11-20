@@ -23,8 +23,9 @@ const routes = [
 ];
 
 const router = createRouter({
-    history: createWebHistory(),
+    base: '/sologger/',
+    mode: 'history',
+    history: createWebHistory('/sologger/'),
     routes
-});
-
+})
 export default router;
