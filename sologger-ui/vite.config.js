@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [
       vue(),
   ],
-  base: '/sologger/',
   optimizeDeps: {
     include: ['@handsontable/vue3']
   },

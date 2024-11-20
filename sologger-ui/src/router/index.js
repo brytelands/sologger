@@ -1,4 +1,3 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import ConvertView from '../views/ConvertView.vue';
@@ -23,8 +22,6 @@ const routes = [
 ];
 
 const router = createRouter({
-    base: '/sologger/',
-    mode: 'history',
     history: createWebHistory('/sologger/'),
     routes
 })
