@@ -4,6 +4,8 @@
 
 sologger is a group of libraries and binaries that can be used to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP. This helps improve the observability of your programs running on chain.
 
+**Try it out here:** [Sologger UI](https://brytelands.github.io/sologger/)
+
 **Demo video using Sologger with OpenSearch**
 
 [![Watch the demo](https://img.youtube.com/vi/eYz7gHfTzl0/hqdefault.jpg)](https://www.youtube.com/embed/eYz7gHfTzl0)
