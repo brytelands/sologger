@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import {createRouter, createWebHashHistory, createWebHistory} from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import ConvertView from '../views/ConvertView.vue';
 import AboutView from '../views/AboutView.vue';
@@ -22,7 +22,7 @@ const routes = [
 ];
 
 const router = createRouter({
-    history: createWebHistory('/sologger/'),
+    history: createWebHashHistory(import.meta.env.BASE_URL),
     routes
 })
 export default router;

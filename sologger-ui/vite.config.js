@@ -10,6 +10,15 @@ export default defineConfig({
     include: ['@handsontable/vue3']
   },
   base: '/sologger/',
-  publicDir: 'public',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      input: {
+        main: './index.html',
+        error: './error.html'
+      }
+    }
+  }
 })
 
