@@ -12,7 +12,6 @@ export default defineConfig({
   base: '/sologger/',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
     rollupOptions: {
       input: {
         main: './index.html',
