@@ -5,34 +5,34 @@
       <div class="flex items-center gap-6">
         <router-link
             to="/"
-            class="hover:text-primary-400 transition-colors"
+            class="text-[#e6efe9] hover:text-primary-400 transition-colors"
         >
           Home
         </router-link>
         <router-link
             to="/convert"
-            class="hover:text-primary-400 transition-colors"
+            class="text-[#e6efe9] hover:text-primary-400 transition-colors"
         >
           Convert Logs
         </router-link>
         <router-link
             to="/about"
-            class="hover:text-primary-400 transition-colors"
+            class="text-[#e6efe9] hover:text-primary-400 transition-colors"
         >
           About
         </router-link>
       </div>
 
       <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center">
-        <span class="text-2xl font-bold text-primary-400">Sologger</span>
+        <span class="text-2xl font-bold text-primary-400"><img src="/sologger_header.png" alt="Sologger"/></span>
       </div>
 
       <div class="flex items-center">
         <a
-            href="https://github.com/wkennedy"
+            href="https://github.com/brytelands/sologger"
             target="_blank"
             rel="noopener noreferrer"
-            class="hover:text-primary-400 transition-colors"
+            class="text-[#e6efe9] hover:text-primary-400 transition-colors"
         >
           <svg
               class="h-6 w-6"

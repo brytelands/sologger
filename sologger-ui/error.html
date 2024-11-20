@@ -6,21 +6,17 @@
     <title>Error - Sologger</title>
     <style>
         :root {
-            --primary-400: #34d399;
-            --primary-500: #10b981;
-            --primary-600: #059669;
-            --surface-50: #fafafa;
-            --surface-100: #f4f4f5;
-            --surface-700: #3f3f46;
-            --surface-800: #27272a;
-            --surface-900: #18181b;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: var(--surface-900);
-                color: var(--surface-100);
-            }
+            --primary-50: #efede6;
+            --primary-100: #ddadd8;
+            --primary-200: #d37fcf;
+            --primary-300: #d8ca47;
+            --primary-400: #ff4513;
+            --primary-500: #302d37;
+            --surface-50: #e6efe9;
+            --surface-100: #0f4d42;
+            --surface-700: #0f4d42;
+            --surface-800: #052b25;
+            --surface-900: #021b17;
         }
 
         body {
@@ -32,7 +28,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: var(--surface-50);
+            background-color: var(--primary-50);
             color: var(--surface-800);
         }
 
@@ -45,14 +41,14 @@
         .logo {
             font-size: 2.5rem;
             font-weight: bold;
-            color: var(--primary-500);
+            color: var(--primary-400);
             margin-bottom: 2rem;
         }
 
         .error-code {
             font-size: 6rem;
             font-weight: bold;
-            color: var(--primary-400);
+            color: var(--primary-200);
             margin: 0;
             line-height: 1;
         }
@@ -60,19 +56,20 @@
         .error-title {
             font-size: 1.5rem;
             margin: 1rem 0;
-            color: var(--surface-700);
+            color: var(--surface-100);
         }
 
         .error-message {
             margin-bottom: 2rem;
             line-height: 1.5;
+            color: var(--surface-100);
         }
 
         .button {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            background-color: var(--primary-500);
-            color: white;
+            background-color: var(--primary-300);
+            color: var(--surface-900);
             text-decoration: none;
             border-radius: 0.375rem;
             font-weight: 500;
@@ -80,30 +77,44 @@
         }
 
         .button:hover {
-            background-color: var(--primary-600);
+            background-color: var(--primary-400);
         }
 
         .info {
             margin-top: 2rem;
             font-size: 0.875rem;
-            color: var(--surface-700);
+            color: var(--surface-100);
+        }
+
+        .info a {
+            color: var(--primary-400);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: var(--surface-900);
+                color: var(--primary-50);
+            }
+
+            .error-title, .error-message, .info {
+                color: var(--primary-50);
+            }
         }
 
         @media (max-width: 640px) {
             .container {
                 padding: 1rem;
             }
-
             .error-code {
                 font-size: 4rem;
             }
-
             .error-title {
                 font-size: 1.25rem;
             }
         }
     </style>
 </head>
+<!-- Rest of the HTML remains the same -->
 <body>
 <div class="container">
     <div class="logo">Sologger</div>
@@ -116,7 +127,7 @@
     <a href="/" class="button">Return to Homepage</a>
     <p class="info">
         If you believe this is a mistake, please
-        <a href="https://github.com/wkennedy/issues"
+        <a href="https://github.com/brytelands/sologger/issues"
            target="_blank"
            rel="noopener noreferrer"
            style="color: var(--primary-500);">

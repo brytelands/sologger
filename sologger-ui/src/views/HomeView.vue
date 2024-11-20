@@ -1,21 +1,3 @@
-// src/views/HomeView.vue
-<!--<template>-->
-<!--  <div class="container mx-auto p-4">-->
-<!--    <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">-->
-<!--      Solana Log Explorer-->
-<!--    </h1>-->
-<!--    <p class="mb-6 text-surface-600 dark:text-surface-300">-->
-<!--      Monitor and analyze Solana program logs in real-time across different networks.-->
-<!--    </p>-->
-<!--    &lt;!&ndash; Your existing app content goes here &ndash;&gt;-->
-<!--    <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" />-->
-<!--    <div class="flex gap-4 mb-6">-->
-<!--      &lt;!&ndash; Environment selector and buttons &ndash;&gt;-->
-<!--    </div>-->
-<!--    &lt;!&ndash; Rest of your existing template &ndash;&gt;-->
-<!--  </div>-->
-<!--</template>-->
-
 <template>
   <div>
     <div class="container mx-auto p-4">
@@ -75,7 +57,7 @@
       <div class="mb-6">
         <div class="flex flex-wrap gap-2">
           <div v-for="programId in programIds" :key="programId"
-               class="flex items-center gap-2 px-3 py-1.5 bg-surface-100 rounded-lg text-sm">
+               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded">
             <span>{{ programId }}</span>
             <div v-if="connectingWebsockets.has(programId)" class="flex items-center gap-2">
               <span class="text-primary-500">Connecting...</span>
@@ -98,6 +80,17 @@
           :uniqueProgramsCount="uniqueProgramsCount"
           :lastUpdateTime="lastUpdateTime"
       />
+      <div class="flex items-center gap-2 mb-4">
+        <input
+            type="checkbox"
+            id="errorFilter"
+            v-model="onlyShowErrors"
+            class="w-4 h-4 text-primary-400 bg-surface-50 border-surface-300 rounded focus:ring-primary-500"
+        />
+        <label for="errorFilter" class="text-surface-800 dark:text-surface-100">
+          Only show error logs
+        </label>
+      </div>
       <LogsTable
           :parsedLogs="parsedLogs"
           :hotSettings="hotSettings"
@@ -108,8 +101,6 @@
 
 <script>
 // Import your existing App.vue script here and rename the component
-// import { onMounted } from 'vue';
-// import { registerAllModules } from 'handsontable/registry';
 import { onMounted } from 'vue';
 import { registerAllModules } from 'handsontable/registry';
 import init, { WasmLogContextTransformer } from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
@@ -162,23 +153,24 @@ export default {
       newProgramId: '',
       programIds: [],
       environments: [
-        { key: 'Mainnet', url: 'wss://api.mainnet-beta.solana.com' },
         { key: 'Devnet', url: 'wss://api.devnet.solana.com' },
         { key: 'Testnet', url: 'wss://api.testnet.solana.com' }
       ],
       customUrl: '',
       selectedEnvironment: 'wss://api.devnet.solana.com',
+      onlyShowErrors: false,
       parsedLogs: [],
       lastUpdateTime: '-',
       hotSettings: {
         columns: [
           { data: 'timestamp', title: 'Time', width: 100, type: 'text' },
+          { data: 'level', title: 'Level', width: 80, type: 'text' },
           { data: 'signature', title: 'Signature', width: 200, type: 'text' },
           { data: 'slot', title: 'Slot', width: 100, type: 'numeric' },
           { data: 'programId', title: 'Program ID', width: 150, type: 'text' },
           { data: 'parentProgramId', title: 'Parent Program', width: 150, type: 'text' },
           { data: 'depth', title: 'Depth', width: 80, type: 'numeric' },
-          { data: 'instructionIndex', title: 'Instruction Index', width: 100, type: 'numeric' },
+          { data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric' },
           { data: 'invokeResult', title: 'Result', width: 100, type: 'text' },
           { data: 'logMessages', title: 'Log Messages', width: 300, type: 'text' },
           { data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text' },
@@ -197,7 +189,7 @@ export default {
         manualColumnResize: true,
         autoWrapRow: true,
         autoWrapCol: true,
-        nestedRows: true,
+        nestedRows: false,
         contextMenu: true,
         readOnly: true
       }
@@ -213,6 +205,7 @@ export default {
     parseLog(logData) {
       return {
         timestamp: new Date().toLocaleTimeString(),
+        level: logData.solana.transaction_error !== null && logData.solana.transaction_error !== "" ? "Error" : "Info",
         signature: logData.signature,
         slot: logData.slot,
         programId: logData.solana.program_id,
@@ -314,12 +307,14 @@ export default {
             };
 
             if(sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
-              console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
+              // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
             } else {
-              console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
+              // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
             }
 
-            sanitizedLogs.push(sanitizedLog);
+            if (!this.onlyShowErrors || (sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "")) {
+              sanitizedLogs.push(sanitizedLog);
+            }
 
           });
 
