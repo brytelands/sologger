@@ -30,6 +30,8 @@ pub async fn log_contexts_from_logs_test() {
         invoke_result: "".to_string(),
         slot: 0,
         signature: "".to_string(),
+        consumed_cu: 0,
+        max_cu: 0,
     };
 
     let log_context_error = LogContext {
@@ -46,6 +48,8 @@ pub async fn log_contexts_from_logs_test() {
         invoke_result: "".to_string(),
         slot: 0,
         signature: "".to_string(),
+        consumed_cu: 0,
+        max_cu: 0,
     };
 
     let log_contexts = vec![log_context, log_context_error];
