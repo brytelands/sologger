@@ -1,0 +1,30 @@
+{
+  "name": "sologger-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite build & vite preview"
+  },
+  "dependencies": {
+    "@handsontable/vue3": "^14.6.1",
+    "chart.js": "^4.4.6",
+    "handsontable": "^14.6.1",
+    "primevue": "^4.2.1",
+    "tailwindcss-primeui": "^0.3.4",
+    "vue": "^3.5.12",
+    "vue-chartjs": "^5.3.2",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "postcss-import": "^16.1.0",
+    "tailwindcss": "^3.4.14",
+    "vite": "^5.4.10",
+    "vite-plugin-wasm-pack": "^0.1.12"
+  }
+}

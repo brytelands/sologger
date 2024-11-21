@@ -20,7 +20,7 @@ solana-rpc-client = "2.0.13"
 solana-rpc-client-api = "2.0.13"
 solana-transaction-status = "2.0.13"
 solana-sdk = "2.0.13"
-sologger_log_context = "0.2.1"
+sologger_log_context = {path = "../sologger-log-context"}
 
 [dev-dependencies]
 criterion = "0.5.1"

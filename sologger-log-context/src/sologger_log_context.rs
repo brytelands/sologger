@@ -1,15 +1,17 @@
 use crate::programs_selector::ProgramsSelector;
 use crate::rpc_response::RpcResponse;
 use lazy_static::lazy_static;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
 //TODO add Transfer and Allocate?
 const LOG_REGEX: &str = r"(?<programInvoke>^Program (?<invokeProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) invoke \[(?<level>\d+)\]$)|(?<programSuccessResult>^Program (?<successResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) success$)|(?<programFailedResult>^Program (?<failedResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) failed: (?<failedResultErr>.*)$)|(?<programCompleteFailedResult>^Program failed to complete: (?<failedCompleteError>.*)$)|(?<programLog>^^Program log: (?<logMessage>.*)$)|(?<programData>^Program data: (?<data>.*)$)|(?<programConsumed>^Program (?<consumedProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) consumed (?<consumedComputeUnits>\d*) of (?<allComputedUnits>\d*) compute units$)|(?<programConsumption>^^Program consumption: (?<computeUnitsRemaining>.*)$)|(?<logTruncated>^Log truncated$)|(?<programReturn>^Program return: (?<returnProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) (?<returnMessage>.*)$)";
+const CONSUMED_COMPUTE_REGEX: &str = r"consumed (\d+) of (\d+) compute units";
 
 lazy_static! {
     static ref LOG_CONTEXT_PARSER: Regex = Regex::new(LOG_REGEX).unwrap();
+    static ref CONSUMED_COMPUTER_PARSER: Regex = Regex::new(CONSUMED_COMPUTE_REGEX).unwrap();
 }
 
 /// A LogContext is a structured log format that represents the logs of a single program invocation, per processed slot, transaction or block.
@@ -41,6 +43,8 @@ pub struct LogContext {
     pub slot: usize,
     ///The signature of the transaction that invoked the program that produced the logs
     pub signature: String,
+    pub consumed_cu: u64,
+    pub max_cu: u64
 }
 
 impl LogContext {
@@ -67,6 +71,8 @@ impl LogContext {
             invoke_result: "".to_string(),
             slot,
             signature,
+            consumed_cu: 0,
+            max_cu: 0,
         }
     }
 
@@ -257,7 +263,9 @@ impl LogContext {
 
             match capture {
                 None => {
-                    debug!("Log not matched, adding to raw_logs: {}", &log_trimmed);
+                    info!("Log not matched, adding to raw_logs: {}", &log_trimmed);
+                    info!("raw_logs: {:?}", &logs);
+
                     result[call_ids[call_ids.len() - 1]]
                         .raw_logs
                         .push(log_trimmed)
@@ -284,6 +292,7 @@ impl LogContext {
                     let program_return = capture.name("programReturn");
                     let return_message = capture.name("returnMessage");
                     let return_program_id = capture.name("returnProgramId");
+                    let allocate = capture.name("allocate");
 
                     match log_truncated {
                         Some(_x) => {
@@ -420,6 +429,16 @@ impl LogContext {
                             result[call_ids[call_ids.len() - 1]]
                                 .raw_logs
                                 .push(log.clone());
+                            let computer_numbers = extract_compute_numbers(&log);
+                            match computer_numbers {
+                                None => {}
+                                Some((consumed_cu, max_cu)) => {
+                                    result[call_ids[call_ids.len() - 1]]
+                                        .max_cu = max_cu;
+                                    result[call_ids[call_ids.len() - 1]]
+                                        .consumed_cu = consumed_cu;
+                                }
+                            }
                         }
                         None => {}
                     }
@@ -429,6 +448,17 @@ impl LogContext {
                             result[call_ids[call_ids.len() - 1]]
                                 .raw_logs
                                 .push(log.clone());
+                        }
+                        None => {}
+                    }
+
+                    match allocate {
+                        Some(_x) => {
+                            println!("ALLOCATE:::");
+                            println!("{:?}", &logs);
+                            // result[call_ids[call_ids.len() - 1]]
+                            //     .raw_logs
+                            //     .push(log.clone());
                         }
                         None => {}
                     }
@@ -471,10 +501,21 @@ fn trim_whitespace(s: &str) -> String {
     trimmed
 }
 
+fn extract_compute_numbers(log_str: &str) -> Option<(u64, u64)> {
+    // Try to capture the numbers
+    let captures = CONSUMED_COMPUTER_PARSER.captures(log_str)?;
+
+    // Parse the captured numbers
+    let first_num = captures.get(1)?.as_str().parse::<u64>().ok()?;
+    let second_num = captures.get(2)?.as_str().parse::<u64>().ok()?;
+
+    Some((first_num, second_num))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::programs_selector::ProgramsSelector;
-    use crate::sologger_log_context::LogContext;
+    use crate::sologger_log_context::{extract_compute_numbers, LogContext};
     use std::time::SystemTime;
 
     //TODO fix test for ID
@@ -532,6 +573,8 @@ mod tests {
         // assert_eq!(log_contexts[0].id, 0);
         assert_eq!(log_contexts[0].invoke_result, "");
         assert_eq!(log_contexts[0].instruction_index, 0);
+        assert_eq!(log_contexts[0].max_cu, 200000);
+        assert_eq!(log_contexts[0].consumed_cu, 59783);
 
         assert_eq!(
             log_contexts[1].program_id,
@@ -569,6 +612,8 @@ mod tests {
         // assert_eq!(log_contexts[2].id, 2);
         assert_eq!(log_contexts[2].invoke_result, "");
         assert_eq!(log_contexts[2].instruction_index, 1);
+        assert_eq!(log_contexts[2].max_cu, 200000);
+        assert_eq!(log_contexts[2].consumed_cu, 5475);
     }
 
     #[test]
@@ -1309,5 +1354,64 @@ mod tests {
         assert_eq!(log_contexts[0].transaction_error, "Transaction failed");
         assert_eq!(log_contexts[0].errors.len(), 1);
         assert_eq!(log_contexts[0].errors[0], "custom program error: 0x1");
+    }
+
+    #[test]
+    fn test_valid_log_format() {
+        let log = "Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 5475 of 200000 compute units";
+        assert_eq!(extract_compute_numbers(log), Some((5475, 200000)));
+    }
+
+    #[test]
+    fn test_different_numbers() {
+        let log = "Program XYZ consumed 1234 of 999999 compute units";
+        assert_eq!(extract_compute_numbers(log), Some((1234, 999999)));
+    }
+
+    #[test]
+    fn test_no_program_prefix() {
+        let log = "consumed 100 of 500 compute units";
+        assert_eq!(extract_compute_numbers(log), Some((100, 500)));
+    }
+
+    #[test]
+    fn test_extra_whitespace() {
+        let log = "Program   Test   consumed   42   of   1000   compute   units";
+        assert_eq!(extract_compute_numbers(log), None);
+    }
+
+    #[test]
+    fn test_invalid_format() {
+        let log = "This is not a valid compute units log";
+        assert_eq!(extract_compute_numbers(log), None);
+    }
+
+    #[test]
+    fn test_missing_numbers() {
+        let log = "Program Test consumed of compute units";
+        assert_eq!(extract_compute_numbers(log), None);
+    }
+
+    #[test]
+    fn test_invalid_numbers() {
+        let log = "Program Test consumed abc of xyz compute units";
+        assert_eq!(extract_compute_numbers(log), None);
+    }
+
+    #[test]
+    fn test_empty_string() {
+        assert_eq!(extract_compute_numbers(""), None);
+    }
+
+    #[test]
+    fn test_very_large_numbers() {
+        let log = "Program Test consumed 18446744073709551615 of 18446744073709551615 compute units";
+        assert_eq!(extract_compute_numbers(log), Some((18446744073709551615, 18446744073709551615)));
+    }
+
+    #[test]
+    fn test_partial_format() {
+        let log = "consumed 100 of";
+        assert_eq!(extract_compute_numbers(log), None);
     }
 }

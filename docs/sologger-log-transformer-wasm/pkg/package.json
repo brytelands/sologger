@@ -1,0 +1,30 @@
+{
+  "name": "sologger_log_transformer_wasm",
+  "type": "module",
+  "collaborators": [
+    "Will Kennedy"
+  ],
+  "description": "This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support.",
+  "version": "0.2.1",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brytelands/sologger"
+  },
+  "files": [
+    "sologger_log_transformer_wasm_bg.wasm",
+    "sologger_log_transformer_wasm.js",
+    "sologger_log_transformer_wasm.d.ts"
+  ],
+  "main": "sologger_log_transformer_wasm.js",
+  "types": "sologger_log_transformer_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "solana",
+    "logging",
+    "json",
+    "parsing"
+  ]
+}
