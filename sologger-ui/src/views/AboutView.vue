@@ -1,9 +1,9 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
+    <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
       About Sologger
     </h1>
-    <div class="max-w-3xl text-surface-800 dark:text-surface-100">
+    <div class="max-w-3xl text-[var(--p-text-color)]">
       <p class="mb-6 text-lg">
         Sologger is a real-time Solana program log explorer and analysis tool.
         It helps developers monitor and debug their Solana programs across different networks.
@@ -23,7 +23,9 @@
         To begin monitoring your Solana program logs:
       </p>
       <ol class="list-decimal pl-6 mb-6 space-y-2">
-        <li>Select a network (Devnet, Testnet, or enter your RPC URL (Helius, QuickNode, etc...). In order to listen to logs on Mainnet you must use your own URL</li>
+        <li>Select a network (Devnet, Testnet, or enter your RPC URL (Helius, QuickNode, etc...). In order to listen to
+          logs on Mainnet you must use your own URL
+        </li>
         <li>Enter your program ID</li>
         <li>Click "Start Logs" to begin monitoring</li>
       </ol>

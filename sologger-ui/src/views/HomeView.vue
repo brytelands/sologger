@@ -1,66 +1,80 @@
 <template>
   <div>
     <div class="container mx-auto p-4">
-      <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
+      <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
         Solana Log Explorer
       </h1>
-      <p class="mb-6 p-surface-900 dark:text-surface-300">
+      <p class="mb-6 text-[var(--p-text-color)]">
         Monitor and analyze Solana program logs in real-time across different networks.
       </p>
-      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId"/>
-      <div class="flex gap-4 mb-6">
-        <select
-            v-model="selectedEnvironment"
-            @change="handleEnvironmentChange"
-            class="px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
-        >
-          <option value="custom">Custom URL</option>
-          <option v-for="env in environments" :key="env.key" :value="env.url">
-            {{ env.key }}
-          </option>
-        </select>
-        <input
-            v-if="selectedEnvironment === 'custom'"
-            v-model="customUrl"
-            @change="handleCustomUrlChange"
-            type="text"
-            placeholder="Enter WebSocket URL (wss://...)"
-            class="flex-1 px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
-        />
-        <button
-            @click="disconnectWebSocket"
-            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Stop Logs
-        </button>
-        <button
-            @click="startAllWebSockets"
-            class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
-        >
-          Start Logs
-        </button>
-        <button
-            @click="clearAll"
-            class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center gap-2"
-        >
-          Clear All
-        </button>
-        <button
-            @click="downloadLogs"
-            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
-            :disabled="!parsedLogs.length"
-        >
-          <span>Download JSON</span>
-          <span v-if="!parsedLogs.length" class="text-sm opacity-75">(No data)</span>
-        </button>
+
+      <!-- Program ID Form -->
+      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
+
+      <!-- Controls Section -->
+      <div class="space-y-4 mb-6">
+        <!-- Environment Selection -->
+        <div class="flex flex-col md:flex-row gap-4">
+          <select
+              v-model="selectedEnvironment"
+              @change="handleEnvironmentChange"
+              class="px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800 w-full md:w-auto"
+          >
+            <option value="custom">Custom URL</option>
+            <option v-for="env in environments" :key="env.key" :value="env.url">
+              {{ env.key }}
+            </option>
+          </select>
+
+          <input
+              v-if="selectedEnvironment === 'custom'"
+              v-model="customUrl"
+              @change="handleCustomUrlChange"
+              type="text"
+              placeholder="Enter WebSocket URL (wss://...)"
+              class="flex-1 px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 md:flex gap-2 md:gap-4">
+          <button
+              @click="disconnectWebSocket"
+              class="px-3 py-2 md:px-4 bg-red-500 text-white rounded hover:bg-red-600 text-sm md:text-base"
+          >
+            Stop Logs
+          </button>
+          <button
+              @click="startAllWebSockets"
+              class="px-3 py-2 md:px-4 bg-green-500 text-white rounded hover:bg-green-600 text-sm md:text-base flex items-center justify-center gap-2"
+          >
+            Start Logs
+          </button>
+          <button
+              @click="clearAll"
+              class="px-3 py-2 md:px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm md:text-base flex items-center justify-center gap-2"
+          >
+            Clear All
+          </button>
+          <button
+              @click="downloadLogs"
+              class="px-3 py-2 md:px-4 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base flex items-center justify-center gap-2"
+              :disabled="!parsedLogs.length"
+          >
+            <span>Download</span>
+            <span v-if="!parsedLogs.length" class="text-xs md:text-sm opacity-75">(No data)</span>
+          </button>
+        </div>
       </div>
-      <div class="mb-6">
-        <div class="flex flex-wrap gap-2">
+
+      <!-- Program Status Chips -->
+      <div class="mb-6 overflow-x-auto">
+        <div class="flex flex-wrap gap-2 min-w-min">
           <div v-for="programId in programIds" :key="programId"
-               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded">
-            <span>{{ programId }}</span>
+               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded text-sm">
+            <span class="truncate max-w-[150px] md:max-w-none">{{ programId }}</span>
             <div v-if="connectingWebsockets.has(programId)" class="flex items-center gap-2">
-              <span class="text-primary-500">Connecting...</span>
+              <span class="text-primary-500 text-xs md:text-sm">Connecting...</span>
               <svg class="animate-spin h-4 w-4 text-primary-500"
                    xmlns="http://www.w3.org/2000/svg"
                    fill="none"
@@ -70,18 +84,24 @@
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
-            <span v-else-if="websockets.has(programId) && receivingMessages" class="text-green-500">Connected</span>
-            <span v-else-if="websockets.has(programId) && !receivingMessages" class="text-green-500">Connected - Please wait for logs...</span>
-            <span v-else class="text-gray-500">Disconnected</span>
+            <span v-else-if="websockets.has(programId) && receivingMessages" class="text-green-500 text-xs md:text-sm">Connected</span>
+            <span v-else-if="websockets.has(programId) && !receivingMessages" class="text-green-500 text-xs md:text-sm">Awaiting logs...May take several seconds</span>
+            <span v-else class="text-gray-500 text-xs md:text-sm">Disconnected</span>
           </div>
         </div>
       </div>
-      <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
-      <StatsGrid
-          :parsedLogs="parsedLogs"
-          :uniqueProgramsCount="uniqueProgramsCount"
-          :lastUpdateTime="lastUpdateTime"
-      />
+
+      <!-- Program List and Stats -->
+      <div class="space-y-4 mb-6">
+        <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
+        <StatsGrid
+            :parsedLogs="parsedLogs"
+            :uniqueProgramsCount="uniqueProgramsCount"
+            :lastUpdateTime="lastUpdateTime"
+        />
+      </div>
+
+      <!-- Error Filter -->
       <div class="flex items-center gap-2 mb-4">
         <input
             type="checkbox"
@@ -89,20 +109,23 @@
             v-model="onlyShowErrors"
             class="w-4 h-4 text-primary-400 bg-surface-50 border-surface-300 rounded focus:ring-primary-500"
         />
-        <label for="errorFilter" class="text-surface-800 dark:text-surface-100">
+        <label for="errorFilter" class="text-[var(--p-text-color)] text-sm md:text-base">
           Only show error logs
         </label>
       </div>
-      <LogsTable
-          :parsedLogs="parsedLogs"
-          :hotSettings="hotSettings"
-      />
+
+      <!-- Logs Table with Mobile Optimization -->
+      <div class="overflow-x-auto">
+        <LogsTable
+            :parsedLogs="parsedLogs"
+            :hotSettings="getMobileOptimizedHotSettings"
+        />
+      </div>
     </div>
   </div>
 </template>
-
 <script>
-// Import your existing App.vue script here and rename the component
+// Import your existing script here
 import {onMounted} from 'vue';
 import {registerAllModules} from 'handsontable/registry';
 import init, {
@@ -143,17 +166,16 @@ export default {
   setup() {
     onMounted(async () => {
       await init();
-      // const transformer = new WasmLogContextTransformer(["*"]);
       console.log("WASM Initialized");
-      // transformer.from_rpc_response({});
     });
 
     return {};
   },
   data() {
     return {
-      websockets: new Map(), // programId -> WebSocket
-      connectingWebsockets: new Set(), // Track connecting state
+      // ... your existing data properties ...
+      websockets: new Map(),
+      connectingWebsockets: new Set(),
       receivingMessages: false,
       newProgramId: '',
       programIds: [],
@@ -252,6 +274,34 @@ export default {
     uniqueProgramsCount() {
       const programs = new Set(this.parsedLogs.map(row => row.programId));
       return programs.size;
+    },
+    getMobileOptimizedHotSettings() {
+      const baseSettings = {...this.hotSettings};
+
+      // Adjust column widths for mobile
+      baseSettings.columns = baseSettings.columns.map(column => {
+        const newColumn = {...column};
+        if (window.innerWidth < 768) {
+          // Reduce column widths on mobile
+          newColumn.width = Math.min(column.width, 120);
+
+          // Truncate long text fields
+          if (['logMessages', 'rawLogs', 'dataLogs', 'errors'].includes(column.data)) {
+            newColumn.width = 150;
+          }
+        }
+        return newColumn;
+      });
+
+      // Additional mobile optimizations
+      if (window.innerWidth < 768) {
+        baseSettings.colHeaders = true;
+        baseSettings.rowHeaders = false; // Hide row headers on mobile
+        baseSettings.contextMenu = false; // Disable context menu on mobile
+        baseSettings.dropdownMenu = false; // Disable dropdown menu on mobile
+      }
+
+      return baseSettings;
     }
   },
   methods: {
@@ -582,7 +632,17 @@ export default {
   }
 };
 </script>
+
 <style scoped>
+:root {
+  --p-text-color: var(--p-surface-800);
+}
+
+:root[data-theme="dark"] {
+  --p-text-color: var(--p-surface-50);
+}
+
+/* Keep your existing styles */
 .router-link-active {
   color: var(--p-primary-400);
   font-weight: 500;
@@ -592,4 +652,23 @@ nav {
   border-bottom: 1px solid var(--p-surface-700);
 }
 
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  /* Optimize table for mobile */
+  :deep(.handsontable) {
+    font-size: 12px;
+  }
+
+  :deep(.handsontable td) {
+    padding: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 </style>
