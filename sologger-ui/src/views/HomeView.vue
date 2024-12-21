@@ -1,13 +1,13 @@
 <template>
   <div>
     <div class="container mx-auto p-4">
-          <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
-            Solana Log Explorer
-          </h1>
-          <p class="mb-6 text-surface-600 dark:text-surface-300">
-            Monitor and analyze Solana program logs in real-time across different networks.
-          </p>
-      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" />
+      <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
+        Solana Log Explorer
+      </h1>
+      <p class="mb-6 p-surface-900 dark:text-surface-300">
+        Monitor and analyze Solana program logs in real-time across different networks.
+      </p>
+      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId"/>
       <div class="flex gap-4 mb-6">
         <select
             v-model="selectedEnvironment"
@@ -66,10 +66,12 @@
                    fill="none"
                    viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
-            <span v-else-if="websockets.has(programId)" class="text-green-500">Connected</span>
+            <span v-else-if="websockets.has(programId) && receivingMessages" class="text-green-500">Connected</span>
+            <span v-else-if="websockets.has(programId) && !receivingMessages" class="text-green-500">Connected - Please wait for logs...</span>
             <span v-else class="text-gray-500">Disconnected</span>
           </div>
         </div>
@@ -101,9 +103,11 @@
 
 <script>
 // Import your existing App.vue script here and rename the component
-import { onMounted } from 'vue';
-import { registerAllModules } from 'handsontable/registry';
-import init, { WasmLogContextTransformer } from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+import {onMounted} from 'vue';
+import {registerAllModules} from 'handsontable/registry';
+import init, {
+  WasmLogContextTransformer
+} from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
@@ -150,11 +154,12 @@ export default {
     return {
       websockets: new Map(), // programId -> WebSocket
       connectingWebsockets: new Set(), // Track connecting state
+      receivingMessages: false,
       newProgramId: '',
       programIds: [],
       environments: [
-        { key: 'Devnet', url: 'wss://api.devnet.solana.com' },
-        { key: 'Testnet', url: 'wss://api.testnet.solana.com' }
+        {key: 'Devnet', url: 'wss://api.devnet.solana.com'},
+        {key: 'Testnet', url: 'wss://api.testnet.solana.com'}
       ],
       customUrl: '',
       selectedEnvironment: 'wss://api.devnet.solana.com',
@@ -163,20 +168,68 @@ export default {
       lastUpdateTime: '-',
       hotSettings: {
         columns: [
-          { data: 'timestamp', title: 'Time', width: 100, type: 'text' },
-          { data: 'level', title: 'Level', width: 80, type: 'text' },
-          { data: 'signature', title: 'Signature', width: 200, type: 'text' },
-          { data: 'slot', title: 'Slot', width: 100, type: 'numeric' },
-          { data: 'programId', title: 'Program ID', width: 150, type: 'text' },
-          { data: 'parentProgramId', title: 'Parent Program', width: 150, type: 'text' },
-          { data: 'depth', title: 'Depth', width: 80, type: 'numeric' },
-          { data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric' },
-          { data: 'invokeResult', title: 'Result', width: 100, type: 'text' },
-          { data: 'logMessages', title: 'Log Messages', width: 300, type: 'text' },
-          { data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text' },
-          { data: 'dataLogs', title: 'Data Logs', width: 200, type: 'text' },
-          { data: 'errors', title: 'Errors', width: 200, type: 'text' },
-          { data: 'transactionError', title: 'TX Error', width: 200, type: 'text' }
+          {data: 'timestamp', title: 'Time', width: 100, type: 'text'},
+          {data: 'level', title: 'Level', width: 80, type: 'text'},
+          {
+            data: 'signature', title: 'Signature', width: 200,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/tx/${value.signature}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.signature;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'slot',
+            title: 'Slot',
+            width: 100,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/block/${value.slot}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.slot;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'programId',
+            title: 'Program ID',
+            width: 150,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/account/${value.programId}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.programId;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'parentProgramId', title: 'Parent Program', width: 150,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/account/${value.parentProgramId}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.parentProgramId;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {data: 'depth', title: 'Depth', width: 80, type: 'numeric'},
+          {data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric'},
+          {data: 'invokeResult', title: 'Result', width: 100, type: 'text'},
+          {data: 'logMessages', title: 'Log Messages', width: 300, type: 'text'},
+          {data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text'},
+          {data: 'dataLogs', title: 'Data Logs', width: 200, type: 'text'},
+          {data: 'errors', title: 'Errors', width: 200, type: 'text'},
+          {data: 'transactionError', title: 'TX Error', width: 200, type: 'text'}
         ],
         licenseKey: 'non-commercial-and-evaluation',
         columnSorting: true,
@@ -203,13 +256,23 @@ export default {
   },
   methods: {
     parseLog(logData) {
+      let linkSuffix = '';
+      if (this.selectedEnvironment.includes('dev')) {
+        linkSuffix = '?cluster=devnet';
+      } else if (this.selectedEnvironment.includes('test')) {
+        linkSuffix = '?cluster=testnet';
+      }
+      let signatureData = {signature: logData.signature, linkSuffix: linkSuffix};
+      let slotData = {slot: logData.slot, linkSuffix: linkSuffix};
+      let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix};
+      let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix};
       return {
         timestamp: new Date().toLocaleTimeString(),
         level: logData.solana.transaction_error !== null && logData.solana.transaction_error !== "" ? "Error" : "Info",
-        signature: logData.signature,
-        slot: logData.slot,
-        programId: logData.solana.program_id,
-        parentProgramId: logData.solana.parent_program_id,
+        signature: signatureData,
+        slot: slotData,
+        programId: programData,
+        parentProgramId: parentProgramData,
         depth: logData.solana.depth,
         instructionIndex: logData.solana.instruction_index,
         invokeResult: logData.solana.invoke_result,
@@ -306,7 +369,7 @@ export default {
               solana: JSON.parse(sanitizeLogMessage(solana_log))
             };
 
-            if(sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
+            if (sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
               // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
             } else {
               // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
@@ -384,6 +447,7 @@ export default {
             }
 
             if (eventData.params?.result?.value) {
+              this.receivingMessages = true;
               this.lastUpdateTime = new Date().toLocaleTimeString();
               this.updateTable(eventData);
             }
@@ -396,8 +460,8 @@ export default {
             id: Date.now(),
             method: 'logsSubscribe',
             params: [
-              { mentions: [programId] },
-              { commitment: 'finalized', encoding: 'json' }
+              {mentions: [programId]},
+              {commitment: 'finalized', encoding: 'json'}
             ]
           };
           ws.send(JSON.stringify(subscribeMessage));
@@ -482,7 +546,7 @@ export default {
         const jsonString = JSON.stringify(downloadData, null, 2);
 
         // Create blob and download
-        const blob = new Blob([jsonString], { type: 'application/json' });
+        const blob = new Blob([jsonString], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
 
         // Create download link
@@ -528,10 +592,4 @@ nav {
   border-bottom: 1px solid var(--p-surface-700);
 }
 
-@media (prefers-color-scheme: dark) {
-  nav {
-    background-color: var(--p-surface-900);
-    border-bottom-color: var(--p-surface-800);
-  }
-}
 </style>

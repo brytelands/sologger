@@ -1,5 +1,38 @@
+/*:root {*/
+/*  !* Primary colors *!*/
+/*  --p-primary-50: #efede6;*/
+/*  --p-primary-100: #ddadd8;*/
+/*  --p-primary-200: #d37fcf;*/
+/*  --p-primary-300: #d8ca47;*/
+/*  --p-primary-400: #ff4513;*/
+/*  --p-primary-500: #302d37;*/
+
+/*  !* Surface colors - Dark greens *!*/
+/*  --p-surface-0: #ffffff;*/
+/*  --p-surface-50: #e6efe9;*/
+/*  --p-surface-100: #0f4d42;*/
+/*  --p-surface-200: #052b25;*/
+/*  --p-surface-300: #1b6442;*/
+/*  --p-surface-400: #0f4d42;*/
+/*  --p-surface-500: #052b25;*/
+/*  --p-surface-600: #1b6442;*/
+/*  --p-surface-700: #0f4d42;*/
+/*  --p-surface-800: #052b25;*/
+/*  --p-surface-900: #021b17;*/
+/*  --p-surface-950: #010f0d;*/
+/*}*/
+
+/* Light mode */
+/*:root {*/
+/*  --p-primary-color: var(--p-primary-400);*/
+/*  --p-primary-contrast-color: var(--p-surface-0);*/
+/*  --p-content-border-color: var(--p-surface-200);*/
+/*  --p-text-color: var(--p-surface-800);*/
+/*}*/
+
+/* style.css */
 :root {
-  /* Primary colors */
+  /* Primary colors - these stay constant */
   --p-primary-50: #efede6;
   --p-primary-100: #ddadd8;
   --p-primary-200: #d37fcf;
@@ -7,38 +40,80 @@
   --p-primary-400: #ff4513;
   --p-primary-500: #302d37;
 
-  /* Surface colors - Dark greens */
-  --p-surface-0: #ffffff;
-  --p-surface-50: #e6efe9;
-  --p-surface-100: #0f4d42;
-  --p-surface-200: #052b25;
-  --p-surface-300: #1b6442;
-  --p-surface-400: #0f4d42;
-  --p-surface-500: #052b25;
-  --p-surface-600: #1b6442;
-  --p-surface-700: #0f4d42;
-  --p-surface-800: #052b25;
-  --p-surface-900: #021b17;
-  --p-surface-950: #010f0d;
-}
-
-/* Light mode */
-:root {
   --p-primary-color: var(--p-primary-400);
   --p-primary-contrast-color: var(--p-surface-0);
   --p-content-border-color: var(--p-surface-200);
   --p-text-color: var(--p-surface-800);
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --p-primary-color: var(--p-primary-300);
-    --p-primary-contrast-color: var(--p-surface-900);
-    --p-content-border-color: var(--p-surface-700);
-    --p-text-color: var(--p-surface-50);
-  }
+/* Light theme (default) */
+:root[data-theme="light"] {
+  --p-surface-0: #ffffff;
+  --p-surface-50: #e6efe9;
+  --p-surface-100: #052b25;
+  --p-surface-200: #b3cfc2;
+  --p-surface-300: #0f4d42;
+  --p-surface-400: #6b9884;
+  --p-surface-500: #527a69;
+  --p-surface-600: #40614f;
+  --p-surface-700: #2f4a3a;
+  --p-surface-800: #052b25;
+  --p-surface-900: #101c15;
+  --p-surface-950: #080e0a;
+
+  --p-text-color: var(--p-surface-900);
+  --p-background-color: var(--p-surface-0);
+  --p-primary-color: var(--p-primary-400);
 }
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --p-surface-0: #021b17;
+  --p-surface-50: #0f4d42;
+  --p-surface-100: #d1e3d9;
+  --p-surface-200: #1b6442;
+  --p-surface-300: #8cb3a2;
+  --p-surface-400: #052b25;
+  --p-surface-500: #1b6442;
+  --p-surface-600: #0f4d42;
+  --p-surface-700: #052b25;
+  --p-surface-800: #021b17;
+  --p-surface-900: #010f0d;
+  --p-surface-950: #000807;
+
+  --p-text-color: var(--p-surface-50);
+  --p-background-color: var(--p-surface-900);
+  --p-primary-color: var(--p-primary-300);
+}
+
+/* Apply theme colors to body */
+body {
+  background-color: var(--p-background-color);
+  color: var(--p-text-color);
+}
+
+/* Apply theme colors to navigation */
+nav {
+  background-color: var(--p-surface-800);
+  color: var(--p-surface-50);
+  border-bottom: 1px solid var(--p-surface-700);
+}
+
+/* Theme colors for links */
+.router-link-active {
+  color: var(--p-primary-color);
+  font-weight: 500;
+}
+
+/* Dark mode */
+/*@media (prefers-color-scheme: dark) {*/
+/*  :root {*/
+/*    --p-primary-color: var(--p-primary-300);*/
+/*    --p-primary-contrast-color: var(--p-surface-900);*/
+/*    --p-content-border-color: var(--p-surface-700);*/
+/*    --p-text-color: var(--p-surface-50);*/
+/*  }*/
+/*}*/
 
 .hot {
   height: calc(100vh - 300px);
@@ -98,27 +173,27 @@
 
 .hot .handsontable th {
   background-color: var(--p-surface-50);
-  color: var(--p-surface-800) !important;
+  color: var(--p-surface-100) !important;
   font-weight: 600;
 }
 
 .hot .handsontable td {
   background-color: var(--p-surface-0);
-  color: var(--p-surface-800) !important;
+  color: var(--p-surface-100) !important;
   border-color: var(--p-content-border-color);
 }
 
-@media (prefers-color-scheme: dark) {
-  .hot .handsontable th {
-    background-color: var(--p-surface-800);
-    color: var(--p-surface-50) !important;
-  }
+/*@media (prefers-color-scheme: dark) {*/
+/*  .hot .handsontable th {*/
+/*    background-color: var(--p-surface-800);*/
+/*    color: var(--p-surface-50) !important;*/
+/*  }*/
 
-  .hot .handsontable td {
-    background-color: var(--p-surface-900);
-    color: var(--p-surface-50) !important;
-  }
-}
+/*  .hot .handsontable td {*/
+/*    background-color: var(--p-surface-900);*/
+/*    color: var(--p-surface-50) !important;*/
+/*  }*/
+/*}*/
 
 .truncate-cell {
   white-space: nowrap;
@@ -161,22 +236,22 @@
   background-color: var(--p-surface-100);
 }
 
-@media (prefers-color-scheme: dark) {
-  .pagination {
-    background-color: var(--p-surface-800);
-    color: var(--p-surface-50);
-  }
+/*@media (prefers-color-scheme: dark) {*/
+/*  .pagination {*/
+/*    background-color: var(--p-surface-800);*/
+/*    color: var(--p-surface-50);*/
+/*  }*/
 
-  .pagination button {
-    background-color: var(--p-surface-700);
-    color: var(--p-surface-50);
-    border-color: var(--p-surface-600);
-  }
+/*  .pagination button {*/
+/*    background-color: var(--p-surface-700);*/
+/*    color: var(--p-surface-50);*/
+/*    border-color: var(--p-surface-600);*/
+/*  }*/
 
-  .pagination button:hover:not(:disabled) {
-    background-color: var(--p-surface-600);
-  }
-}
+/*  .pagination button:hover:not(:disabled) {*/
+/*    background-color: var(--p-surface-600);*/
+/*  }*/
+/*}*/
 
 .animate-spin {
   animation: spin 1s linear infinite;
@@ -197,8 +272,8 @@ button:disabled {
 }
 
 /* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  button:disabled {
-    opacity: 0.3;
-  }
-}
+/*@media (prefers-color-scheme: dark) {*/
+/*  button:disabled {*/
+/*    opacity: 0.3;*/
+/*  }*/
+/*}*/
