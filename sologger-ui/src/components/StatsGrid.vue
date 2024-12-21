@@ -6,7 +6,7 @@
         <p class="dark:text-white">{{ parsedLogs.length }}</p>
       </div>
       <div class="bg-green-100 dark:bg-green-900 p-4 rounded">
-        <h4 class="font-bold dark:text-white">Unique Programs</h4>
+        <h4 class="font-bold dark:text-white">Unique Progs</h4>
         <p class="dark:text-white">{{ uniqueProgramsCount }}</p>
       </div>
       <div class="bg-red-100 dark:bg-red-900 p-4 rounded">

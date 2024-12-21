@@ -1,85 +1,107 @@
 <template>
   <div>
     <div class="container mx-auto p-4">
-          <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
-            Solana Log Explorer
-          </h1>
-          <p class="mb-6 text-surface-600 dark:text-surface-300">
-            Monitor and analyze Solana program logs in real-time across different networks.
-          </p>
-      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" />
-      <div class="flex gap-4 mb-6">
-        <select
-            v-model="selectedEnvironment"
-            @change="handleEnvironmentChange"
-            class="px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
-        >
-          <option value="custom">Custom URL</option>
-          <option v-for="env in environments" :key="env.key" :value="env.url">
-            {{ env.key }}
-          </option>
-        </select>
-        <input
-            v-if="selectedEnvironment === 'custom'"
-            v-model="customUrl"
-            @change="handleCustomUrlChange"
-            type="text"
-            placeholder="Enter WebSocket URL (wss://...)"
-            class="flex-1 px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
-        />
-        <button
-            @click="disconnectWebSocket"
-            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Stop Logs
-        </button>
-        <button
-            @click="startAllWebSockets"
-            class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
-        >
-          Start Logs
-        </button>
-        <button
-            @click="clearAll"
-            class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center gap-2"
-        >
-          Clear All
-        </button>
-        <button
-            @click="downloadLogs"
-            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
-            :disabled="!parsedLogs.length"
-        >
-          <span>Download JSON</span>
-          <span v-if="!parsedLogs.length" class="text-sm opacity-75">(No data)</span>
-        </button>
+      <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
+        Solana Log Explorer
+      </h1>
+      <p class="mb-6 text-[var(--p-text-color)]">
+        Monitor and analyze Solana program logs in real-time across different networks.
+      </p>
+
+      <!-- Program ID Form -->
+      <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
+
+      <!-- Controls Section -->
+      <div class="space-y-4 mb-6">
+        <!-- Environment Selection -->
+        <div class="flex flex-col md:flex-row gap-4">
+          <select
+              v-model="selectedEnvironment"
+              @change="handleEnvironmentChange"
+              class="px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800 w-full md:w-auto"
+          >
+            <option value="custom">Custom URL</option>
+            <option v-for="env in environments" :key="env.key" :value="env.url">
+              {{ env.key }}
+            </option>
+          </select>
+
+          <input
+              v-if="selectedEnvironment === 'custom'"
+              v-model="customUrl"
+              @change="handleCustomUrlChange"
+              type="text"
+              placeholder="Enter WebSocket URL (wss://...)"
+              class="flex-1 px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 md:flex gap-2 md:gap-4">
+          <button
+              @click="disconnectWebSocket"
+              class="px-3 py-2 md:px-4 bg-red-500 text-white rounded hover:bg-red-600 text-sm md:text-base"
+          >
+            Stop Logs
+          </button>
+          <button
+              @click="startAllWebSockets"
+              class="px-3 py-2 md:px-4 bg-green-500 text-white rounded hover:bg-green-600 text-sm md:text-base flex items-center justify-center gap-2"
+          >
+            Start Logs
+          </button>
+          <button
+              @click="clearAll"
+              class="px-3 py-2 md:px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm md:text-base flex items-center justify-center gap-2"
+          >
+            Clear All
+          </button>
+          <button
+              @click="downloadLogs"
+              class="px-3 py-2 md:px-4 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base flex items-center justify-center gap-2"
+              :disabled="!parsedLogs.length"
+          >
+            <span>Download</span>
+            <span v-if="!parsedLogs.length" class="text-xs md:text-sm opacity-75">(No data)</span>
+          </button>
+        </div>
       </div>
-      <div class="mb-6">
-        <div class="flex flex-wrap gap-2">
+
+      <!-- Program Status Chips -->
+      <div class="mb-6 overflow-x-auto">
+        <div class="flex flex-wrap gap-2 min-w-min">
           <div v-for="programId in programIds" :key="programId"
-               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded">
-            <span>{{ programId }}</span>
+               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded text-sm">
+            <span class="truncate max-w-[150px] md:max-w-none">{{ programId }}</span>
             <div v-if="connectingWebsockets.has(programId)" class="flex items-center gap-2">
-              <span class="text-primary-500">Connecting...</span>
+              <span class="text-primary-500 text-xs md:text-sm">Connecting...</span>
               <svg class="animate-spin h-4 w-4 text-primary-500"
                    xmlns="http://www.w3.org/2000/svg"
                    fill="none"
                    viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
-            <span v-else-if="websockets.has(programId)" class="text-green-500">Connected</span>
-            <span v-else class="text-gray-500">Disconnected</span>
+            <span v-else-if="websockets.has(programId) && receivingMessages" class="text-green-500 text-xs md:text-sm">Connected</span>
+            <span v-else-if="websockets.has(programId) && !receivingMessages" class="text-green-500 text-xs md:text-sm">Awaiting logs...May take several seconds</span>
+            <span v-else class="text-gray-500 text-xs md:text-sm">Disconnected</span>
           </div>
         </div>
       </div>
-      <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
-      <StatsGrid
-          :parsedLogs="parsedLogs"
-          :uniqueProgramsCount="uniqueProgramsCount"
-          :lastUpdateTime="lastUpdateTime"
-      />
+
+      <!-- Program List and Stats -->
+      <div class="space-y-4 mb-6">
+        <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
+        <StatsGrid
+            :parsedLogs="parsedLogs"
+            :uniqueProgramsCount="uniqueProgramsCount"
+            :lastUpdateTime="lastUpdateTime"
+        />
+      </div>
+
+      <!-- Error Filter -->
       <div class="flex items-center gap-2 mb-4">
         <input
             type="checkbox"
@@ -87,23 +109,28 @@
             v-model="onlyShowErrors"
             class="w-4 h-4 text-primary-400 bg-surface-50 border-surface-300 rounded focus:ring-primary-500"
         />
-        <label for="errorFilter" class="text-surface-800 dark:text-surface-100">
+        <label for="errorFilter" class="text-[var(--p-text-color)] text-sm md:text-base">
           Only show error logs
         </label>
       </div>
-      <LogsTable
-          :parsedLogs="parsedLogs"
-          :hotSettings="hotSettings"
-      />
+
+      <!-- Logs Table with Mobile Optimization -->
+      <div class="overflow-x-auto">
+        <LogsTable
+            :parsedLogs="parsedLogs"
+            :hotSettings="getMobileOptimizedHotSettings"
+        />
+      </div>
     </div>
   </div>
 </template>
-
 <script>
-// Import your existing App.vue script here and rename the component
-import { onMounted } from 'vue';
-import { registerAllModules } from 'handsontable/registry';
-import init, { WasmLogContextTransformer } from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+// Import your existing script here
+import {onMounted} from 'vue';
+import {registerAllModules} from 'handsontable/registry';
+import init, {
+  WasmLogContextTransformer
+} from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
@@ -139,22 +166,22 @@ export default {
   setup() {
     onMounted(async () => {
       await init();
-      // const transformer = new WasmLogContextTransformer(["*"]);
       console.log("WASM Initialized");
-      // transformer.from_rpc_response({});
     });
 
     return {};
   },
   data() {
     return {
-      websockets: new Map(), // programId -> WebSocket
-      connectingWebsockets: new Set(), // Track connecting state
+      // ... your existing data properties ...
+      websockets: new Map(),
+      connectingWebsockets: new Set(),
+      receivingMessages: false,
       newProgramId: '',
       programIds: [],
       environments: [
-        { key: 'Devnet', url: 'wss://api.devnet.solana.com' },
-        { key: 'Testnet', url: 'wss://api.testnet.solana.com' }
+        {key: 'Devnet', url: 'wss://api.devnet.solana.com'},
+        {key: 'Testnet', url: 'wss://api.testnet.solana.com'}
       ],
       customUrl: '',
       selectedEnvironment: 'wss://api.devnet.solana.com',
@@ -163,20 +190,68 @@ export default {
       lastUpdateTime: '-',
       hotSettings: {
         columns: [
-          { data: 'timestamp', title: 'Time', width: 100, type: 'text' },
-          { data: 'level', title: 'Level', width: 80, type: 'text' },
-          { data: 'signature', title: 'Signature', width: 200, type: 'text' },
-          { data: 'slot', title: 'Slot', width: 100, type: 'numeric' },
-          { data: 'programId', title: 'Program ID', width: 150, type: 'text' },
-          { data: 'parentProgramId', title: 'Parent Program', width: 150, type: 'text' },
-          { data: 'depth', title: 'Depth', width: 80, type: 'numeric' },
-          { data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric' },
-          { data: 'invokeResult', title: 'Result', width: 100, type: 'text' },
-          { data: 'logMessages', title: 'Log Messages', width: 300, type: 'text' },
-          { data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text' },
-          { data: 'dataLogs', title: 'Data Logs', width: 200, type: 'text' },
-          { data: 'errors', title: 'Errors', width: 200, type: 'text' },
-          { data: 'transactionError', title: 'TX Error', width: 200, type: 'text' }
+          {data: 'timestamp', title: 'Time', width: 100, type: 'text'},
+          {data: 'level', title: 'Level', width: 80, type: 'text'},
+          {
+            data: 'signature', title: 'Signature', width: 200,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/tx/${value.signature}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.signature;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'slot',
+            title: 'Slot',
+            width: 100,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/block/${value.slot}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.slot;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'programId',
+            title: 'Program ID',
+            width: 150,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/account/${value.programId}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.programId;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {
+            data: 'parentProgramId', title: 'Parent Program', width: 150,
+            renderer: function (instance, td, row, col, prop, value, cellProperties) {
+              const link = document.createElement('a');
+              link.href = `https://solscan.io/account/${value.parentProgramId}${value.linkSuffix}`;
+              link.target = '_blank';
+              link.textContent = value.parentProgramId;
+              td.innerHTML = '';
+              td.appendChild(link);
+              return td;
+            }
+          },
+          {data: 'depth', title: 'Depth', width: 80, type: 'numeric'},
+          {data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric'},
+          {data: 'invokeResult', title: 'Result', width: 100, type: 'text'},
+          {data: 'logMessages', title: 'Log Messages', width: 300, type: 'text'},
+          {data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text'},
+          {data: 'dataLogs', title: 'Data Logs', width: 200, type: 'text'},
+          {data: 'errors', title: 'Errors', width: 200, type: 'text'},
+          {data: 'transactionError', title: 'TX Error', width: 200, type: 'text'}
         ],
         licenseKey: 'non-commercial-and-evaluation',
         columnSorting: true,
@@ -199,17 +274,55 @@ export default {
     uniqueProgramsCount() {
       const programs = new Set(this.parsedLogs.map(row => row.programId));
       return programs.size;
+    },
+    getMobileOptimizedHotSettings() {
+      const baseSettings = {...this.hotSettings};
+
+      // Adjust column widths for mobile
+      baseSettings.columns = baseSettings.columns.map(column => {
+        const newColumn = {...column};
+        if (window.innerWidth < 768) {
+          // Reduce column widths on mobile
+          newColumn.width = Math.min(column.width, 120);
+
+          // Truncate long text fields
+          if (['logMessages', 'rawLogs', 'dataLogs', 'errors'].includes(column.data)) {
+            newColumn.width = 150;
+          }
+        }
+        return newColumn;
+      });
+
+      // Additional mobile optimizations
+      if (window.innerWidth < 768) {
+        baseSettings.colHeaders = true;
+        baseSettings.rowHeaders = false; // Hide row headers on mobile
+        baseSettings.contextMenu = false; // Disable context menu on mobile
+        baseSettings.dropdownMenu = false; // Disable dropdown menu on mobile
+      }
+
+      return baseSettings;
     }
   },
   methods: {
     parseLog(logData) {
+      let linkSuffix = '';
+      if (this.selectedEnvironment.includes('dev')) {
+        linkSuffix = '?cluster=devnet';
+      } else if (this.selectedEnvironment.includes('test')) {
+        linkSuffix = '?cluster=testnet';
+      }
+      let signatureData = {signature: logData.signature, linkSuffix: linkSuffix};
+      let slotData = {slot: logData.slot, linkSuffix: linkSuffix};
+      let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix};
+      let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix};
       return {
         timestamp: new Date().toLocaleTimeString(),
         level: logData.solana.transaction_error !== null && logData.solana.transaction_error !== "" ? "Error" : "Info",
-        signature: logData.signature,
-        slot: logData.slot,
-        programId: logData.solana.program_id,
-        parentProgramId: logData.solana.parent_program_id,
+        signature: signatureData,
+        slot: slotData,
+        programId: programData,
+        parentProgramId: parentProgramData,
         depth: logData.solana.depth,
         instructionIndex: logData.solana.instruction_index,
         invokeResult: logData.solana.invoke_result,
@@ -306,7 +419,7 @@ export default {
               solana: JSON.parse(sanitizeLogMessage(solana_log))
             };
 
-            if(sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
+            if (sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
               // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
             } else {
               // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
@@ -384,6 +497,7 @@ export default {
             }
 
             if (eventData.params?.result?.value) {
+              this.receivingMessages = true;
               this.lastUpdateTime = new Date().toLocaleTimeString();
               this.updateTable(eventData);
             }
@@ -396,8 +510,8 @@ export default {
             id: Date.now(),
             method: 'logsSubscribe',
             params: [
-              { mentions: [programId] },
-              { commitment: 'finalized', encoding: 'json' }
+              {mentions: [programId]},
+              {commitment: 'finalized', encoding: 'json'}
             ]
           };
           ws.send(JSON.stringify(subscribeMessage));
@@ -482,7 +596,7 @@ export default {
         const jsonString = JSON.stringify(downloadData, null, 2);
 
         // Create blob and download
-        const blob = new Blob([jsonString], { type: 'application/json' });
+        const blob = new Blob([jsonString], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
 
         // Create download link
@@ -518,7 +632,17 @@ export default {
   }
 };
 </script>
+
 <style scoped>
+:root {
+  --p-text-color: var(--p-surface-800);
+}
+
+:root[data-theme="dark"] {
+  --p-text-color: var(--p-surface-50);
+}
+
+/* Keep your existing styles */
 .router-link-active {
   color: var(--p-primary-400);
   font-weight: 500;
@@ -528,10 +652,23 @@ nav {
   border-bottom: 1px solid var(--p-surface-700);
 }
 
-@media (prefers-color-scheme: dark) {
-  nav {
-    background-color: var(--p-surface-900);
-    border-bottom-color: var(--p-surface-800);
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  /* Optimize table for mobile */
+  :deep(.handsontable) {
+    font-size: 12px;
+  }
+
+  :deep(.handsontable td) {
+    padding: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 </style>

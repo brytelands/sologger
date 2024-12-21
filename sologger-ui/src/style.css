@@ -1,5 +1,6 @@
+/* style.css */
 :root {
-  /* Primary colors */
+  /* Primary colors - these stay constant */
   --p-primary-50: #efede6;
   --p-primary-100: #ddadd8;
   --p-primary-200: #d37fcf;
@@ -7,56 +8,139 @@
   --p-primary-400: #ff4513;
   --p-primary-500: #302d37;
 
-  /* Surface colors - Dark greens */
-  --p-surface-0: #ffffff;
-  --p-surface-50: #e6efe9;
-  --p-surface-100: #0f4d42;
-  --p-surface-200: #052b25;
-  --p-surface-300: #1b6442;
-  --p-surface-400: #0f4d42;
-  --p-surface-500: #052b25;
-  --p-surface-600: #1b6442;
-  --p-surface-700: #0f4d42;
-  --p-surface-800: #052b25;
-  --p-surface-900: #021b17;
-  --p-surface-950: #010f0d;
-}
-
-/* Light mode */
-:root {
   --p-primary-color: var(--p-primary-400);
   --p-primary-contrast-color: var(--p-surface-0);
   --p-content-border-color: var(--p-surface-200);
   --p-text-color: var(--p-surface-800);
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --p-primary-color: var(--p-primary-300);
-    --p-primary-contrast-color: var(--p-surface-900);
-    --p-content-border-color: var(--p-surface-700);
-    --p-text-color: var(--p-surface-50);
+/* Light theme (default) */
+:root[data-theme="light"] {
+  --p-surface-0: #ffffff;
+  --p-surface-50: #e6efe9;
+  --p-surface-100: #052b25;
+  --p-surface-200: #b3cfc2;
+  --p-surface-300: #0f4d42;
+  --p-surface-400: #6b9884;
+  --p-surface-500: #527a69;
+  --p-surface-600: #40614f;
+  --p-surface-700: #2f4a3a;
+  --p-surface-800: #052b25;
+  --p-surface-900: #101c15;
+  --p-surface-950: #080e0a;
+
+  --p-text-color: var(--p-surface-900);
+  --p-background-color: var(--p-surface-0);
+  --p-primary-color: var(--p-primary-400);
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --p-surface-0: #021b17;
+  --p-surface-50: #0f4d42;
+  --p-surface-100: #d1e3d9;
+  --p-surface-200: #1b6442;
+  --p-surface-300: #8cb3a2;
+  --p-surface-400: #052b25;
+  --p-surface-500: #1b6442;
+  --p-surface-600: #0f4d42;
+  --p-surface-700: #052b25;
+  --p-surface-800: #021b17;
+  --p-surface-900: #010f0d;
+  --p-surface-950: #000807;
+
+  --p-text-color: var(--p-surface-50);
+  --p-background-color: var(--p-surface-900);
+  --p-primary-color: var(--p-primary-300);
+}
+
+/* Apply theme colors to body */
+body {
+  background-color: var(--p-background-color);
+  color: var(--p-text-color);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Apply theme colors to navigation */
+nav {
+  background-color: var(--p-surface-800);
+  color: var(--p-surface-50);
+  border-bottom: 1px solid var(--p-surface-700);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+/* Responsive container */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
   }
 }
 
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Mobile-friendly data grid */
 .hot {
   height: calc(100vh - 300px);
   overflow: hidden;
+  max-width: 100vw;
 }
 
 .hot .handsontable {
   font-size: 12px;
 }
 
+@media (max-width: 768px) {
+  .hot {
+    height: calc(100vh - 200px);
+  }
+
+  .hot .handsontable {
+    font-size: 11px;
+  }
+
+  .scrollable-cell {
+    max-height: 35px;
+  }
+}
+
 .hot .handsontable th {
   color: var(--p-text-color);
   font-weight: 600;
+  white-space: nowrap;
+  padding: 4px 6px;
 }
 
 .hot .handsontable td {
   color: var(--p-text-color);
   border-color: var(--p-content-border-color);
+  padding: 4px 6px;
 }
 
 .truncate-cell {
@@ -73,6 +157,7 @@
   padding: 2px;
 }
 
+/* Mobile-friendly scrollbars */
 .scrollable-cell::-webkit-scrollbar {
   width: 4px;
 }
@@ -86,98 +171,43 @@
   border-radius: 2px;
 }
 
-.hot {
-  height: calc(100vh - 300px);
-  overflow: hidden;
-}
-
-.hot .handsontable {
-  font-size: 12px;
-  background-color: var(--p-surface-50);
-}
-
-.hot .handsontable th {
-  background-color: var(--p-surface-50);
-  color: var(--p-surface-800) !important;
-  font-weight: 600;
-}
-
-.hot .handsontable td {
-  background-color: var(--p-surface-0);
-  color: var(--p-surface-800) !important;
-  border-color: var(--p-content-border-color);
-}
-
-@media (prefers-color-scheme: dark) {
-  .hot .handsontable th {
-    background-color: var(--p-surface-800);
-    color: var(--p-surface-50) !important;
-  }
-
-  .hot .handsontable td {
-    background-color: var(--p-surface-900);
-    color: var(--p-surface-50) !important;
-  }
-}
-
-.truncate-cell {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.scrollable-cell {
-  white-space: pre-wrap;
-  overflow-y: auto;
-  max-height: 45px;
-  padding: 2px;
-}
-
-.scrollable-cell::-webkit-scrollbar {
-  width: 4px;
-}
-
-.scrollable-cell::-webkit-scrollbar-track {
-  background: var(--p-surface-100);
-}
-
-.scrollable-cell::-webkit-scrollbar-thumb {
-  background: var(--p-surface-400);
-  border-radius: 2px;
-}
-
+/* Responsive pagination */
 .pagination {
   background-color: var(--p-surface-800);
   color: var(--p-surface-50);
+  padding: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .pagination {
+    font-size: 0.875rem;
+  }
+
+  .pagination button {
+    padding: 0.375rem 0.75rem;
+  }
 }
 
 .pagination button {
   background-color: var(--p-surface-800);
   color: var(--p-surface-50);
+  min-width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pagination button:hover:not(:disabled) {
   background-color: var(--p-surface-100);
 }
 
-@media (prefers-color-scheme: dark) {
-  .pagination {
-    background-color: var(--p-surface-800);
-    color: var(--p-surface-50);
-  }
-
-  .pagination button {
-    background-color: var(--p-surface-700);
-    color: var(--p-surface-50);
-    border-color: var(--p-surface-600);
-  }
-
-  .pagination button:hover:not(:disabled) {
-    background-color: var(--p-surface-600);
-  }
-}
-
+/* Animation utilities */
 .animate-spin {
   animation: spin 1s linear infinite;
 }
@@ -191,14 +221,21 @@
   }
 }
 
+/* Form responsiveness */
+@media (max-width: 768px) {
+  .p-inputtext {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .p-button {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+  }
+}
+
+/* Utility classes */
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  button:disabled {
-    opacity: 0.3;
-  }
 }

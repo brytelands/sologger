@@ -1,5 +1,5 @@
 <template>
-  <div>
+    <div class="overflow-x-auto">
     <div class="pagination flex items-center justify-between p-4 bg-surface-50 border-t border-surface-200">
       <span class="text-sm text-surface-0">
         Showing {{ currentPage * pageSize + 1 }} - {{ Math.min((currentPage + 1) * pageSize, parsedLogs.length) }}

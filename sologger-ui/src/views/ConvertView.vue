@@ -1,6 +1,6 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6 text-surface-800 dark:text-surface-100">
+    <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
       Convert Solana Logs
     </h1>
 
@@ -42,7 +42,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
           <pre>{{ formattedOutput }}</pre>
         </div>
         <div v-else class="h-[600px] flex items-center justify-center border border-dashed border-surface-200 dark:border-surface-700 rounded-lg bg-surface-800">
-          <span class="text-surface-400">Converted logs will appear here</span>
+          <span class="text-[var(--p-text-color)]">Converted logs will appear here</span>
         </div>
         <div class="flex gap-4">
           <button
