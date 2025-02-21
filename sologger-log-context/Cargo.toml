@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_context"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
@@ -16,21 +16,19 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-log = "0.4.22"
-regex = { version = "1.11.0" }
-serde = { version = "1.0.210", features = ["serde_derive", "derive"]}
-serde_json = {version = "1.0.128"}
-serde_derive = "1.0.210"
+log = "0.4.25"
+regex = { version = "1.11.1" }
+serde = { version = "1.0.218", features = ["serde_derive", "derive"]}
+serde_json = {version = "1.0.138"}
+serde_derive = "1.0.218"
 bs58 = "0.5.1"
 lazy_static = "1.5.0"
 wasm-bindgen = "0.2"
 serde-wasm-bindgen = "0.6.5"
-web-sys = { version = "0.3", features = ["console"] }
 console_error_panic_hook = "0.1"
 
 [dev-dependencies]
 criterion = "0.5.1"
-wasm-bindgen-test = "0.3.45"
 
 [[bench]]
 name = "log_context_benchmarks"
