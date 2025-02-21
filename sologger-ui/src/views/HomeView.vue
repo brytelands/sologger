@@ -130,7 +130,7 @@ import {onMounted} from 'vue';
 import {registerAllModules} from 'handsontable/registry';
 import init, {
   WasmLogContextTransformer
-} from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+} from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';

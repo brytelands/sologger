@@ -31,6 +31,8 @@ cargo build --features 'enable_logstash'
 
 #If you want to build the binaries with OpenTelemetry support, then run the following command:
 cargo build --features 'enable_otel'
+
+cargo test --features 'enable_logstash logstash otel'
 ```
 
 **Building the docker image**

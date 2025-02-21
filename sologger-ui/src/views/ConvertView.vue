@@ -73,7 +73,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
 </template>
 
 <script>
-import { WasmLogContextTransformer } from '../deps/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+import { WasmLogContextTransformer } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 
 const sanitizeLogMessage = (message) => {
   if (typeof message === 'object') {
