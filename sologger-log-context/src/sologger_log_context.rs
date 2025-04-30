@@ -216,7 +216,8 @@ impl LogContext {
         let mut current_depth = 0;
         let mut call_stack: Vec<String> = Vec::new();
         let mut call_ids: Vec<usize> = Vec::new();
-        let mut begin_program_id: String = "".to_string();
+        let mut parent_program_id: String = "".to_string();
+        let mut current_program_id: String = "".to_string();
         let mut end_parsing = false;
         for log in logs {
             let mut log_trimmed = "".to_string();
@@ -237,15 +238,16 @@ impl LogContext {
                 if !program_id.is_empty()
                     && programs_selector.is_program_selected_string(&program_id)
                 {
-                    begin_program_id = program_id.clone();
+                    parent_program_id = current_program_id;
+                    current_program_id = program_id.clone();
                 }
 
-                if begin_program_id.is_empty() {
+                if current_program_id.is_empty() {
                     continue;
                 }
 
                 let end_program_id = Self::get_end_program_id(log);
-                end_parsing = begin_program_id.is_empty() || begin_program_id == end_program_id;
+                end_parsing = current_program_id.is_empty() || current_program_id == end_program_id;
             }
 
             let capture: Option<Captures> = if !log_trimmed.is_empty() {
@@ -256,7 +258,7 @@ impl LogContext {
 
             trace!(
                 "parse_log programId:{} slot:{} log:{}",
-                begin_program_id,
+                current_program_id,
                 slot,
                 log
             );
@@ -479,7 +481,11 @@ impl LogContext {
             }
             if end_parsing {
                 trace!("parse_logs for slot: {}", slot);
-                begin_program_id = String::new();
+                if(current_depth > 0) {
+                    current_program_id = parent_program_id.clone();
+                } else {
+                    current_program_id = String::new();
+                }
                 continue;
             }
         }
@@ -1141,6 +1147,34 @@ mod tests {
         let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
 
         assert_eq!(log_contexts.len(), 12);
+    }
+
+    #[test]
+    fn bug_test() {
+        let raw_logs: Vec<String> = vec![
+            "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+            "Program ComputeBudget111111111111111111111111111111 success",
+            "Program 4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc invoke [1]",
+            "Program log: Instruction: InitializeDexWithFaucet",
+            "Program 8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCb invoke [2]",
+            "Program log: Instruction: InitializeDex",
+            "Program data: cUFjLBpe5JOekEroa6JPkB0K2UIdT+zKkvpV785cVe4O1d6G7jztJ3Xn+TcIhLQvmcg+pEqtGTsojLCZDoewAWPHW+ZX5ivISu0LxJpgTDQ1zb/sX2P93/i+El/IMD4yW/HuO09pT3WsoYcb9r4iDmwY6rdZmzYEM2qK1Tje670ZtSxChoG0awCUNXcAAAAAAADaSTtxfQwAgPTyaU7YAgA=",
+            "Program 8PTUyQsde4zDXUc8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCbAStXJFHkAUtcWnDJsPgGRZGp4PMCb consumed 72819 of 415740 compute units",
+            "Program 8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCb success",
+            "Program data: oWrjgGd+/JKekEroa6JPkB0K2UIdT+zKkvpV785cVe4O1d6G7jztJ3Xn+TcIhLQvmcg+pEqtGTsojLCZDoewAWPHW+ZX5ivISu0LxJpgTDQ1zb/sX2P93/i+El/IMD4yW/HuO09pT3WsoYcb9r4iDmwY6rdZmzYEM2qK1Tje670ZtSxChoG0awAAxS68orEAAADFLryisQA=",
+            "Program 4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc consumed 159581 of 499850 compute units",
+            "Program 4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc success"
+        ].into_iter().map(|s| s.to_string()).collect();
+        
+        let programs_selector = ProgramsSelector::new(&["4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc".to_string(), "8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCb".to_string()]);
+        let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
+        
+        assert_eq!(log_contexts.len(), 2);
+        assert_eq!(log_contexts[0].raw_logs.len(), 5);
+        assert_eq!(log_contexts[0].data_logs[0], "oWrjgGd+/JKekEroa6JPkB0K2UIdT+zKkvpV785cVe4O1d6G7jztJ3Xn+TcIhLQvmcg+pEqtGTsojLCZDoewAWPHW+ZX5ivISu0LxJpgTDQ1zb/sX2P93/i+El/IMD4yW/HuO09pT3WsoYcb9r4iDmwY6rdZmzYEM2qK1Tje670ZtSxChoG0awAAxS68orEAAADFLryisQA=");
+        assert_eq!(log_contexts[1].raw_logs.len(), 5);
+        assert_eq!(log_contexts[1].data_logs[0], "cUFjLBpe5JOekEroa6JPkB0K2UIdT+zKkvpV785cVe4O1d6G7jztJ3Xn+TcIhLQvmcg+pEqtGTsojLCZDoewAWPHW+ZX5ivISu0LxJpgTDQ1zb/sX2P93/i+El/IMD4yW/HuO09pT3WsoYcb9r4iDmwY6rdZmzYEM2qK1Tje670ZtSxChoG0awCUNXcAAAAAAADaSTtxfQwAgPTyaU7YAgA=");
+        println!("{}", serde_json::to_string_pretty(&log_contexts).unwrap());
     }
 
     #[test]
