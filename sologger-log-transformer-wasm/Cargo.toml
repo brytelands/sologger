@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transformer_wasm"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support."

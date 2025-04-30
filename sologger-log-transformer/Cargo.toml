@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transformer"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Will Kennedy"]
 description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
