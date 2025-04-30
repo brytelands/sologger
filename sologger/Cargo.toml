@@ -26,8 +26,8 @@ solana-pubsub-client = { version = "2.2.7", optional = true }
 solana-rpc-client-api = { version = "2.2.7", optional = true }
 solana-sdk = { version = "2.2.2", optional = true }
 sologger_log_context = "0.2.3"
-sologger_log_transformer = "0.2.4"
-sologger_log_transport = "0.2.2"
+sologger_log_transformer = "0.2.3"
+sologger_log_transport = "0.2.1"
 tokio = { version = "1.44", features = ["full"] }
 tokio-metrics = { version = "0.4", optional = true}
 
