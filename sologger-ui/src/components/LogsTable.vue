@@ -1,7 +1,7 @@
 <template>
     <div class="overflow-x-auto">
-    <div class="pagination flex items-center justify-between p-4 bg-surface-50 border-t border-surface-200">
-      <span class="text-sm text-surface-0">
+    <div class="pagination rounded-lg border border-[var(--p-card-border)]">
+      <span class="text-sm text-[var(--p-text-muted)]">
         Showing {{ currentPage * pageSize + 1 }} - {{ Math.min((currentPage + 1) * pageSize, parsedLogs.length) }}
         of {{ parsedLogs.length }} entries
       </span>
@@ -9,24 +9,24 @@
         <button
             @click="prevPage"
             :disabled="currentPage === 0"
-            class="px-3 py-1 text-sm rounded border border-surface-200 hover:bg-surface-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
         </button>
         <button
             @click="nextPage"
             :disabled="currentPage >= totalPages - 1"
-            class="px-3 py-1 text-sm rounded border border-surface-200 hover:bg-surface-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>
       </div>
     </div>
-    <div class="hot">
+    <div class="hot" style="margin-top: 8px; margin-bottom: 8px;">
       <hot-table :data="paginatedLogs" :settings="hotSettings" ref="hotTable" />
     </div>
-    <div class="pagination flex items-center justify-between p-4 bg-surface-50 border-t border-surface-200">
-      <span class="text-sm text-surface-600">
+    <div class="pagination rounded-lg border border-[var(--p-card-border)]">
+      <span class="text-sm text-[var(--p-text-muted)]">
         Showing {{ currentPage * pageSize + 1 }} - {{ Math.min((currentPage + 1) * pageSize, parsedLogs.length) }}
         of {{ parsedLogs.length }} entries
       </span>
@@ -34,14 +34,14 @@
         <button
             @click="prevPage"
             :disabled="currentPage === 0"
-            class="px-3 py-1 text-sm rounded border border-surface-200 hover:bg-surface-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
         </button>
         <button
             @click="nextPage"
             :disabled="currentPage >= totalPages - 1"
-            class="px-3 py-1 text-sm rounded border border-surface-200 hover:bg-surface-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
         </button>
@@ -73,6 +73,8 @@ export default {
         autoRowSize: false,
         autoColumnSize: false,
         rowHeights: 50,
+        rowHeaders: false,
+        columnHeaders: false,
         currentRowClassName: 'current-row',
         preventOverflow: 'horizontal',
         outsideClickDeselects: false,
@@ -210,4 +212,17 @@ export default {
 
 <style>
 @import 'handsontable/dist/handsontable.full.min.css';
+
+.hot .handsontable .wtHolder {
+  border-top: none;
+  border-bottom: none;
+}
+
+.hot .ht_master .wtHolder {
+  border-left: 1px solid var(--p-card-border);
+  border-right: 1px solid var(--p-card-border);
+}
+
+.hot .ht_clone_left { display: none; } /* Hides the row header column */
+
 </style>

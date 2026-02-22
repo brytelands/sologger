@@ -1,12 +1,14 @@
 <template>
   <div>
-    <div class="container mx-auto p-4">
-      <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
-        Solana Log Explorer
-      </h1>
-      <p class="mb-6 text-[var(--p-text-color)]">
-        Monitor and analyze Solana program logs in real-time across different networks.
-      </p>
+    <div class="container mx-auto px-4 py-6">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2 text-[var(--p-text-color)] tracking-tight">
+          Solana Log Explorer
+        </h1>
+        <p class="text-[var(--p-text-muted)] text-base">
+          Monitor and analyze Solana program logs in real-time across different networks.
+        </p>
+      </div>
 
       <!-- Program ID Form -->
       <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
@@ -18,7 +20,7 @@
           <select
               v-model="selectedEnvironment"
               @change="handleEnvironmentChange"
-              class="px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800 w-full md:w-auto"
+              class="input-base w-full md:w-auto"
           >
             <option value="custom">Custom URL</option>
             <option v-for="env in environments" :key="env.key" :value="env.url">
@@ -32,7 +34,7 @@
               @change="handleCustomUrlChange"
               type="text"
               placeholder="Enter WebSocket URL (wss://...)"
-              class="flex-1 px-4 py-2 border border-surface-200 rounded bg-surface-50 text-surface-800"
+              class="input-base flex-1"
           />
         </div>
 
@@ -40,29 +42,29 @@
         <div class="grid grid-cols-2 md:flex gap-2 md:gap-4">
           <button
               @click="disconnectWebSocket"
-              class="px-3 py-2 md:px-4 bg-red-500 text-white rounded hover:bg-red-600 text-sm md:text-base"
+              class="btn btn-danger"
           >
             Stop Logs
           </button>
           <button
               @click="startAllWebSockets"
-              class="px-3 py-2 md:px-4 bg-green-500 text-white rounded hover:bg-green-600 text-sm md:text-base flex items-center justify-center gap-2"
+              class="btn btn-success"
           >
             Start Logs
           </button>
           <button
               @click="clearAll"
-              class="px-3 py-2 md:px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm md:text-base flex items-center justify-center gap-2"
+              class="btn btn-warning"
           >
             Clear All
           </button>
           <button
               @click="downloadLogs"
-              class="px-3 py-2 md:px-4 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm md:text-base flex items-center justify-center gap-2"
+              class="btn btn-info"
               :disabled="!parsedLogs.length"
           >
             <span>Download</span>
-            <span v-if="!parsedLogs.length" class="text-xs md:text-sm opacity-75">(No data)</span>
+            <span v-if="!parsedLogs.length" class="text-xs opacity-75">(No data)</span>
           </button>
         </div>
       </div>
@@ -71,11 +73,11 @@
       <div class="mb-6 overflow-x-auto">
         <div class="flex flex-wrap gap-2 min-w-min">
           <div v-for="programId in programIds" :key="programId"
-               class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded text-sm">
+               class="flex items-center gap-2 bg-[var(--p-card-bg)] border border-[var(--p-card-border)] px-3 py-1.5 rounded-lg text-sm">
             <span class="truncate max-w-[150px] md:max-w-none">{{ programId }}</span>
             <div v-if="connectingWebsockets.has(programId)" class="flex items-center gap-2">
-              <span class="text-primary-500 text-xs md:text-sm">Connecting...</span>
-              <svg class="animate-spin h-4 w-4 text-primary-500"
+              <span class="text-[var(--p-primary-400)] text-xs md:text-sm">Connecting...</span>
+              <svg class="animate-spin h-4 w-4 text-[var(--p-primary-400)]"
                    xmlns="http://www.w3.org/2000/svg"
                    fill="none"
                    viewBox="0 0 24 24">
@@ -99,19 +101,6 @@
             :uniqueProgramsCount="uniqueProgramsCount"
             :lastUpdateTime="lastUpdateTime"
         />
-      </div>
-
-      <!-- Error Filter -->
-      <div class="flex items-center gap-2 mb-4">
-        <input
-            type="checkbox"
-            id="errorFilter"
-            v-model="onlyShowErrors"
-            class="w-4 h-4 text-primary-400 bg-surface-50 border-surface-300 rounded focus:ring-primary-500"
-        />
-        <label for="errorFilter" class="text-[var(--p-text-color)] text-sm md:text-base">
-          Only show error logs
-        </label>
       </div>
 
       <!-- Logs Table with Mobile Optimization -->
@@ -634,24 +623,6 @@ export default {
 </script>
 
 <style scoped>
-:root {
-  --p-text-color: var(--p-surface-800);
-}
-
-:root[data-theme="dark"] {
-  --p-text-color: var(--p-surface-50);
-}
-
-/* Keep your existing styles */
-.router-link-active {
-  color: var(--p-primary-400);
-  font-weight: 500;
-}
-
-nav {
-  border-bottom: 1px solid var(--p-surface-700);
-}
-
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .container {
@@ -659,7 +630,6 @@ nav {
     padding-right: 0.5rem;
   }
 
-  /* Optimize table for mobile */
   :deep(.handsontable) {
     font-size: 12px;
   }

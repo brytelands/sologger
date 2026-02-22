@@ -1,13 +1,13 @@
 <!-- src/App.vue -->
 <template>
   <div class="app">
-    <nav class="p-2 mb-6 relative">
+    <nav class="px-4 py-3 mb-0 relative">
       <div class="container mx-auto">
         <!-- Mobile Menu Button -->
         <div class="md:hidden flex items-center justify-between">
           <button
               @click="isMobileMenuOpen = !isMobileMenuOpen"
-              class="text-surface-50 p-2"
+              class="text-surface-50 p-2 rounded-lg hover:bg-white/10 transition-colors"
               aria-label="Toggle menu"
           >
             <svg
@@ -47,22 +47,22 @@
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center justify-between">
-          <div class="flex items-center gap-6">
+          <div class="flex items-center gap-1">
             <router-link
                 to="/"
-                class="text-surface-50 hover:text-primary-400 transition-colors"
+                class="px-3 py-2 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
             >
               Home
             </router-link>
             <router-link
                 to="/convert"
-                class="text-surface-50 hover:text-primary-400 transition-colors"
+                class="px-3 py-2 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
             >
               Convert Logs
             </router-link>
             <router-link
                 to="/about"
-                class="text-surface-50 hover:text-primary-400 transition-colors"
+                class="px-3 py-2 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
             >
               About
             </router-link>
@@ -80,7 +80,7 @@
               <button
                   type="button"
                   @click.stop="toggleThemeMenu"
-                  class="p-2 rounded-full bg-surface-800 hover:bg-surface-700 transition-colors"
+                  class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                   :aria-label="'Current theme: ' + theme"
               >
                 <!-- Sun icon for light mode -->
@@ -135,7 +135,7 @@
 
               <div
                   v-if="isThemeMenuOpen"
-                  class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-surface-800 ring-1 ring-black ring-opacity-5 z-50"
+                  class="absolute right-0 mt-2 w-44 rounded-xl shadow-xl bg-surface-800 border border-white/10 z-50 overflow-hidden"
               >
                 <div class="py-1" role="menu">
                   <button
@@ -143,8 +143,8 @@
                       :key="option.value"
                       type="button"
                       @click="selectTheme(option.value)"
-                      class="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-surface-700 transition-colors"
-                      :class="{ 'bg-surface-800': theme === option.value }"
+                      class="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-white/10 transition-colors"
+                      :class="{ 'text-primary-400 font-medium': theme === option.value }"
                       role="menuitem"
                   >
                     {{ option.label }}
@@ -157,7 +157,7 @@
                 href="https://github.com/brytelands/sologger"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-surface-50 hover:text-primary-400 transition-colors"
+                class="p-2 rounded-lg text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
             >
               <svg
                   class="h-6 w-6"
@@ -178,20 +178,20 @@
         <!-- Mobile Menu -->
         <div
             v-if="isMobileMenuOpen"
-            class="md:hidden absolute top-full left-0 right-0 bg-surface-800 z-50"
+            class="md:hidden absolute top-full left-0 right-0 bg-surface-800 border-t border-white/10 shadow-xl z-50"
         >
           <div class="px-2 pt-2 pb-3 space-y-1">
             <router-link
                 v-for="link in navigationLinks"
                 :key="link.to"
                 :to="link.to"
-                class="block px-3 py-2 rounded-md text-surface-50 hover:text-primary-400 transition-colors"
+                class="block px-4 py-2.5 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
                 @click="isMobileMenuOpen = false"
             >
               {{ link.text }}
             </router-link>
           </div>
-          <div class="px-4 py-3 border-t border-surface-700">
+          <div class="px-4 py-3 border-t border-white/10">
             <div class="flex items-center justify-between">
               <div class="theme-toggle">
                 <button
@@ -209,7 +209,7 @@
                   href="https://github.com/brytelands/sologger"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-surface-50 hover:text-primary-400 transition-colors"
+                  class="p-2 rounded-lg text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
               >
                 <svg
                     class="h-6 w-6"
@@ -301,11 +301,11 @@ export default {
 
 <style>
 .router-link-active {
-  color: var(--p-primary-400);
-  font-weight: 500;
+  color: var(--p-primary-400) !important;
+  font-weight: 600;
+  background-color: rgba(255, 69, 19, 0.12) !important;
 }
 
-/* Add responsive styles */
 @media (max-width: 768px) {
   .container {
     padding-left: 1rem;

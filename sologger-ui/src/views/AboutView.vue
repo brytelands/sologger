@@ -1,16 +1,18 @@
 <template>
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
-      About Sologger
-    </h1>
+  <div class="container mx-auto px-4 py-6">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2 text-[var(--p-text-color)] tracking-tight">
+        About Sologger
+      </h1>
+    </div>
     <div class="max-w-3xl text-[var(--p-text-color)]">
       <p class="mb-6 text-lg">
         Sologger is a real-time Solana program log explorer and analysis tool.
         It helps developers monitor and debug their Solana programs across different networks.
       </p>
 
-      <h2 class="text-xl font-bold mt-8 mb-4">Features</h2>
-      <ul class="list-disc pl-6 mb-6 space-y-2">
+      <h2 class="text-lg font-semibold mt-8 mb-3 text-[var(--p-text-color)]">Features</h2>
+      <ul class="list-disc pl-6 mb-6 space-y-2 text-[var(--p-text-muted)]">
         <li>Real-time log monitoring</li>
         <li>Multi-program support</li>
         <li>Cross-network compatibility</li>
@@ -18,11 +20,11 @@
         <li>Data export capabilities</li>
       </ul>
 
-      <h2 class="text-xl font-bold mt-8 mb-4">Getting Started</h2>
+      <h2 class="text-lg font-semibold mt-8 mb-3 text-[var(--p-text-color)]">Getting Started</h2>
       <p class="mb-4">
         To begin monitoring your Solana program logs:
       </p>
-      <ol class="list-decimal pl-6 mb-6 space-y-2">
+      <ol class="list-decimal pl-6 mb-6 space-y-2 text-[var(--p-text-muted)]">
         <li>Select a network (Devnet, Testnet, or enter your RPC URL (Helius, QuickNode, etc...). In order to listen to
           logs on Mainnet you must use your own URL
         </li>
@@ -30,7 +32,7 @@
         <li>Click "Start Logs" to begin monitoring</li>
       </ol>
 
-      <h2 class="text-xl font-bold mt-8 mb-4">Contributing</h2>
+      <h2 class="text-lg font-semibold mt-8 mb-3 text-[var(--p-text-color)]">Contributing</h2>
       <p class="mb-6">
         Contributions are welcome! Visit our
         <a
