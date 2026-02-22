@@ -116,7 +116,6 @@
 <script>
 // Import your existing script here
 import {onMounted} from 'vue';
-import {registerAllModules} from 'handsontable/registry';
 import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
@@ -126,7 +125,6 @@ import StatsGrid from '../components/StatsGrid.vue';
 import LogsTable from '../components/LogsTable.vue';
 import Button from "primevue/button";
 
-registerAllModules();
 
 const sanitizeLogMessage = (message) => {
   if (typeof message === 'object') {
@@ -438,9 +436,6 @@ export default {
         }
       }
 
-      if (this.$refs.hotTable) {
-        this.$refs.hotTable.hotInstance.render();
-      }
     },
     async startAllWebSockets() {
       console.log('Starting WebSockets for all programs');
@@ -559,9 +554,6 @@ export default {
       this.connectingWebsockets.clear();
       console.log('Cleared all data and connections');
 
-      if (this.$refs.hotTable) {
-        this.$refs.hotTable.hotInstance.render();
-      }
     },
 
     downloadLogs() {
@@ -630,15 +622,5 @@ export default {
     padding-right: 0.5rem;
   }
 
-  :deep(.handsontable) {
-    font-size: 12px;
-  }
-
-  :deep(.handsontable td) {
-    padding: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }
 </style>

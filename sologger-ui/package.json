@@ -9,10 +9,9 @@
     "preview": "vite build & vite preview"
   },
   "dependencies": {
-    "@handsontable/vue3": "^16.2.0",
     "chart.js": "^4.5.1",
-    "handsontable": "^16.2.0",
     "primevue": "^4.5.4",
+    "slickgrid": "^5.18.2",
     "tailwindcss-primeui": "^0.6.1",
     "vue": "^3.5.28",
     "vue-chartjs": "^5.3.3",
