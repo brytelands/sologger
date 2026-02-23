@@ -44,17 +44,29 @@
               @click="disconnectWebSocket"
               class="btn btn-danger"
           >
-            Stop Logs
+            Disconnect
           </button>
           <button
               @click="startAllWebSockets"
               class="btn btn-success"
           >
-            Start Logs
+            Connect
+          </button>
+          <button
+              @click="togglePause"
+              :class="isPaused ? 'btn btn-success' : 'btn btn-warning'"
+          >
+            {{ isPaused ? 'Resume' : 'Pause' }}
+          </button>
+          <button
+              @click="clearLogs"
+              class="btn btn-warning"
+          >
+            Clear Logs
           </button>
           <button
               @click="clearAll"
-              class="btn btn-warning"
+              class="btn btn-danger"
           >
             Clear All
           </button>
@@ -103,10 +115,32 @@
         />
       </div>
 
+      <!-- Global Search and Filter Bar -->
+      <div class="flex flex-col md:flex-row gap-2 mb-4">
+        <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search logs (supports regex)..."
+            class="input-base flex-1"
+        />
+        <select v-model="filterLevel" class="input-base w-full md:w-40">
+          <option value="">All Levels</option>
+          <option value="Info">Info</option>
+          <option value="Error">Error</option>
+          <option value="Warning">Warning</option>
+        </select>
+        <input
+            v-model="filterInstruction"
+            type="text"
+            placeholder="Filter by instruction name..."
+            class="input-base w-full md:w-56"
+        />
+      </div>
+
       <!-- Logs Table with Mobile Optimization -->
       <div class="overflow-x-auto">
         <LogsTable
-            :parsedLogs="parsedLogs"
+            :parsedLogs="filteredLogs"
             :hotSettings="getMobileOptimizedHotSettings"
         />
       </div>
@@ -166,6 +200,10 @@ export default {
       receivingMessages: false,
       newProgramId: '',
       programIds: [],
+      isPaused: false,
+      searchQuery: '',
+      filterLevel: '',
+      filterInstruction: '',
       environments: [
         {key: 'Devnet', url: 'wss://api.devnet.solana.com'},
         {key: 'Testnet', url: 'wss://api.testnet.solana.com'}
@@ -258,6 +296,33 @@ export default {
     };
   },
   computed: {
+    filteredLogs() {
+      let logs = this.parsedLogs;
+      if (this.filterLevel) {
+        logs = logs.filter(log => log.level === this.filterLevel);
+      }
+      if (this.filterInstruction) {
+        const instr = this.filterInstruction.toLowerCase();
+        logs = logs.filter(log =>
+            (log.logMessages && log.logMessages.toLowerCase().includes(instr)) ||
+            (log.rawLogs && log.rawLogs.toLowerCase().includes(instr))
+        );
+      }
+      if (this.searchQuery) {
+        try {
+          const regex = new RegExp(this.searchQuery, 'i');
+          logs = logs.filter(log =>
+              Object.values(log).some(val => val && regex.test(String(val)))
+          );
+        } catch {
+          const q = this.searchQuery.toLowerCase();
+          logs = logs.filter(log =>
+              Object.values(log).some(val => val && String(val).toLowerCase().includes(q))
+          );
+        }
+      }
+      return logs;
+    },
     uniqueProgramsCount() {
       const programs = new Set(this.parsedLogs.map(row => row.programId));
       return programs.size;
@@ -381,7 +446,31 @@ export default {
       // Reconnect all websockets to new environment
       await this.startAllWebSockets();
     },
+    togglePause() {
+      this.isPaused = !this.isPaused;
+    },
+    clearLogs() {
+      this.parsedLogs = [];
+      this.lastUpdateTime = '-';
+    },
+    saveToLocalStorage() {
+      localStorage.setItem('sologger_programIds', JSON.stringify(this.programIds));
+      localStorage.setItem('sologger_customUrl', this.customUrl);
+      localStorage.setItem('sologger_selectedEnvironment', this.selectedEnvironment);
+    },
+    loadFromLocalStorage() {
+      const savedProgramIds = localStorage.getItem('sologger_programIds');
+      if (savedProgramIds) {
+        try { this.programIds = JSON.parse(savedProgramIds); } catch { this.programIds = []; }
+      }
+      const savedCustomUrl = localStorage.getItem('sologger_customUrl');
+      if (savedCustomUrl) this.customUrl = savedCustomUrl;
+      const savedEnv = localStorage.getItem('sologger_selectedEnvironment');
+      if (savedEnv) this.selectedEnvironment = savedEnv;
+    },
     updateTable(eventData) {
+
+      if (this.isPaused) return;
 
       if (eventData.method === 'logsNotification') {
         const transformer = new WasmLogContextTransformer(["*"])
@@ -607,6 +696,17 @@ export default {
     }
 
     // Remove the connectWebSocket and reconnectWebSocket methods as they're no longer needed
+  },
+  created() {
+    this.loadFromLocalStorage();
+  },
+  watch: {
+    programIds: {
+      deep: true,
+      handler() { this.saveToLocalStorage(); }
+    },
+    customUrl() { this.saveToLocalStorage(); },
+    selectedEnvironment() { this.saveToLocalStorage(); }
   },
   beforeUnmount() {
     this.disconnectWebSocket();
