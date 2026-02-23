@@ -1,6 +1,7 @@
 <!-- src/App.vue -->
 <template>
   <div class="app">
+    <Toast />
     <nav class="px-4 py-3 mb-0 relative">
       <div class="container mx-auto">
         <!-- Mobile Menu Button -->
@@ -237,9 +238,11 @@
 <script>
 import { ref, computed, onUnmounted } from 'vue';
 import { useTheme } from './composables/useTheme';
+import Toast from 'primevue/toast';
 
 export default {
   name: 'App',
+  components: { Toast },
   setup() {
     const { theme, updateTheme } = useTheme();
     const isThemeMenuOpen = ref(false);

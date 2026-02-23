@@ -1,5 +1,5 @@
 <template>
-  <div class="overflow-x-auto" style="position: relative;">
+  <div class="logs-table-root" style="position: relative;">
     <!-- Column Picker + Pagination top bar -->
     <div class="pagination rounded-lg border border-[var(--p-card-border)]">
       <span class="text-sm text-[var(--p-text-muted)]">
@@ -35,17 +35,17 @@
       </div>
     </div>
 
-    <div class="slick-grid-wrapper">
+    <div v-if="!isMobile" class="slick-grid-wrapper">
       <div ref="gridContainer" class="slick-grid-container" style="height: calc(100vh - 350px); width: 100%;"></div>
     </div>
 
     <!-- Bottom pagination -->
-    <div class="pagination rounded-lg border border-[var(--p-card-border)]">
+    <div class="pagination rounded-lg border border-[var(--p-card-border)] flex-wrap gap-2">
       <span class="text-sm text-[var(--p-text-muted)]">
         Showing {{ currentPage * pageSize + 1 }} - {{ Math.min((currentPage + 1) * pageSize, parsedLogs.length) }}
         of {{ parsedLogs.length }} entries
       </span>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <button
             @click="prevPage"
             :disabled="currentPage === 0"
@@ -57,6 +57,41 @@
             class="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >Next</button>
       </div>
+    </div>
+
+    <!-- Mobile Card View (< 768px) -->
+    <div v-if="isMobile" class="mobile-card-list">
+      <div
+          v-for="(log, idx) in paginatedLogs"
+          :key="idx"
+          class="mobile-log-card"
+          :class="{ 'mobile-log-card--error': log.level === 'Error' }"
+          @click="selectedRow = log"
+      >
+        <div class="mobile-log-card__header">
+          <span class="mobile-log-card__time">{{ log.timestamp }}</span>
+          <span class="mobile-log-card__level" :class="'level-' + (log.level || 'unknown').toLowerCase()">{{ log.level || 'Unknown' }}</span>
+          <span v-if="log.computeUnits" class="mobile-log-card__cu" :class="log.computeUnits > 100000 ? 'cu-high' : log.computeUnits > 50000 ? 'cu-mid' : 'cu-low'">{{ log.computeUnits.toLocaleString() }} CU</span>
+        </div>
+        <div class="mobile-log-card__program">
+          <span class="mobile-log-card__label">Program:</span>
+          <span class="mobile-log-card__value">{{ formatProgramId(log.programId) }}</span>
+          <span v-if="log.depth" class="cpi-depth-badge" :class="'depth-' + Math.min(log.depth, 5)">d{{ log.depth }}</span>
+        </div>
+        <div v-if="log.invokeResult" class="mobile-log-card__result">
+          <span class="mobile-log-card__label">Result:</span>
+          <span class="mobile-log-card__value">{{ log.invokeResult }}</span>
+        </div>
+        <div v-if="log.transactionError" class="mobile-log-card__error">
+          <span class="mobile-log-card__label">TX Error:</span>
+          <span class="mobile-log-card__value text-red-500">{{ log.transactionError }}</span>
+        </div>
+        <div class="mobile-log-card__sig">
+          <span class="mobile-log-card__label">Sig:</span>
+          <span class="mobile-log-card__value font-mono text-xs">{{ formatSig(log.signature) }}</span>
+        </div>
+      </div>
+      <div v-if="paginatedLogs.length === 0" class="mobile-empty">No logs to display.</div>
     </div>
 
     <!-- Row detail modal -->
@@ -210,6 +245,7 @@ export default {
       selectedRow: null,
       allColumns: ALL_COLUMNS,
       sortColumns: [],
+      isMobile: window.innerWidth < 768,
     };
   },
   computed: {
@@ -225,6 +261,20 @@ export default {
     }
   },
   methods: {
+    formatProgramId(programId) {
+      const pid = programId?.programId ?? programId ?? '';
+      return String(pid).substring(0, 12) + (String(pid).length > 12 ? '...' : '');
+    },
+    formatSig(signature) {
+      const sig = signature?.signature ?? signature ?? '';
+      return String(sig).substring(0, 16) + (String(sig).length > 16 ? '...' : '');
+    },
+    onResize() {
+      this.isMobile = window.innerWidth < 768;
+      if (!this.isMobile && !this.grid) {
+        this.$nextTick(() => this.initGrid());
+      }
+    },
     nextPage() {
       if (this.currentPage < this.totalPages - 1) {
         this.currentPage++;
@@ -329,7 +379,8 @@ export default {
     }
   },
   mounted() {
-    this.initGrid();
+    window.addEventListener('resize', this.onResize);
+    if (!this.isMobile) this.initGrid();
     // Close the column picker when clicking outside
     this._outsideClick = (e) => {
       if (!this.$el.querySelector('.column-picker-dropdown')?.contains(e.target) &&
@@ -340,6 +391,7 @@ export default {
     document.addEventListener('click', this._outsideClick);
   },
   beforeUnmount() {
+    window.removeEventListener('resize', this.onResize);
     document.removeEventListener('click', this._outsideClick);
     if (this.grid) {
       this.grid.destroy();
@@ -579,4 +631,106 @@ export default {
 /* CPI child/parent link styling */
 .cpi-child  { border-left: 2px solid var(--p-primary-color); padding-left: 4px; }
 .cpi-parent { opacity: 0.75; font-style: italic; }
+
+/* Mobile card view */
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.mobile-log-card {
+  background: var(--p-card-bg);
+  border: 1px solid var(--p-card-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mobile-log-card:hover {
+  border-color: var(--p-primary-color);
+}
+
+.mobile-log-card--error {
+  border-left: 3px solid #ef4444;
+}
+
+.mobile-log-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mobile-log-card__time {
+  font-size: 0.75rem;
+  color: var(--p-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-log-card__level {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.level-info    { background: rgba(34,197,94,0.15);  color: #22c55e; }
+.level-error   { background: rgba(239,68,68,0.15);  color: #ef4444; }
+.level-warning { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.level-unknown { background: rgba(107,114,128,0.15); color: #6b7280; }
+
+.mobile-log-card__cu {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-log-card__program,
+.mobile-log-card__result,
+.mobile-log-card__error,
+.mobile-log-card__sig {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.mobile-log-card__label {
+  color: var(--p-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.mobile-log-card__value {
+  color: var(--p-text-color);
+  word-break: break-all;
+}
+
+.mobile-empty {
+  text-align: center;
+  color: var(--p-text-muted);
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+/* Pagination wrapping fix for mobile */
+@media (max-width: 768px) {
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .logs-table-root {
+    overflow-x: hidden;
+  }
+}
 </style>

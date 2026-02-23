@@ -182,7 +182,8 @@
 </template>
 <script>
 // Import your existing script here
-import {onMounted} from 'vue';
+import { onMounted } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
@@ -218,12 +219,13 @@ export default {
     LogsTable
   },
   setup() {
+    const toast = useToast();
     onMounted(async () => {
       await init();
       console.log("WASM Initialized");
     });
 
-    return {};
+    return { toast };
   },
   data() {
     return {
@@ -685,6 +687,7 @@ export default {
           ws.send(JSON.stringify(subscribeMessage));
           console.log(`WebSocket connected and subscribed for program: ${programId}`);
           this.websockets.set(programId, ws);
+          this.toast.add({ severity: 'success', summary: 'Connected', detail: `Subscribed to ${programId.substring(0, 8)}...`, life: 3000 });
           resolve();
         };
 
@@ -694,6 +697,7 @@ export default {
           console.error(`WebSocket error for program ${programId}:`, error);
           this.websockets.delete(programId);
           this.connectingWebsockets.delete(programId);
+          this.toast.add({ severity: 'error', summary: 'Connection Error', detail: `Failed to connect for ${programId.substring(0, 8)}...`, life: 4000 });
           reject(error);
         };
 
@@ -701,6 +705,7 @@ export default {
           console.log(`WebSocket connection closed for program: ${programId}`);
           this.websockets.delete(programId);
           this.connectingWebsockets.delete(programId);
+          this.toast.add({ severity: 'warn', summary: 'Disconnected', detail: `WebSocket closed for ${programId.substring(0, 8)}...`, life: 3000 });
         };
       });
     },
@@ -766,9 +771,10 @@ export default {
           logs: this.parsedLogs
         };
         this.triggerDownload(JSON.stringify(downloadData, null, 2), `solana-logs-${environment}-${timestamp}.json`, 'application/json');
+        this.toast.add({ severity: 'success', summary: 'Export Complete', detail: 'Logs exported as JSON successfully.', life: 3000 });
       } catch (error) {
         console.error('Error exporting JSON:', error);
-        alert('Error exporting JSON. Check console for details.');
+        this.toast.add({ severity: 'error', summary: 'Export Failed', detail: 'Error exporting JSON. Check console for details.', life: 4000 });
       }
     },
     exportCSV() {
@@ -789,9 +795,10 @@ export default {
         const header = csvCols.join(',');
         const rows = this.parsedLogs.map(row => csvCols.map(col => escape(flatField(row, col))).join(','));
         this.triggerDownload([header, ...rows].join('\n'), `solana-logs-${environment}-${timestamp}.csv`, 'text/csv');
+        this.toast.add({ severity: 'success', summary: 'Export Complete', detail: 'Logs exported as CSV successfully.', life: 3000 });
       } catch (error) {
         console.error('Error exporting CSV:', error);
-        alert('Error exporting CSV. Check console for details.');
+        this.toast.add({ severity: 'error', summary: 'Export Failed', detail: 'Error exporting CSV. Check console for details.', life: 4000 });
       }
     },
     async replayTransaction() {

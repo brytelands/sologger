@@ -89,6 +89,21 @@ ChartJS.register(
 export default {
   components: { Line, Doughnut, Bar },
   props: ['parsedLogs', 'uniqueProgramsCount', 'lastUpdateTime'],
+  data() {
+    return {
+      themeKey: 0,
+      _themeObserver: null,
+    };
+  },
+  mounted() {
+    this._themeObserver = new MutationObserver(() => {
+      this.themeKey++;
+    });
+    this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  },
+  beforeUnmount() {
+    if (this._themeObserver) this._themeObserver.disconnect();
+  },
   computed: {
     errorCount() {
       return this.parsedLogs.filter(log => log.level === 'Error').length;
@@ -102,6 +117,8 @@ export default {
       return ((failed / this.parsedLogs.length) * 100).toFixed(1);
     },
     isDarkMode() {
+      // themeKey dependency ensures this recomputes when theme changes
+      void this.themeKey;
       return document.documentElement.getAttribute('data-theme') === 'dark';
     },
     textColor() {
