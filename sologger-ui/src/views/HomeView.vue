@@ -206,7 +206,7 @@
         <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
         <StatsGrid
             :parsedLogs="parsedLogs"
-            :uniqueProgramsCount="uniqueProgramsCount"
+            :uniqueSignaturesCount="uniqueSignaturesCount"
             :lastUpdateTime="lastUpdateTime"
         />
       </div>
@@ -481,9 +481,9 @@ export default {
       if (!this.idlDecodedData) return null;
       try { return JSON.parse(this.idlDecodedData); } catch { return null; }
     },
-    uniqueProgramsCount() {
-      const programs = new Set(this.parsedLogs.map(row => row.programId));
-      return programs.size;
+    uniqueSignaturesCount() {
+      const signatures = new Set(this.parsedLogs.map(row => row.signature?.signature ?? row.signature));
+      return signatures.size;
     },
     customUrlHasApiKey() {
       return /[?&]api-key=/i.test(this.customUrl);

@@ -7,8 +7,8 @@
         <p class="text-2xl font-bold text-[var(--p-text-color)]">{{ parsedLogs.length }}</p>
       </div>
       <div class="card p-4 flex flex-col gap-1">
-        <h4 class="text-xs font-semibold uppercase tracking-wider text-[var(--p-text-muted)]">Unique Progs</h4>
-        <p class="text-2xl font-bold text-[var(--p-text-color)]">{{ uniqueProgramsCount }}</p>
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-[var(--p-text-muted)]">Unique TXs</h4>
+        <p class="text-2xl font-bold text-[var(--p-text-color)]">{{ uniqueSignaturesCount }}</p>
       </div>
       <div class="card p-4 flex flex-col gap-1">
         <h4 class="text-xs font-semibold uppercase tracking-wider text-[var(--p-text-muted)]">Error Logs</h4>
@@ -88,7 +88,7 @@ ChartJS.register(
 
 export default {
   components: { Line, Doughnut, Bar },
-  props: ['parsedLogs', 'uniqueProgramsCount', 'lastUpdateTime'],
+  props: ['parsedLogs', 'uniqueSignaturesCount', 'lastUpdateTime'],
   data() {
     return {
       themeKey: 0,
