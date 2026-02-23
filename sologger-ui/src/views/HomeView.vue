@@ -368,6 +368,18 @@ export default {
       let slotData = {slot: logData.slot, linkSuffix: linkSuffix};
       let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix};
       let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix};
+
+      // Extract compute units consumed from raw logs
+      let computeUnits = null;
+      const rawLogsArr = logData.solana.raw_logs ?? [];
+      for (const entry of rawLogsArr) {
+        const cuMatch = String(entry).match(/consumed\s+(\d+)\s+of\s+\d+\s+compute units/i);
+        if (cuMatch) {
+          computeUnits = parseInt(cuMatch[1], 10);
+          break;
+        }
+      }
+
       return {
         timestamp: new Date().toLocaleTimeString(),
         level: logData.solana.transaction_error !== null && logData.solana.transaction_error !== "" ? "Error" : "Info",
@@ -378,6 +390,7 @@ export default {
         depth: logData.solana.depth,
         instructionIndex: logData.solana.instruction_index,
         invokeResult: logData.solana.invoke_result,
+        computeUnits: computeUnits,
         logMessages: JSON.stringify(logData.solana.log_messages),
         dataLogs: JSON.stringify(logData.solana.data_logs),
         rawLogs: JSON.stringify(logData.solana.raw_logs),

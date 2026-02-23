@@ -103,10 +103,13 @@ const ALL_COLUMNS = [
   },
   {
     id: 'programId', name: 'Program', field: 'programId', width: 110, resizable: true,
-    formatter: (_, __, value) => {
+    formatter: (_, __, value, _col, dataContext) => {
       const pid = value?.programId ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
-      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      const depth = dataContext.depth ?? 0;
+      const indentStyle = depth > 0 ? `padding-left:${depth * 12}px;` : '';
+      const childClass = depth > 0 ? ' cpi-child' : '';
+      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell${childClass}" style="${indentStyle}" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
     }
   },
   {
@@ -114,12 +117,31 @@ const ALL_COLUMNS = [
     formatter: (_, __, value) => {
       const pid = value?.parentProgramId ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
-      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      if (!pid) return '<span class="cu-na">—</span>';
+      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell cpi-parent" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
     }
   },
-  { id: 'depth', name: 'Depth', field: 'depth', width: 60, sortable: true, resizable: true },
+  {
+    id: 'depth', name: 'Depth', field: 'depth', width: 60, sortable: true, resizable: true,
+    formatter: (_, __, value, _col, dataContext) => {
+      const depth = value ?? 0;
+      const indent = '&nbsp;&nbsp;&nbsp;'.repeat(depth);
+      const badge = `<span class="cpi-depth-badge depth-${Math.min(depth, 5)}">${depth}</span>`;
+      return `${indent}${badge}`;
+    }
+  },
   { id: 'instructionIndex', name: 'Idx', field: 'instructionIndex', width: 60, sortable: true, resizable: true },
   { id: 'invokeResult', name: 'Result', field: 'invokeResult', width: 200, resizable: true },
+  { id: 'computeUnits', name: 'CU Used', field: 'computeUnits', width: 90, sortable: true, resizable: true,
+    formatter: (_, __, value) => {
+      if (value === null || value === undefined) return '<span class="cu-na">—</span>';
+      const cu = Number(value);
+      let cls = 'cu-low';
+      if (cu > 100000) cls = 'cu-high';
+      else if (cu > 50000) cls = 'cu-mid';
+      return `<span class="cu-value ${cls}">${cu.toLocaleString()}</span>`;
+    }
+  },
   {
     id: 'logMessages', name: 'Logs', field: 'logMessages', width: 200, resizable: true,
     asyncPostRender: (cellNode, row, dataContext) => {
@@ -158,7 +180,7 @@ const ALL_COLUMNS = [
   }
 ];
 
-const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs']);
+const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs', 'parentProgramId']);
 
 export default {
   props: ['parsedLogs', 'hotSettings'],
@@ -512,4 +534,34 @@ export default {
   white-space: nowrap;
   max-width: 100%;
 }
+
+/* CU value coloring */
+.cu-na { color: var(--p-text-muted); }
+.cu-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.cu-low  { color: #22c55e; }
+.cu-mid  { color: #f59e0b; }
+.cu-high { color: #ef4444; }
+
+/* CPI depth badges */
+.cpi-depth-badge {
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  background: var(--p-surface-200, #2a2a3e);
+  color: var(--p-text-muted);
+}
+.cpi-depth-badge.depth-0 { background: rgba(99,102,241,0.15); color: #818cf8; }
+.cpi-depth-badge.depth-1 { background: rgba(34,197,94,0.15);  color: #4ade80; }
+.cpi-depth-badge.depth-2 { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.cpi-depth-badge.depth-3 { background: rgba(239,68,68,0.15);  color: #f87171; }
+.cpi-depth-badge.depth-4 { background: rgba(168,85,247,0.15); color: #c084fc; }
+.cpi-depth-badge.depth-5 { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+
+/* CPI child/parent link styling */
+.cpi-child  { border-left: 2px solid var(--p-primary-color); padding-left: 4px; }
+.cpi-parent { opacity: 0.75; font-style: italic; }
 </style>
