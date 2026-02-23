@@ -124,7 +124,6 @@ import { SlickGrid, SlickRowSelectionModel } from 'slickgrid';
 import 'slickgrid/dist/styles/css/slick.grid.css';
 import 'slickgrid/dist/styles/css/slick-default-theme.css';
 
-// TODO fix URL query params for different explorers
 const ALL_COLUMNS = [
   { id: 'timestamp', name: 'Time', field: 'timestamp', width: 80, sortable: true, resizable: true },
   { id: 'level', name: 'Level', field: 'level', width: 100, sortable: true, resizable: true },
@@ -232,7 +231,7 @@ const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs', 'parentProgramId']);
 const EXPLORER_URLS = {
   solscan:  { tx: 'https://solscan.io/tx/', block: 'https://solscan.io/block/', account: 'https://solscan.io/account/' },
   solana:   { tx: 'https://explorer.solana.com/tx/', block: 'https://explorer.solana.com/block/', account: 'https://explorer.solana.com/address/' },
-  solanafm: { tx: 'https://solana.fm/tx/', block: 'https://solana.fm/block/', account: 'https://solana.fm/address/', env: 'cluster=devnet-solana' },
+  orb:      { tx: 'https://orbmarkets.io/tx/', block: 'https://orbmarkets.io/block/', account: 'https://orbmarkets.io/address/' },
 };
 
 function explorerBase(explorer, type) {

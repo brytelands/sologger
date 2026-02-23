@@ -77,7 +77,7 @@
           <select v-model="selectedExplorer" class="input-base w-full md:w-auto">
             <option value="solscan">Solscan</option>
             <option value="solana">Solana Explorer</option>
-            <option value="solanafm">Solana.fm</option>
+            <option value="orb">Orb</option>
           </select>
           <select
               v-model="selectedEnvironment"
@@ -505,21 +505,20 @@ export default {
           block: `https://explorer.solana.com/block/${value}${linkSuffix}`,
           account: `https://explorer.solana.com/address/${value}${linkSuffix}`,
         },
-        solanafm: {
-          tx: `https://solana.fm/tx/${value}${linkSuffix}`,
-          block: `https://solana.fm/block/${value}${linkSuffix}`,
-          account: `https://solana.fm/address/${value}${linkSuffix}`,
+        orb: {
+          tx: `https://orbmarkets.io/tx/${value}${linkSuffix}`,
+          block: `https://orbmarkets.io/block/${value}${linkSuffix}`,
+          account: `https://orbmarkets.io/address/${value}${linkSuffix}`,
         },
       };
       return (explorers[this.selectedExplorer] ?? explorers.solscan)[type];
     },
     parseLog(logData) {
+      const isDevnet = this.selectedEnvironment.includes('dev');
+      const isTestnet = this.selectedEnvironment.includes('test');
       let linkSuffix = '';
-      if (this.selectedEnvironment.includes('dev')) {
-        linkSuffix = '?cluster=devnet';
-      } else if (this.selectedEnvironment.includes('test')) {
-        linkSuffix = '?cluster=testnet';
-      }
+      if (isDevnet) linkSuffix = '?cluster=devnet';
+      else if (isTestnet) linkSuffix = '?cluster=testnet';
       let signatureData = {signature: logData.signature, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
       let slotData = {slot: logData.slot, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
       let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
