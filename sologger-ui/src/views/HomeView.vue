@@ -144,6 +144,16 @@
           >
             Clear Logs
           </button>
+          <div class="flex items-center gap-1">
+            <label class="text-xs text-[var(--p-text-muted)] whitespace-nowrap">Max Logs:</label>
+            <input
+                v-model.number="maxLogs"
+                type="number"
+                min="100"
+                step="100"
+                class="input-base w-24 text-sm"
+            />
+          </div>
           <button
               @click="clearAll"
               class="btn btn-danger"
@@ -354,6 +364,7 @@ export default {
       maskApiKey: true,
       selectedEnvironment: 'wss://api.devnet.solana.com',
       onlyShowErrors: false,
+      maxLogs: 1000,
       parsedLogs: [],
       lastUpdateTime: '-',
       hotSettings: {
@@ -691,6 +702,7 @@ export default {
       localStorage.setItem('sologger_customUrl', this.customUrl);
       localStorage.setItem('sologger_selectedEnvironment', this.selectedEnvironment);
       localStorage.setItem('sologger_selectedExplorer', this.selectedExplorer);
+      localStorage.setItem('sologger_maxLogs', String(this.maxLogs));
     },
     loadFromLocalStorage() {
       const savedProgramIds = localStorage.getItem('sologger_programIds');
@@ -703,6 +715,8 @@ export default {
       if (savedEnv) this.selectedEnvironment = savedEnv;
       const savedExplorer = localStorage.getItem('sologger_selectedExplorer');
       if (savedExplorer) this.selectedExplorer = savedExplorer;
+      const savedMaxLogs = localStorage.getItem('sologger_maxLogs');
+      if (savedMaxLogs) { const n = parseInt(savedMaxLogs, 10); if (n >= 100) this.maxLogs = n; }
     },
     updateUrl() {
       const params = new URLSearchParams();
@@ -767,7 +781,10 @@ export default {
           try {
             const newParsedLogs = sanitizedLogs.map(log => this.parseLog(log));
             this.parsedLogs.unshift(...newParsedLogs);
-            this.parsedLogs = this.parsedLogs.slice(0, 1000);
+            if (this.parsedLogs.length > this.maxLogs) {
+              const removeCount = Math.ceil(this.maxLogs * 0.2);
+              this.parsedLogs = this.parsedLogs.slice(0, this.parsedLogs.length - removeCount);
+            }
             this.lastUpdateTime = new Date().toLocaleTimeString();
           } catch (error) {
             console.error('Error parsing logs:', error);
@@ -1075,7 +1092,10 @@ export default {
           solana: JSON.parse(sanitizeLogMessage(l))
         }));
         this.parsedLogs.unshift(...newLogs);
-        this.parsedLogs = this.parsedLogs.slice(0, 1000);
+        if (this.parsedLogs.length > this.maxLogs) {
+          const removeCount = Math.ceil(this.maxLogs * 0.2);
+          this.parsedLogs = this.parsedLogs.slice(0, this.parsedLogs.length - removeCount);
+        }
         this.lastUpdateTime = new Date().toLocaleTimeString();
         this.replaySignature = '';
       } catch (e) {
@@ -1104,7 +1124,8 @@ export default {
     },
     customUrl() { this.saveToLocalStorage(); },
     selectedEnvironment() { this.saveToLocalStorage(); this.updateUrl(); },
-    selectedExplorer() { this.saveToLocalStorage(); }
+    selectedExplorer() { this.saveToLocalStorage(); },
+    maxLogs() { this.saveToLocalStorage(); }
   },
   beforeUnmount() {
     this.disconnectWebSocket();
