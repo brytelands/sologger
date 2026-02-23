@@ -99,7 +99,14 @@
       <div class="modal-panel">
         <div class="modal-header">
           <span class="font-semibold text-base">Log Detail</span>
-          <button @click="selectedRow = null" class="btn btn-secondary">✕ Close</button>
+          <div class="flex gap-2">
+            <button
+              v-if="uploadedIdl"
+              @click="$emit('decode-with-idl', selectedRow); selectedRow = null"
+              class="btn btn-info"
+            >🔍 Decode with IDL</button>
+            <button @click="selectedRow = null" class="btn btn-secondary">✕ Close</button>
+          </div>
         </div>
         <div class="modal-body">
           <div v-for="col in allColumns" :key="col.id" class="detail-row">
@@ -233,7 +240,8 @@ function explorerBase(explorer, type) {
 }
 
 export default {
-  props: ['parsedLogs', 'hotSettings', 'selectedExplorer'],
+  props: ['parsedLogs', 'hotSettings', 'selectedExplorer', 'uploadedIdl'],
+  emits: ['decode-with-idl'],
   data() {
     return {
       currentPage: 0,

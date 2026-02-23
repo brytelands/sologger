@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
@@ -19,6 +19,10 @@ export default defineConfig({
       }
     }
   },
-  assetsInclude: ['**/*.svg']
+  assetsInclude: ['**/*.svg'],
+  test: {
+    environment: 'node',
+    include: ['src/tests/**/*.test.js']
+  }
 })
 

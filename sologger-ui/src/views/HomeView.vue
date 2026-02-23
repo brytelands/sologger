@@ -10,6 +10,63 @@
         </p>
       </div>
 
+      <!-- Mainnet Warning Modal -->
+      <div v-if="showMainnetWarning" class="modal-overlay" @click.self="cancelMainnet">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <span class="font-semibold text-base">⚠️ Mainnet Warning</span>
+            <button @click="cancelMainnet" class="btn btn-secondary">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="text-[var(--p-text-color)] mb-3">
+              Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop connections frequently.
+              We strongly recommend using a <strong>private RPC provider</strong>.
+            </p>
+            <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
+            <div class="flex flex-col gap-2 mb-4">
+              <a href="https://helius.dev" target="_blank" class="rpc-provider-link">
+                <span class="font-semibold">Helius</span>
+                <span class="text-xs text-[var(--p-text-muted)]">helius.dev — Solana-native, generous free tier</span>
+              </a>
+              <a href="https://quicknode.com" target="_blank" class="rpc-provider-link">
+                <span class="font-semibold">QuickNode</span>
+                <span class="text-xs text-[var(--p-text-muted)]">quicknode.com — Multi-chain, fast global nodes</span>
+              </a>
+              <a href="https://ironforge.cloud" target="_blank" class="rpc-provider-link">
+                <span class="font-semibold">Ironforge</span>
+                <span class="text-xs text-[var(--p-text-muted)]">ironforge.cloud — Solana-focused infrastructure</span>
+              </a>
+            </div>
+            <p class="text-[var(--p-text-muted)] text-xs mb-4">
+              To use a private RPC, select <strong>Custom URL</strong> and enter your WebSocket endpoint (wss://...).
+            </p>
+            <div class="flex gap-2 justify-end">
+              <button @click="cancelMainnet" class="btn btn-secondary">Cancel</button>
+              <button @click="confirmMainnet" class="btn btn-warning">Continue with Public Mainnet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IDL Decoded Data Modal -->
+      <div v-if="idlDecodedData" class="modal-overlay" @click.self="idlDecodedData = null">
+        <div class="modal-panel idl-modal-panel">
+          <div class="modal-header">
+            <span class="font-semibold text-base">🔍 IDL Decoded Instruction Data</span>
+            <button @click="idlDecodedData = null" class="btn btn-secondary">✕ Close</button>
+          </div>
+          <div class="modal-body idl-modal-body">
+            <template v-if="parsedIdlDecodedData">
+              <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
+                <span class="detail-label">{{ key }}</span>
+                <span class="detail-value">{{ formatIdlDetailValue(value) }}</span>
+              </div>
+            </template>
+            <pre v-else class="idl-decoded-pre">{{ idlDecodedData }}</pre>
+          </div>
+        </div>
+      </div>
+
       <!-- Program ID Form -->
       <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
 
@@ -148,6 +205,25 @@
         />
       </div>
 
+      <!-- IDL Upload for WASM Decoding -->
+      <div class="card p-4 mb-4">
+        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">IDL Decoding (WASM)</h3>
+        <div class="flex flex-col md:flex-row gap-2 items-start md:items-center">
+          <label class="btn btn-secondary cursor-pointer">
+            📂 {{ uploadedIdl ? '✅ IDL Loaded: ' + idlFileName : 'Upload IDL (JSON)' }}
+            <input type="file" accept=".json" class="hidden" @change="handleIdlUpload" />
+          </label>
+          <button
+              v-if="uploadedIdl"
+              @click="uploadedIdl = null; idlFileName = ''"
+              class="btn btn-danger"
+          >Remove IDL</button>
+          <span v-if="uploadedIdl" class="text-xs text-[var(--p-text-muted)]">
+            Select a log row in the table to decode its data logs using the uploaded IDL.
+          </span>
+        </div>
+      </div>
+
       <!-- Log Replay Tool -->
       <div class="card p-4 mb-4">
         <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">Log Replay Tool</h3>
@@ -175,6 +251,8 @@
             :parsedLogs="filteredLogs"
             :hotSettings="getMobileOptimizedHotSettings"
             :selectedExplorer="selectedExplorer"
+            :uploadedIdl="uploadedIdl"
+            @decode-with-idl="decodeWithIdl"
         />
       </div>
     </div>
@@ -246,8 +324,14 @@ export default {
       filterInstruction: '',
       environments: [
         {key: 'Devnet', url: 'wss://api.devnet.solana.com'},
-        {key: 'Testnet', url: 'wss://api.testnet.solana.com'}
+        {key: 'Testnet', url: 'wss://api.testnet.solana.com'},
+        {key: 'Mainnet', url: 'wss://api.mainnet-beta.solana.com'}
       ],
+      showMainnetWarning: false,
+      pendingMainnetUrl: null,
+      uploadedIdl: null,
+      idlDecodedData: null,
+      idlFileName: '',
       customUrl: '',
       selectedEnvironment: 'wss://api.devnet.solana.com',
       onlyShowErrors: false,
@@ -363,6 +447,10 @@ export default {
       }
       return logs;
     },
+    parsedIdlDecodedData() {
+      if (!this.idlDecodedData) return null;
+      try { return JSON.parse(this.idlDecodedData); } catch { return null; }
+    },
     uniqueProgramsCount() {
       const programs = new Set(this.parsedLogs.map(row => row.programId));
       return programs.size;
@@ -397,6 +485,14 @@ export default {
     }
   },
   methods: {
+    formatIdlDetailValue(value) {
+      if (value === null || value === undefined) return '';
+      if (Array.isArray(value)) {
+        return value.map(v => typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)).join('\n');
+      }
+      if (typeof value === 'object') return JSON.stringify(value, null, 2);
+      return String(value);
+    },
     explorerUrl(type, value, linkSuffix) {
       const explorers = {
         solscan: {
@@ -490,7 +586,23 @@ export default {
         this.selectedEnvironment = 'wss://api.devnet.solana.com';
       }
     },
+    cancelMainnet() {
+      this.showMainnetWarning = false;
+      this.selectedEnvironment = this.pendingMainnetUrl ? 'wss://api.devnet.solana.com' : this.selectedEnvironment;
+      this.pendingMainnetUrl = null;
+    },
+    confirmMainnet() {
+      this.showMainnetWarning = false;
+      this.selectedEnvironment = this.pendingMainnetUrl;
+      this.pendingMainnetUrl = null;
+      this.handleEnvironmentChange();
+    },
     async handleEnvironmentChange() {
+      if (this.selectedEnvironment === 'wss://api.mainnet-beta.solana.com') {
+        this.pendingMainnetUrl = this.selectedEnvironment;
+        this.showMainnetWarning = true;
+        return;
+      }
       const url = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
       console.log(`Switching to environment: ${url}`);
 
@@ -801,6 +913,88 @@ export default {
         this.toast.add({ severity: 'error', summary: 'Export Failed', detail: 'Error exporting CSV. Check console for details.', life: 4000 });
       }
     },
+    handleIdlUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      this.idlFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          this.uploadedIdl = JSON.parse(e.target.result);
+          this.toast.add({ severity: 'success', summary: 'IDL Loaded', detail: `${file.name} loaded successfully.`, life: 3000 });
+        } catch {
+          this.toast.add({ severity: 'error', summary: 'IDL Error', detail: 'Failed to parse IDL JSON file.', life: 4000 });
+          this.uploadedIdl = null;
+          this.idlFileName = '';
+        }
+      };
+      reader.readAsText(file);
+    },
+    async decodeWithIdl(log) {
+      if (!this.uploadedIdl) return;
+      try {
+        const { BorshCoder } = await import('@coral-xyz/anchor');
+        const coder = new BorshCoder(this.uploadedIdl);
+
+        // Extract data logs from the row
+        let dataLogs = [];
+        try { dataLogs = JSON.parse(log.dataLogs ?? '[]'); } catch { dataLogs = []; }
+        let rawLogs = [];
+        try { rawLogs = JSON.parse(log.rawLogs ?? '[]'); } catch { rawLogs = []; }
+
+        // Try to match IDL instructions by name from log messages
+        let logMessages = [];
+        try { logMessages = JSON.parse(log.logMessages ?? '[]'); } catch { logMessages = []; }
+
+        const idlInstructions = this.uploadedIdl?.instructions ?? [];
+        const matchedInstructions = [];
+        for (const msg of logMessages) {
+          const instrMatch = String(msg).match(/Instruction:\s*(\w+)/);
+          if (instrMatch) {
+            const name = instrMatch[1];
+            const idlInstr = idlInstructions.find(i => i.name?.toLowerCase() === name.toLowerCase());
+            if (idlInstr) matchedInstructions.push({ name, idlInstruction: idlInstr });
+          }
+        }
+
+        // Decode instruction data from dataLogs using BorshCoder
+        const decodedInstructions = [];
+        for (const b64 of dataLogs) {
+          try {
+            const buf = Buffer.from(b64, 'base64');
+            const decoded = coder.instruction.decode(buf);
+            if (decoded) decodedInstructions.push({ name: decoded.name, data: decoded.data });
+          } catch { /* skip undecoded entries */ }
+        }
+
+        // Decode events from dataLogs using BorshCoder
+        const decodedEvents = [];
+        for (const b64 of dataLogs) {
+          try {
+            const decoded = coder.events.decode(b64);
+            if (decoded) decodedEvents.push({ name: decoded.name, data: decoded.data });
+          } catch { /* skip undecoded entries */ }
+        }
+
+        const decoded = {
+          program: log.programId?.programId ?? log.programId ?? '',
+          signature: log.signature?.signature ?? log.signature ?? '',
+          matchedInstructions,
+          decodedInstructions,
+          decodedEvents,
+          dataLogs,
+          rawLogs,
+          idlName: this.uploadedIdl?.name ?? this.uploadedIdl?.metadata?.name ?? 'Unknown',
+          idlVersion: this.uploadedIdl?.version ?? this.uploadedIdl?.metadata?.version ?? 'Unknown',
+          note: matchedInstructions.length === 0
+            ? 'No matching IDL instructions found in log messages.'
+            : `Found ${matchedInstructions.length} matching instruction(s) in IDL.`
+        };
+        this.idlDecodedData = JSON.stringify(decoded, null, 2);
+      } catch (e) {
+        this.idlDecodedData = `Error decoding with IDL: ${e.message}`;
+      }
+    },
     async replayTransaction() {
       const sig = this.replaySignature.trim();
       if (!sig) return;
@@ -875,6 +1069,104 @@ export default {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
   }
+}
 
+/* Mainnet warning / IDL modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-panel {
+  background: var(--p-card-bg);
+  border: 1px solid var(--p-card-border);
+  border-radius: 0.75rem;
+  width: min(560px, 95vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.idl-modal-panel {
+  width: min(700px, 95vw);
+  max-height: 80vh;
+}
+
+.idl-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--p-card-border);
+  padding-bottom: 0.4rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--p-primary-color);
+  white-space: nowrap;
+}
+
+.detail-value {
+  color: var(--p-text-color);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--p-card-border);
+  color: var(--p-text-color);
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 1rem;
+  color: var(--p-text-color);
+}
+
+.rpc-provider-link {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--p-card-border);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: var(--p-text-color);
+  transition: border-color 0.15s;
+}
+
+.rpc-provider-link:hover {
+  border-color: var(--p-primary-color);
+  color: var(--p-primary-color);
+}
+
+.idl-decoded-pre {
+  font-size: 0.8rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--p-text-color);
+  background: var(--p-surface-100);
+  border: 1px solid var(--p-card-border);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin: 0;
 }
 </style>
