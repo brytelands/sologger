@@ -558,7 +558,7 @@ export default {
 .slick-grid-container .slick-row {
   background: var(--p-card-bg);
   color: var(--p-text-color);
-  border-bottom: 1px solid var(--p-card-border);
+  border-bottom: 1px solid var(--p-surface-300, rgba(128,128,128,0.35));
 }
 
 .slick-grid-container .slick-row.odd {
@@ -571,7 +571,7 @@ export default {
 
 .slick-grid-container .slick-cell {
   color: var(--p-text-color);
-  border-right: 1px solid var(--p-card-border);
+  border-right: 1px solid var(--p-surface-300, rgba(128,128,128,0.35));
   padding: 4px 6px;
   overflow: hidden;
 }

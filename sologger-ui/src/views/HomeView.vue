@@ -90,14 +90,32 @@
             </option>
           </select>
 
-          <input
-              v-if="selectedEnvironment === 'custom'"
-              v-model="customUrl"
-              @change="handleCustomUrlChange"
-              type="text"
-              placeholder="Enter WebSocket URL (wss://...)"
-              class="input-base flex-1"
-          />
+          <div v-if="selectedEnvironment === 'custom'" class="flex flex-1 gap-1">
+            <input
+                v-if="!maskApiKey || !customUrlHasApiKey"
+                v-model="customUrl"
+                @change="handleCustomUrlChange"
+                type="text"
+                placeholder="Enter WebSocket URL (wss://...)"
+                class="input-base flex-1"
+            />
+            <input
+                v-else
+                :value="maskedCustomUrl"
+                @focus="maskApiKey = false"
+                type="text"
+                placeholder="Enter WebSocket URL (wss://...)"
+                class="input-base flex-1"
+                readonly
+            />
+            <button
+                v-if="customUrlHasApiKey"
+                @click="maskApiKey = !maskApiKey"
+                class="btn btn-secondary"
+                :title="maskApiKey ? 'Show API key' : 'Hide API key'"
+                type="button"
+            >{{ maskApiKey ? '👁' : '🙈' }}</button>
+          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -333,6 +351,7 @@ export default {
       idlDecodedData: null,
       idlFileName: '',
       customUrl: '',
+      maskApiKey: true,
       selectedEnvironment: 'wss://api.devnet.solana.com',
       onlyShowErrors: false,
       parsedLogs: [],
@@ -455,6 +474,14 @@ export default {
       const programs = new Set(this.parsedLogs.map(row => row.programId));
       return programs.size;
     },
+    customUrlHasApiKey() {
+      return /[?&]api-key=/i.test(this.customUrl);
+    },
+    maskedCustomUrl() {
+      return this.customUrl.replace(/([\?&]api-key=)([^&]+)/i, (_, prefix, key) => {
+        return prefix + key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
+      });
+    },
     getMobileOptimizedHotSettings() {
       const baseSettings = {...this.hotSettings};
 
@@ -565,9 +592,31 @@ export default {
     },
     async addProgramId() {
       if (this.newProgramId && !this.programIds.includes(this.newProgramId)) {
-        this.programIds.push(this.newProgramId);
-        await this.connectWebSocketForProgram(this.newProgramId);
+        const programIdToAdd = this.newProgramId;
+        this.programIds.push(programIdToAdd);
+        await this.connectWebSocketForProgram(programIdToAdd);
         this.newProgramId = '';
+
+        // Attempt to fetch IDL for the program
+        try {
+          const { Program } = await import('@coral-xyz/anchor');
+          const { Connection, PublicKey } = await import('@solana/web3.js');
+          const wsUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
+          const httpUrl = wsUrl.replace(/^wss?:\/\//, 'https://');
+          const connection = new Connection(httpUrl);
+          const pubkey = new PublicKey(programIdToAdd);
+          const idl = await Program.fetchIdl(pubkey, { connection });
+          if (idl) {
+            this.uploadedIdl = idl;
+            this.idlFileName = `${programIdToAdd.substring(0, 8)}...-on-chain.json`;
+            this.toast.add({ severity: 'success', summary: 'IDL Found', detail: `On-chain IDL loaded for ${programIdToAdd.substring(0, 8)}...`, life: 4000 });
+          } else {
+            this.toast.add({ severity: 'warn', summary: 'No IDL Found', detail: `No on-chain IDL found for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`, life: 6000 });
+          }
+        } catch (e) {
+          console.warn('IDL fetch failed:', e);
+          this.toast.add({ severity: 'warn', summary: 'No IDL Found', detail: `Could not fetch IDL for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`, life: 6000 });
+        }
       }
     },
 
@@ -852,6 +901,8 @@ export default {
       this.lastUpdateTime = '-';
       this.websockets.clear();
       this.connectingWebsockets.clear();
+      this.uploadedIdl = null;
+      this.idlFileName = '';
       console.log('Cleared all data and connections');
 
     },
