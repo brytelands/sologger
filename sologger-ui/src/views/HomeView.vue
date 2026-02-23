@@ -15,8 +15,13 @@
 
       <!-- Controls Section -->
       <div class="space-y-4 mb-6">
-        <!-- Environment Selection -->
+        <!-- Explorer & Environment Selection -->
         <div class="flex flex-col md:flex-row gap-4">
+          <select v-model="selectedExplorer" class="input-base w-full md:w-auto">
+            <option value="solscan">Solscan</option>
+            <option value="solana">Solana Explorer</option>
+            <option value="solanafm">Solana.fm</option>
+          </select>
           <select
               v-model="selectedEnvironment"
               @change="handleEnvironmentChange"
@@ -71,12 +76,18 @@
             Clear All
           </button>
           <button
-              @click="downloadLogs"
+              @click="exportJSON"
               class="btn btn-info"
               :disabled="!parsedLogs.length"
           >
-            <span>Download</span>
-            <span v-if="!parsedLogs.length" class="text-xs opacity-75">(No data)</span>
+            Export JSON
+          </button>
+          <button
+              @click="exportCSV"
+              class="btn btn-info"
+              :disabled="!parsedLogs.length"
+          >
+            Export CSV
           </button>
         </div>
       </div>
@@ -137,11 +148,33 @@
         />
       </div>
 
+      <!-- Log Replay Tool -->
+      <div class="card p-4 mb-4">
+        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">Log Replay Tool</h3>
+        <div class="flex flex-col md:flex-row gap-2">
+          <input
+              v-model="replaySignature"
+              type="text"
+              placeholder="Paste a transaction signature to fetch & replay logs..."
+              class="input-base flex-1"
+          />
+          <button
+              @click="replayTransaction"
+              class="btn btn-info"
+              :disabled="replayLoading || !replaySignature.trim()"
+          >
+            {{ replayLoading ? 'Fetching...' : 'Replay' }}
+          </button>
+        </div>
+        <p v-if="replayError" class="text-red-500 text-xs mt-1">{{ replayError }}</p>
+      </div>
+
       <!-- Logs Table with Mobile Optimization -->
       <div class="overflow-x-auto">
         <LogsTable
             :parsedLogs="filteredLogs"
             :hotSettings="getMobileOptimizedHotSettings"
+            :selectedExplorer="selectedExplorer"
         />
       </div>
     </div>
@@ -201,6 +234,11 @@ export default {
       newProgramId: '',
       programIds: [],
       isPaused: false,
+      selectedExplorer: 'solscan',
+      replaySignature: '',
+      replayLoading: false,
+      replayError: '',
+      replayEnvironment: 'https://api.devnet.solana.com',
       searchQuery: '',
       filterLevel: '',
       filterInstruction: '',
@@ -357,6 +395,26 @@ export default {
     }
   },
   methods: {
+    explorerUrl(type, value, linkSuffix) {
+      const explorers = {
+        solscan: {
+          tx: `https://solscan.io/tx/${value}${linkSuffix}`,
+          block: `https://solscan.io/block/${value}${linkSuffix}`,
+          account: `https://solscan.io/account/${value}${linkSuffix}`,
+        },
+        solana: {
+          tx: `https://explorer.solana.com/tx/${value}${linkSuffix}`,
+          block: `https://explorer.solana.com/block/${value}${linkSuffix}`,
+          account: `https://explorer.solana.com/address/${value}${linkSuffix}`,
+        },
+        solanafm: {
+          tx: `https://solana.fm/tx/${value}${linkSuffix}`,
+          block: `https://solana.fm/block/${value}${linkSuffix}`,
+          account: `https://solana.fm/address/${value}${linkSuffix}`,
+        },
+      };
+      return (explorers[this.selectedExplorer] ?? explorers.solscan)[type];
+    },
     parseLog(logData) {
       let linkSuffix = '';
       if (this.selectedEnvironment.includes('dev')) {
@@ -364,10 +422,10 @@ export default {
       } else if (this.selectedEnvironment.includes('test')) {
         linkSuffix = '?cluster=testnet';
       }
-      let signatureData = {signature: logData.signature, linkSuffix: linkSuffix};
-      let slotData = {slot: logData.slot, linkSuffix: linkSuffix};
-      let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix};
-      let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix};
+      let signatureData = {signature: logData.signature, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
+      let slotData = {slot: logData.slot, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
+      let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
+      let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
 
       // Extract compute units consumed from raw logs
       let computeUnits = null;
@@ -470,6 +528,7 @@ export default {
       localStorage.setItem('sologger_programIds', JSON.stringify(this.programIds));
       localStorage.setItem('sologger_customUrl', this.customUrl);
       localStorage.setItem('sologger_selectedEnvironment', this.selectedEnvironment);
+      localStorage.setItem('sologger_selectedExplorer', this.selectedExplorer);
     },
     loadFromLocalStorage() {
       const savedProgramIds = localStorage.getItem('sologger_programIds');
@@ -480,6 +539,29 @@ export default {
       if (savedCustomUrl) this.customUrl = savedCustomUrl;
       const savedEnv = localStorage.getItem('sologger_selectedEnvironment');
       if (savedEnv) this.selectedEnvironment = savedEnv;
+      const savedExplorer = localStorage.getItem('sologger_selectedExplorer');
+      if (savedExplorer) this.selectedExplorer = savedExplorer;
+    },
+    updateUrl() {
+      const params = new URLSearchParams();
+      if (this.programIds.length) params.set('programs', this.programIds.join(','));
+      const envKey = this.environments.find(e => e.url === this.selectedEnvironment)?.key?.toLowerCase() ?? 'custom';
+      params.set('network', envKey);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    },
+    loadFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const programs = params.get('programs');
+      if (programs) {
+        const ids = programs.split(',').map(s => s.trim()).filter(Boolean);
+        if (ids.length) this.programIds = ids;
+      }
+      const network = params.get('network');
+      if (network) {
+        const match = this.environments.find(e => e.key.toLowerCase() === network.toLowerCase());
+        if (match) this.selectedEnvironment = match.url;
+      }
     },
     updateTable(eventData) {
 
@@ -658,47 +740,97 @@ export default {
 
     },
 
-    downloadLogs() {
+    triggerDownload(content, filename, mimeType) {
+      const blob = new Blob([content], {type: mimeType});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    exportJSON() {
       try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const environment = this.getEnvironmentName();
-        const filename = `solana-logs-${environment}-${timestamp}.json`;
-
         const downloadData = {
           metadata: {
             exportedAt: new Date().toISOString(),
-            environment: environment,
+            environment,
             url: this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment,
             programIds: this.programIds,
             totalLogs: this.parsedLogs.length
           },
           logs: this.parsedLogs
         };
-
-        // Convert to JSON string
-        const jsonString = JSON.stringify(downloadData, null, 2);
-
-        // Create blob and download
-        const blob = new Blob([jsonString], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-
-        // Create download link
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-
-        // Trigger download
-        document.body.appendChild(link);
-        link.click();
-
-        // Cleanup
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        console.log(`Downloaded ${downloadData.logs.length} logs to ${filename}`);
+        this.triggerDownload(JSON.stringify(downloadData, null, 2), `solana-logs-${environment}-${timestamp}.json`, 'application/json');
       } catch (error) {
-        console.error('Error downloading logs:', error);
-        alert('Error downloading logs. Check console for details.');
+        console.error('Error exporting JSON:', error);
+        alert('Error exporting JSON. Check console for details.');
+      }
+    },
+    exportCSV() {
+      try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const environment = this.getEnvironmentName();
+        const csvCols = ['timestamp','level','signature','slot','programId','parentProgramId','depth','instructionIndex','invokeResult','computeUnits','logMessages','dataLogs','rawLogs','errors','transactionError'];
+        const escape = v => {
+          if (v === null || v === undefined) return '';
+          const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          return `"${s.replace(/"/g, '""')}"`;
+        };
+        const flatField = (row, col) => {
+          const v = row[col];
+          if (v && typeof v === 'object') return v[col] ?? JSON.stringify(v);
+          return v;
+        };
+        const header = csvCols.join(',');
+        const rows = this.parsedLogs.map(row => csvCols.map(col => escape(flatField(row, col))).join(','));
+        this.triggerDownload([header, ...rows].join('\n'), `solana-logs-${environment}-${timestamp}.csv`, 'text/csv');
+      } catch (error) {
+        console.error('Error exporting CSV:', error);
+        alert('Error exporting CSV. Check console for details.');
+      }
+    },
+    async replayTransaction() {
+      const sig = this.replaySignature.trim();
+      if (!sig) return;
+      this.replayLoading = true;
+      this.replayError = '';
+      try {
+        // Determine HTTP RPC URL from current WS environment
+        let rpcUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
+        rpcUrl = rpcUrl.replace(/^wss?:\/\//, 'https://');
+        const body = JSON.stringify({
+          jsonrpc: '2.0', id: 1, method: 'getTransaction',
+          params: [sig, {encoding: 'json', maxSupportedTransactionVersion: 0}]
+        });
+        const resp = await fetch(rpcUrl, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
+        const json = await resp.json();
+        if (json.error) throw new Error(json.error.message);
+        const tx = json.result;
+        if (!tx) throw new Error('Transaction not found. It may not be finalized yet or may not exist on this network.');
+        const logs = tx.meta?.logMessages ?? [];
+        const slot = tx.slot;
+        const err = tx.meta?.err ?? null;
+        // Feed through WASM transformer
+        const { WasmLogContextTransformer } = await import('../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js');
+        const transformer = new WasmLogContextTransformer(['*']);
+        const parsedLogs = transformer.from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
+        const newLogs = parsedLogs.map(l => this.parseLog({
+          signature: sig, slot,
+          solana: JSON.parse(sanitizeLogMessage(l))
+        }));
+        this.parsedLogs.unshift(...newLogs);
+        this.parsedLogs = this.parsedLogs.slice(0, 1000);
+        this.lastUpdateTime = new Date().toLocaleTimeString();
+        this.replaySignature = '';
+      } catch (e) {
+        this.replayError = e.message ?? 'Unknown error fetching transaction.';
+      } finally {
+        this.replayLoading = false;
       }
     },
 
@@ -712,14 +844,16 @@ export default {
   },
   created() {
     this.loadFromLocalStorage();
+    this.loadFromUrl();
   },
   watch: {
     programIds: {
       deep: true,
-      handler() { this.saveToLocalStorage(); }
+      handler() { this.saveToLocalStorage(); this.updateUrl(); }
     },
     customUrl() { this.saveToLocalStorage(); },
-    selectedEnvironment() { this.saveToLocalStorage(); }
+    selectedEnvironment() { this.saveToLocalStorage(); this.updateUrl(); },
+    selectedExplorer() { this.saveToLocalStorage(); }
   },
   beforeUnmount() {
     this.disconnectWebSocket();

@@ -82,15 +82,17 @@ import { SlickGrid, SlickRowSelectionModel } from 'slickgrid';
 import 'slickgrid/dist/styles/css/slick.grid.css';
 import 'slickgrid/dist/styles/css/slick-default-theme.css';
 
+// TODO fix URL query params for different explorers
 const ALL_COLUMNS = [
   { id: 'timestamp', name: 'Time', field: 'timestamp', width: 80, sortable: true, resizable: true },
   { id: 'level', name: 'Level', field: 'level', width: 100, sortable: true, resizable: true },
   {
     id: 'signature', name: 'Signature', field: 'signature', width: 110, resizable: true,
-    formatter: (_, __, value) => {
+    formatter: (_, __, value, _col, dataContext) => {
       const sig = value?.signature ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
-      return `<a href="https://solscan.io/tx/${sig}${suffix}" target="_blank" class="truncate-cell" title="${sig}">${String(sig).substring(0, 8)}...</a>`;
+      const base = explorerBase(value?.explorer, 'tx');
+      return `<a href="${base}${sig}${suffix}" target="_blank" class="truncate-cell" title="${sig}">${String(sig).substring(0, 8)}...</a>`;
     }
   },
   {
@@ -98,7 +100,8 @@ const ALL_COLUMNS = [
     formatter: (_, __, value) => {
       const slot = value?.slot ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
-      return `<a href="https://solscan.io/block/${slot}${suffix}" target="_blank">${slot}</a>`;
+      const base = explorerBase(value?.explorer, 'block');
+      return `<a href="${base}${slot}${suffix}" target="_blank">${slot}</a>`;
     }
   },
   {
@@ -106,10 +109,11 @@ const ALL_COLUMNS = [
     formatter: (_, __, value, _col, dataContext) => {
       const pid = value?.programId ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
+      const base = explorerBase(value?.explorer, 'account');
       const depth = dataContext.depth ?? 0;
       const indentStyle = depth > 0 ? `padding-left:${depth * 12}px;` : '';
       const childClass = depth > 0 ? ' cpi-child' : '';
-      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell${childClass}" style="${indentStyle}" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      return `<a href="${base}${pid}${suffix}" target="_blank" class="truncate-cell${childClass}" style="${indentStyle}" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
     }
   },
   {
@@ -117,8 +121,9 @@ const ALL_COLUMNS = [
     formatter: (_, __, value) => {
       const pid = value?.parentProgramId ?? value ?? '';
       const suffix = value?.linkSuffix ?? '';
+      const base = explorerBase(value?.explorer, 'account');
       if (!pid) return '<span class="cu-na">—</span>';
-      return `<a href="https://solscan.io/account/${pid}${suffix}" target="_blank" class="truncate-cell cpi-parent" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      return `<a href="${base}${pid}${suffix}" target="_blank" class="truncate-cell cpi-parent" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
     }
   },
   {
@@ -182,8 +187,18 @@ const ALL_COLUMNS = [
 
 const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs', 'parentProgramId']);
 
+const EXPLORER_URLS = {
+  solscan:  { tx: 'https://solscan.io/tx/', block: 'https://solscan.io/block/', account: 'https://solscan.io/account/' },
+  solana:   { tx: 'https://explorer.solana.com/tx/', block: 'https://explorer.solana.com/block/', account: 'https://explorer.solana.com/address/' },
+  solanafm: { tx: 'https://solana.fm/tx/', block: 'https://solana.fm/block/', account: 'https://solana.fm/address/', env: 'cluster=devnet-solana' },
+};
+
+function explorerBase(explorer, type) {
+  return (EXPLORER_URLS[explorer] ?? EXPLORER_URLS.solscan)[type];
+}
+
 export default {
-  props: ['parsedLogs', 'hotSettings'],
+  props: ['parsedLogs', 'hotSettings', 'selectedExplorer'],
   data() {
     return {
       currentPage: 0,
