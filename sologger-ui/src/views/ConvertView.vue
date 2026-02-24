@@ -1,8 +1,11 @@
 <template>
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6 text-[var(--p-text-color)]">
-      Convert Solana Logs
-    </h1>
+  <div class="container mx-auto px-4 py-6">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2 text-[var(--p-text-color)] tracking-tight">
+        Convert Solana Logs
+      </h1>
+      <p class="text-[var(--p-text-muted)] text-base">Paste raw Solana logs to convert them into structured JSON.</p>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="space-y-4">
@@ -22,12 +25,12 @@ Program log: Create
 Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 5475 of 200000 compute units
 Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)
 Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to complete"
-            class="w-full h-[600px] p-4 font-mono text-sm rounded-lg border border-surface-200 bg-surface-800 text-white dark:bg-surface-800 dark:border-surface-700"
+            class="input-base w-full h-[600px] p-4 font-mono text-sm resize-none"
             @input="handleInput"
         ></textarea>
         <button
             @click="convertLogs"
-            class="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50"
+            class="btn btn-primary"
             :disabled="!inputLogs"
         >
           Convert Logs
@@ -37,24 +40,24 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
       <div class="space-y-4">
         <div
             v-if="convertedLogs"
-            class="h-[600px] p-4 font-mono text-sm rounded-lg border border-surface-200 bg-surface-800 text-white dark:bg-surface-800 dark:border-surface-700 overflow-auto"
+            class="card h-[600px] p-4 font-mono text-sm overflow-auto text-[var(--p-text-color)]"
         >
           <pre>{{ formattedOutput }}</pre>
         </div>
-        <div v-else class="h-[600px] flex items-center justify-center border border-dashed border-surface-200 dark:border-surface-700 rounded-lg bg-surface-800">
+        <div v-else class="h-[600px] flex items-center justify-center border border-dashed border-[var(--p-card-border)] rounded-xl bg-[var(--p-card-bg)]">
           <span class="text-[var(--p-text-color)]">Converted logs will appear here</span>
         </div>
         <div class="flex gap-4">
           <button
               @click="downloadLogs"
-              class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              class="btn btn-info"
               :disabled="!convertedLogs"
           >
             Download JSON
           </button>
           <button
               @click="copyToClipboard"
-              class="px-4 py-2 bg-surface-700 text-white rounded hover:bg-surface-600 disabled:opacity-50"
+              class="btn btn-secondary"
               :disabled="!convertedLogs"
           >
             Copy to Clipboard
@@ -65,7 +68,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
 
     <div
         v-if="error"
-        class="mt-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-lg"
+        class="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl"
     >
       {{ error }}
     </div>

@@ -2,7 +2,13 @@
 
 **Overview**
 
-This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support.
+This library provides a utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support.
+
+**Build**
+
+```shell
+wasm-pack build --target web
+```
 
 **Example Usage**
 
