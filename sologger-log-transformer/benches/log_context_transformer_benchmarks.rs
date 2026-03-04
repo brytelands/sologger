@@ -131,7 +131,7 @@ fn bench_from_ui_confirmed_block(c: &mut Criterion) {
     c.bench_function("from_ui_confirmed_block", |b| {
         b.iter(|| {
             from_ui_confirmed_block(
-                black_box(ui_confirmed_block.clone()),
+                black_box(&ui_confirmed_block),
                 black_box(219907401),
                 black_box(&program_selector),
             )

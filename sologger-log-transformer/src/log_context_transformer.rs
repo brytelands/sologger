@@ -1,9 +1,10 @@
 use solana_rpc_client_api::response::{Response, RpcLogsResponse};
 
 use solana_transaction_status::{
-    ConfirmedBlock, EncodedConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta,
-    EncodedTransaction, EncodedTransactionWithStatusMeta, TransactionWithStatusMeta,
-    UiConfirmedBlock, VersionedConfirmedBlock, VersionedTransactionWithStatusMeta,
+    option_serializer::OptionSerializer, ConfirmedBlock, EncodedConfirmedBlock,
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction,
+    EncodedTransactionWithStatusMeta, TransactionWithStatusMeta, UiConfirmedBlock,
+    VersionedConfirmedBlock, VersionedTransactionWithStatusMeta,
 };
 
 use sologger_log_context::programs_selector::ProgramsSelector;
@@ -62,18 +63,20 @@ pub fn from_encoded_confirmed_block(
 
 /// Extracts log messages from a UiConfirmedBlock and returns a vector of LogContexts
 pub fn from_ui_confirmed_block(
-    block: UiConfirmedBlock,
+    block: &UiConfirmedBlock,
     slot: u64,
     program_selector: &ProgramsSelector,
 ) -> anyhow::Result<Vec<LogContext>> {
     let mut block_log_contexts = Vec::new();
-    block.transactions.unwrap().iter().for_each(|tx| {
-        let result = from_encoded_transaction(tx, slot, program_selector)
-            .expect("Error processing logs for block");
-        for log in result {
-            block_log_contexts.push(log);
+    if let Some(transactions) = block.transactions.as_ref() {
+        for tx in transactions {
+            let result = from_encoded_transaction(tx, slot, program_selector)
+                .expect("Error processing logs for block");
+            for log in result {
+                block_log_contexts.push(log);
+            }
         }
-    });
+    }
     Ok(block_log_contexts)
 }
 
@@ -84,10 +87,13 @@ pub fn from_encoded_transaction(
     program_selector: &ProgramsSelector,
 ) -> anyhow::Result<Vec<LogContext>> {
     let mut block_log_contexts = Vec::new();
-    let logs: Option<Vec<String>> = tx.meta.to_owned().unwrap().log_messages.into();
-    let logs = logs.unwrap_or(vec![]);
-    let te = tx.meta.to_owned().unwrap().err;
-    let transaction_error = match te {
+    let meta = tx.meta.as_ref().unwrap();
+    let empty_logs = Vec::new();
+    let logs = match &meta.log_messages {
+        OptionSerializer::Some(msgs) => msgs,
+        _ => &empty_logs,
+    };
+    let transaction_error = match &meta.err {
         None => "".to_string(),
         Some(err) => {
             format!("{}", err)
@@ -345,7 +351,7 @@ mod tests {
         };
 
         let result = from_ui_confirmed_block(
-            ui_confirmed_block,
+            &ui_confirmed_block,
             219907401,
             &ProgramsSelector::new_all_programs(),
         )
