@@ -268,9 +268,9 @@ impl LogContext {
                     info!("Log not matched, adding to raw_logs: {}", &log_trimmed);
                     info!("raw_logs: {:?}", &logs);
 
-                    result[call_ids[call_ids.len() - 1]]
-                        .raw_logs
-                        .push(log_trimmed)
+                    if let Some(&last_id) = call_ids.last() {
+                        result[last_id].raw_logs.push(log_trimmed);
+                    }
                 }
                 Some(capture) => {
                     let program_invoke = capture.name("programInvoke");
@@ -372,8 +372,10 @@ impl LogContext {
                             {
                                 warn!("[ProgramSuccess] callstack mismatch");
                             }
-                            result[last_call_index.unwrap()].raw_logs.push(log.clone());
-                            current_depth -= 1;
+                            if let Some(idx) = last_call_index {
+                                result[idx].raw_logs.push(log.clone());
+                            }
+                            current_depth = current_depth.saturating_sub(1);
                             if current_depth == 0 {
                                 current_instruction += 1;
                             }
@@ -383,19 +385,19 @@ impl LogContext {
 
                     match program_failed_result {
                         Some(_x) => {
-                            let last_program = call_stack.pop().unwrap();
-                            if failed_result_program_id.is_some_and(|x| x.as_str() != last_program)
-                            {
-                                warn!("[ProgramFailed] callstack mismatch")
-                            };
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .errors
-                                .push(failed_result_err.unwrap().as_str().to_string());
-                            result[call_ids[call_ids.len() - 1]].transaction_error =
-                                transaction_error.to_string();
+                            let last_program = call_stack.pop();
+                            if let Some(lp) = &last_program {
+                                if failed_result_program_id.is_some_and(|x| x.as_str() != lp) {
+                                    warn!("[ProgramFailed] callstack mismatch")
+                                }
+                            }
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                                result[last_id]
+                                    .errors
+                                    .push(failed_result_err.unwrap().as_str().to_string());
+                                result[last_id].transaction_error = transaction_error.to_string();
+                            }
                             //TODO double check this pop
                             call_ids.pop();
                         }
@@ -404,53 +406,52 @@ impl LogContext {
 
                     match program_complete_failed_result {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .errors
-                                .push(failed_complete_error.unwrap().as_str().to_string());
-                            result[call_ids[call_ids.len() - 1]].transaction_error =
-                                transaction_error.to_string();
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                                result[last_id]
+                                    .errors
+                                    .push(failed_complete_error.unwrap().as_str().to_string());
+                                result[last_id].transaction_error = transaction_error.to_string();
+                            }
                         }
                         None => {}
                     }
 
                     match program_log {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .log_messages
-                                .push(log_message.unwrap().as_str().to_string());
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                                result[last_id]
+                                    .log_messages
+                                    .push(log_message.unwrap().as_str().to_string());
+                            }
                         }
                         None => {}
                     }
 
                     match program_data {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .data_logs
-                                .push(data.unwrap().as_str().to_string());
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                                result[last_id]
+                                    .data_logs
+                                    .push(data.unwrap().as_str().to_string());
+                            }
                         }
                         None => {}
                     }
 
                     match program_consumed {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            let computer_numbers = extract_compute_numbers(&log);
-                            match computer_numbers {
-                                None => {}
-                                Some((consumed_cu, max_cu)) => {
-                                    result[call_ids[call_ids.len() - 1]].max_cu = max_cu;
-                                    result[call_ids[call_ids.len() - 1]].consumed_cu = consumed_cu;
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                                let computer_numbers = extract_compute_numbers(&log);
+                                match computer_numbers {
+                                    None => {}
+                                    Some((consumed_cu, max_cu)) => {
+                                        result[last_id].max_cu = max_cu;
+                                        result[last_id].consumed_cu = consumed_cu;
+                                    }
                                 }
                             }
                         }
@@ -459,9 +460,9 @@ impl LogContext {
 
                     match program_consumption {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].raw_logs.push(log.clone());
+                            }
                         }
                         None => {}
                     }
@@ -479,13 +480,17 @@ impl LogContext {
 
                     match program_return {
                         Some(_x) => {
-                            if return_program_id
-                                .is_some_and(|x| x.as_str() != call_stack[call_stack.len() - 1])
+                            if let (Some(ret_pid), Some(top)) =
+                                (return_program_id, call_stack.last())
                             {
-                                warn!("[InvokeReturn]: callstack mismatch")
+                                if ret_pid.as_str() != top {
+                                    warn!("[InvokeReturn]: callstack mismatch")
+                                }
                             }
-                            result[call_ids[call_ids.len() - 1]].invoke_result =
-                                return_message.unwrap().as_str().to_string();
+                            if let Some(&last_id) = call_ids.last() {
+                                result[last_id].invoke_result =
+                                    return_message.unwrap().as_str().to_string();
+                            }
                         }
                         None => {}
                     }
