@@ -322,8 +322,22 @@ impl LogContext {
                             if level.is_some_and(|x| {
                                 *x.as_str().to_string() != current_depth.to_string()
                             }) {
-                                trace!("Invoke depth mismatch. This is most likely caused by finding a selected program ID log nested in a program that is not monitored, log:{}, expected: {}", x.as_str(), current_depth.to_string());
-                                break;
+                                if !programs_selector.select_all_programs {
+                                    // When filtering by program, depth mismatch is expected
+                                    // for CPI invocations where the outer program (e.g.,
+                                    // Jupiter aggregator) was skipped because it's not in our
+                                    // program list. Adjust depth to match the actual invoke
+                                    // level so we can still capture the inner program's events.
+                                    if let Some(l) = level {
+                                        if let Ok(actual_depth) = l.as_str().parse::<usize>() {
+                                            trace!("Adjusting depth from {} to {} for CPI program {} (outer program not monitored)", current_depth, actual_depth, x.as_str());
+                                            current_depth = actual_depth;
+                                        }
+                                    }
+                                } else {
+                                    trace!("Invoke depth mismatch. This is most likely caused by finding a selected program ID log nested in a program that is not monitored, log:{}, expected: {}", x.as_str(), current_depth.to_string());
+                                    break;
+                                }
                             }
                             let program_id = call_stack[call_stack.len() - 1].clone();
                             let unique_id: String =
@@ -1483,5 +1497,109 @@ mod tests {
     fn test_partial_format() {
         let log = "consumed 100 of";
         assert_eq!(extract_compute_numbers(log), None);
+    }
+
+    /// Tests that CPI invocations (e.g., Jupiter aggregator calling PumpSwap at depth [2])
+    /// are correctly captured when filtering by program. Previously, the depth mismatch
+    /// between the skipped outer program (depth [1]) and the selected inner program
+    /// (depth [2]) caused a `break` that aborted the entire log parse, losing all events.
+    #[test]
+    fn test_cpi_depth_mismatch_captures_inner_program() {
+        // Simulate a Jupiter transaction that CPIs into PumpSwap (our monitored program)
+        let logs: Vec<String> = vec![
+            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [1]".to_string(),
+            "Program log: Jupiter route begin".to_string(),
+            "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [2]".to_string(),
+            "Program log: Instruction: Swap".to_string(),
+            "Program data: abc123data".to_string(),
+            "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P consumed 50000 of 200000 compute units".to_string(),
+            "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success".to_string(),
+            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 consumed 150000 of 200000 compute units".to_string(),
+            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 success".to_string(),
+        ];
+
+        // Only monitoring PumpSwap (6EF8...), NOT Jupiter (JUP6...)
+        let programs_selector =
+            ProgramsSelector::new(&["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P".to_string()]);
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            100,
+            "sig123".to_string(),
+        );
+
+        // Should capture the PumpSwap CPI invocation (previously returned 0 due to break)
+        assert_eq!(log_contexts.len(), 1, "Should capture CPI program context");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+        );
+        assert_eq!(log_contexts[0].slot, 100);
+        assert_eq!(log_contexts[0].signature, "sig123");
+        // Should have captured the log message and data
+        assert!(
+            log_contexts[0].log_messages.len() >= 1,
+            "Should capture inner program log messages"
+        );
+        assert!(
+            log_contexts[0].data_logs.len() >= 1,
+            "Should capture inner program data logs"
+        );
+    }
+
+    /// Tests multiple CPI invocations in a single aggregator transaction
+    /// (e.g., Jupiter routing through PumpSwap then Raydium in the same tx).
+    #[test]
+    fn test_cpi_multiple_inner_programs() {
+        let logs: Vec<String> = vec![
+            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [1]".to_string(),
+            "Program log: Jupiter route begin".to_string(),
+            // First CPI: PumpSwap
+            "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [2]".to_string(),
+            "Program log: Instruction: Swap".to_string(),
+            "Program data: pumpswap_event_data".to_string(),
+            "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success".to_string(),
+            // Second CPI: another monitored program (using System Program as stand-in)
+            "Program 11111111111111111111111111111111 invoke [2]".to_string(),
+            "Program log: Instruction: Transfer".to_string(),
+            "Program 11111111111111111111111111111111 success".to_string(),
+            // Jupiter completes
+            "Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 success".to_string(),
+        ];
+
+        // Monitor both PumpSwap and System Program
+        let programs_selector = ProgramsSelector::new(&[
+            "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P".to_string(),
+            "11111111111111111111111111111111".to_string(),
+        ]);
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            200,
+            "sig456".to_string(),
+        );
+
+        // Should capture both CPI invocations
+        assert!(
+            log_contexts.len() >= 2,
+            "Should capture both CPI program contexts, got {}",
+            log_contexts.len()
+        );
+
+        // First should be PumpSwap
+        assert_eq!(
+            log_contexts[0].program_id,
+            "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+        );
+
+        // Second should be System Program
+        assert_eq!(
+            log_contexts[1].program_id,
+            "11111111111111111111111111111111"
+        );
     }
 }
