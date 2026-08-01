@@ -1,0 +1,74 @@
+name: Deploy UI to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "sologger-ui/**"
+      - "sologger-log-transformer-wasm/**"
+      - "sologger-log-context/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deployment at a time; let an in-flight deploy finish so the site
+# never serves a half-published artifact.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build the WASM transformer from current source so the published site
+      # can never ship a stale parser, regardless of what is committed under
+      # sologger-ui/public/.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@wasm-pack
+      - name: Build WASM transformer
+        run: wasm-pack build --target web
+        working-directory: sologger-log-transformer-wasm
+      - name: Sync fresh WASM package into the UI
+        run: |
+          rm -rf sologger-ui/public/sologger-log-transformer-wasm/pkg
+          mkdir -p sologger-ui/public/sologger-log-transformer-wasm
+          cp -r sologger-log-transformer-wasm/pkg sologger-ui/public/sologger-log-transformer-wasm/pkg
+          rm -f sologger-ui/public/sologger-log-transformer-wasm/pkg/.gitignore \
+                sologger-ui/public/sologger-log-transformer-wasm/pkg/README.md
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: sologger-ui/package-lock.json
+      - run: npm ci
+        working-directory: sologger-ui
+      - run: npx vitest run
+        working-directory: sologger-ui
+      - run: npm run build
+        working-directory: sologger-ui
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sologger-ui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
