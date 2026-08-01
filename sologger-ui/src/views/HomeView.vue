@@ -19,7 +19,8 @@
           </div>
           <div class="modal-body">
             <p class="text-[var(--p-text-color)] mb-3">
-              Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop connections frequently.
+              Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop
+              connections frequently.
               We strongly recommend using a <strong>private RPC provider</strong>.
             </p>
             <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
@@ -114,7 +115,8 @@
                 class="btn btn-secondary"
                 :title="maskApiKey ? 'Show API key' : 'Hide API key'"
                 type="button"
-            >{{ maskApiKey ? '👁' : '🙈' }}</button>
+            >{{ maskApiKey ? '👁' : '🙈' }}
+            </button>
           </div>
         </div>
 
@@ -235,17 +237,19 @@
 
       <!-- IDL Upload for WASM Decoding -->
       <div class="card p-4 mb-4">
-        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">IDL Decoding (WASM)</h3>
+        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">IDL Decoding
+          (WASM)</h3>
         <div class="flex flex-col md:flex-row gap-2 items-start md:items-center">
           <label class="btn btn-secondary cursor-pointer">
             📂 {{ uploadedIdl ? '✅ IDL Loaded: ' + idlFileName : 'Upload IDL (JSON)' }}
-            <input type="file" accept=".json" class="hidden" @change="handleIdlUpload" />
+            <input type="file" accept=".json" class="hidden" @change="handleIdlUpload"/>
           </label>
           <button
               v-if="uploadedIdl"
               @click="uploadedIdl = null; idlFileName = ''"
               class="btn btn-danger"
-          >Remove IDL</button>
+          >Remove IDL
+          </button>
           <span v-if="uploadedIdl" class="text-xs text-[var(--p-text-muted)]">
             Select a log row in the table to decode its data logs using the uploaded IDL.
           </span>
@@ -288,11 +292,12 @@
 </template>
 <script>
 // Import your existing script here
-import { onMounted } from 'vue';
-import { useToast } from 'primevue/usetoast';
+import {onMounted} from 'vue';
+import {useToast} from 'primevue/usetoast';
 import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+import {decodeWithIdl as decodeLogWithIdl} from '../composables/useIdlDecoder';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
@@ -331,7 +336,7 @@ export default {
       console.log("WASM Initialized");
     });
 
-    return { toast };
+    return {toast};
   },
   data() {
     return {
@@ -479,7 +484,11 @@ export default {
     },
     parsedIdlDecodedData() {
       if (!this.idlDecodedData) return null;
-      try { return JSON.parse(this.idlDecodedData); } catch { return null; }
+      try {
+        return JSON.parse(this.idlDecodedData);
+      } catch {
+        return null;
+      }
     },
     uniqueSignaturesCount() {
       const signatures = new Set(this.parsedLogs.map(row => row.signature?.signature ?? row.signature));
@@ -560,7 +569,11 @@ export default {
       let signatureData = {signature: logData.signature, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
       let slotData = {slot: logData.slot, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
       let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
-      let parentProgramData = {parentProgramId: logData.solana.parent_program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
+      let parentProgramData = {
+        parentProgramId: logData.solana.parent_program_id,
+        linkSuffix: linkSuffix,
+        explorer: this.selectedExplorer
+      };
 
       // Extract compute units consumed from raw logs
       let computeUnits = null;
@@ -610,23 +623,38 @@ export default {
 
         // Attempt to fetch IDL for the program
         try {
-          const { Program } = await import('@coral-xyz/anchor');
-          const { Connection, PublicKey } = await import('@solana/web3.js');
+          const {Program} = await import('@coral-xyz/anchor');
+          const {Connection, PublicKey} = await import('@solana/web3.js');
           const wsUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
           const httpUrl = wsUrl.replace(/^wss?:\/\//, 'https://');
           const connection = new Connection(httpUrl);
           const pubkey = new PublicKey(programIdToAdd);
-          const idl = await Program.fetchIdl(pubkey, { connection });
+          const idl = await Program.fetchIdl(pubkey, {connection});
           if (idl) {
             this.uploadedIdl = idl;
             this.idlFileName = `${programIdToAdd.substring(0, 8)}...-on-chain.json`;
-            this.toast.add({ severity: 'success', summary: 'IDL Found', detail: `On-chain IDL loaded for ${programIdToAdd.substring(0, 8)}...`, life: 4000 });
+            this.toast.add({
+              severity: 'success',
+              summary: 'IDL Found',
+              detail: `On-chain IDL loaded for ${programIdToAdd.substring(0, 8)}...`,
+              life: 4000
+            });
           } else {
-            this.toast.add({ severity: 'warn', summary: 'No IDL Found', detail: `No on-chain IDL found for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`, life: 6000 });
+            this.toast.add({
+              severity: 'warn',
+              summary: 'No IDL Found',
+              detail: `No on-chain IDL found for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`,
+              life: 6000
+            });
           }
         } catch (e) {
           console.warn('IDL fetch failed:', e);
-          this.toast.add({ severity: 'warn', summary: 'No IDL Found', detail: `Could not fetch IDL for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`, life: 6000 });
+          this.toast.add({
+            severity: 'warn',
+            summary: 'No IDL Found',
+            detail: `Could not fetch IDL for ${programIdToAdd.substring(0, 8)}... You can upload one manually.`,
+            life: 6000
+          });
         }
       }
     },
@@ -707,7 +735,11 @@ export default {
     loadFromLocalStorage() {
       const savedProgramIds = localStorage.getItem('sologger_programIds');
       if (savedProgramIds) {
-        try { this.programIds = JSON.parse(savedProgramIds); } catch { this.programIds = []; }
+        try {
+          this.programIds = JSON.parse(savedProgramIds);
+        } catch {
+          this.programIds = [];
+        }
       }
       const savedCustomUrl = localStorage.getItem('sologger_customUrl');
       if (savedCustomUrl) this.customUrl = savedCustomUrl;
@@ -716,7 +748,10 @@ export default {
       const savedExplorer = localStorage.getItem('sologger_selectedExplorer');
       if (savedExplorer) this.selectedExplorer = savedExplorer;
       const savedMaxLogs = localStorage.getItem('sologger_maxLogs');
-      if (savedMaxLogs) { const n = parseInt(savedMaxLogs, 10); if (n >= 100) this.maxLogs = n; }
+      if (savedMaxLogs) {
+        const n = parseInt(savedMaxLogs, 10);
+        if (n >= 100) this.maxLogs = n;
+      }
     },
     updateUrl() {
       const params = new URLSearchParams();
@@ -864,7 +899,12 @@ export default {
           ws.send(JSON.stringify(subscribeMessage));
           console.log(`WebSocket connected and subscribed for program: ${programId}`);
           this.websockets.set(programId, ws);
-          this.toast.add({ severity: 'success', summary: 'Connected', detail: `Subscribed to ${programId.substring(0, 8)}...`, life: 3000 });
+          this.toast.add({
+            severity: 'success',
+            summary: 'Connected',
+            detail: `Subscribed to ${programId.substring(0, 8)}...`,
+            life: 3000
+          });
           resolve();
         };
 
@@ -874,7 +914,12 @@ export default {
           console.error(`WebSocket error for program ${programId}:`, error);
           this.websockets.delete(programId);
           this.connectingWebsockets.delete(programId);
-          this.toast.add({ severity: 'error', summary: 'Connection Error', detail: `Failed to connect for ${programId.substring(0, 8)}...`, life: 4000 });
+          this.toast.add({
+            severity: 'error',
+            summary: 'Connection Error',
+            detail: `Failed to connect for ${programId.substring(0, 8)}...`,
+            life: 4000
+          });
           reject(error);
         };
 
@@ -882,7 +927,12 @@ export default {
           console.log(`WebSocket connection closed for program: ${programId}`);
           this.websockets.delete(programId);
           this.connectingWebsockets.delete(programId);
-          this.toast.add({ severity: 'warn', summary: 'Disconnected', detail: `WebSocket closed for ${programId.substring(0, 8)}...`, life: 3000 });
+          this.toast.add({
+            severity: 'warn',
+            summary: 'Disconnected',
+            detail: `WebSocket closed for ${programId.substring(0, 8)}...`,
+            life: 3000
+          });
         };
       });
     },
@@ -950,17 +1000,27 @@ export default {
           logs: this.parsedLogs
         };
         this.triggerDownload(JSON.stringify(downloadData, null, 2), `solana-logs-${environment}-${timestamp}.json`, 'application/json');
-        this.toast.add({ severity: 'success', summary: 'Export Complete', detail: 'Logs exported as JSON successfully.', life: 3000 });
+        this.toast.add({
+          severity: 'success',
+          summary: 'Export Complete',
+          detail: 'Logs exported as JSON successfully.',
+          life: 3000
+        });
       } catch (error) {
         console.error('Error exporting JSON:', error);
-        this.toast.add({ severity: 'error', summary: 'Export Failed', detail: 'Error exporting JSON. Check console for details.', life: 4000 });
+        this.toast.add({
+          severity: 'error',
+          summary: 'Export Failed',
+          detail: 'Error exporting JSON. Check console for details.',
+          life: 4000
+        });
       }
     },
     exportCSV() {
       try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const environment = this.getEnvironmentName();
-        const csvCols = ['timestamp','level','signature','slot','programId','parentProgramId','depth','instructionIndex','invokeResult','computeUnits','logMessages','dataLogs','rawLogs','errors','transactionError'];
+        const csvCols = ['timestamp', 'level', 'signature', 'slot', 'programId', 'parentProgramId', 'depth', 'instructionIndex', 'invokeResult', 'computeUnits', 'logMessages', 'dataLogs', 'rawLogs', 'errors', 'transactionError'];
         const escape = v => {
           if (v === null || v === undefined) return '';
           const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
@@ -974,10 +1034,20 @@ export default {
         const header = csvCols.join(',');
         const rows = this.parsedLogs.map(row => csvCols.map(col => escape(flatField(row, col))).join(','));
         this.triggerDownload([header, ...rows].join('\n'), `solana-logs-${environment}-${timestamp}.csv`, 'text/csv');
-        this.toast.add({ severity: 'success', summary: 'Export Complete', detail: 'Logs exported as CSV successfully.', life: 3000 });
+        this.toast.add({
+          severity: 'success',
+          summary: 'Export Complete',
+          detail: 'Logs exported as CSV successfully.',
+          life: 3000
+        });
       } catch (error) {
         console.error('Error exporting CSV:', error);
-        this.toast.add({ severity: 'error', summary: 'Export Failed', detail: 'Error exporting CSV. Check console for details.', life: 4000 });
+        this.toast.add({
+          severity: 'error',
+          summary: 'Export Failed',
+          detail: 'Error exporting CSV. Check console for details.',
+          life: 4000
+        });
       }
     },
     handleIdlUpload(event) {
@@ -988,9 +1058,19 @@ export default {
       reader.onload = (e) => {
         try {
           this.uploadedIdl = JSON.parse(e.target.result);
-          this.toast.add({ severity: 'success', summary: 'IDL Loaded', detail: `${file.name} loaded successfully.`, life: 3000 });
+          this.toast.add({
+            severity: 'success',
+            summary: 'IDL Loaded',
+            detail: `${file.name} loaded successfully.`,
+            life: 3000
+          });
         } catch {
-          this.toast.add({ severity: 'error', summary: 'IDL Error', detail: 'Failed to parse IDL JSON file.', life: 4000 });
+          this.toast.add({
+            severity: 'error',
+            summary: 'IDL Error',
+            detail: 'Failed to parse IDL JSON file.',
+            life: 4000
+          });
           this.uploadedIdl = null;
           this.idlFileName = '';
         }
@@ -1000,63 +1080,7 @@ export default {
     async decodeWithIdl(log) {
       if (!this.uploadedIdl) return;
       try {
-        const { BorshCoder } = await import('@coral-xyz/anchor');
-        const coder = new BorshCoder(this.uploadedIdl);
-
-        // Extract data logs from the row
-        let dataLogs = [];
-        try { dataLogs = JSON.parse(log.dataLogs ?? '[]'); } catch { dataLogs = []; }
-        let rawLogs = [];
-        try { rawLogs = JSON.parse(log.rawLogs ?? '[]'); } catch { rawLogs = []; }
-
-        // Try to match IDL instructions by name from log messages
-        let logMessages = [];
-        try { logMessages = JSON.parse(log.logMessages ?? '[]'); } catch { logMessages = []; }
-
-        const idlInstructions = this.uploadedIdl?.instructions ?? [];
-        const matchedInstructions = [];
-        for (const msg of logMessages) {
-          const instrMatch = String(msg).match(/Instruction:\s*(\w+)/);
-          if (instrMatch) {
-            const name = instrMatch[1];
-            const idlInstr = idlInstructions.find(i => i.name?.toLowerCase() === name.toLowerCase());
-            if (idlInstr) matchedInstructions.push({ name, idlInstruction: idlInstr });
-          }
-        }
-
-        // Decode instruction data from dataLogs using BorshCoder
-        const decodedInstructions = [];
-        for (const b64 of dataLogs) {
-          try {
-            const buf = Buffer.from(b64, 'base64');
-            const decoded = coder.instruction.decode(buf);
-            if (decoded) decodedInstructions.push({ name: decoded.name, data: decoded.data });
-          } catch { /* skip undecoded entries */ }
-        }
-
-        // Decode events from dataLogs using BorshCoder
-        const decodedEvents = [];
-        for (const b64 of dataLogs) {
-          try {
-            const decoded = coder.events.decode(b64);
-            if (decoded) decodedEvents.push({ name: decoded.name, data: decoded.data });
-          } catch { /* skip undecoded entries */ }
-        }
-
-        const decoded = {
-          program: log.programId?.programId ?? log.programId ?? '',
-          signature: log.signature?.signature ?? log.signature ?? '',
-          matchedInstructions,
-          decodedInstructions,
-          decodedEvents,
-          dataLogs,
-          rawLogs,
-          idlName: this.uploadedIdl?.name ?? this.uploadedIdl?.metadata?.name ?? 'Unknown',
-          idlVersion: this.uploadedIdl?.version ?? this.uploadedIdl?.metadata?.version ?? 'Unknown',
-          note: matchedInstructions.length === 0
-            ? 'No matching IDL instructions found in log messages.'
-            : `Found ${matchedInstructions.length} matching instruction(s) in IDL.`
-        };
+        const decoded = await decodeLogWithIdl(this.uploadedIdl, log);
         this.idlDecodedData = JSON.stringify(decoded, null, 2);
       } catch (e) {
         this.idlDecodedData = `Error decoding with IDL: ${e.message}`;
@@ -1084,7 +1108,7 @@ export default {
         const slot = tx.slot;
         const err = tx.meta?.err ?? null;
         // Feed through WASM transformer
-        const { WasmLogContextTransformer } = await import('../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js');
+        const {WasmLogContextTransformer} = await import('../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js');
         const transformer = new WasmLogContextTransformer(['*']);
         const parsedLogs = transformer.from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
         const newLogs = parsedLogs.map(l => this.parseLog({
@@ -1120,12 +1144,24 @@ export default {
   watch: {
     programIds: {
       deep: true,
-      handler() { this.saveToLocalStorage(); this.updateUrl(); }
+      handler() {
+        this.saveToLocalStorage();
+        this.updateUrl();
+      }
     },
-    customUrl() { this.saveToLocalStorage(); },
-    selectedEnvironment() { this.saveToLocalStorage(); this.updateUrl(); },
-    selectedExplorer() { this.saveToLocalStorage(); },
-    maxLogs() { this.saveToLocalStorage(); }
+    customUrl() {
+      this.saveToLocalStorage();
+    },
+    selectedEnvironment() {
+      this.saveToLocalStorage();
+      this.updateUrl();
+    },
+    selectedExplorer() {
+      this.saveToLocalStorage();
+    },
+    maxLogs() {
+      this.saveToLocalStorage();
+    }
   },
   beforeUnmount() {
     this.disconnectWebSocket();
@@ -1146,7 +1182,7 @@ export default {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   z-index: 3000;
   display: flex;
   align-items: center;

@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      # otel crates must move in lockstep — one PR, not five.
+      opentelemetry:
+        patterns: ["opentelemetry*"]
+      solana:
+        patterns: ["solana-*"]
+
+  - package-ecosystem: "npm"
+    directory: "/sologger-ui"
+    schedule:
+      interval: "weekly"
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    # Majors (Vite 8, Tailwind 4, PrimeVue 5, vue-router 5) are deliberate
+    # migration projects, not routine bumps — take them manually.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
