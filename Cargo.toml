@@ -8,3 +8,13 @@ members = [
     "sologger-log-transformer-wasm",
     "sologger"
 ]
+
+# Workspace members declare their dependencies on each other by published
+# version (so the manifests publish cleanly), but this patch redirects those
+# requirements to the local source, so builds and tests exercise the code in
+# this repo rather than the crates.io copies. Patches are not included in
+# published packages, so `cargo publish` is unaffected.
+[patch.crates-io]
+sologger_log_context = { path = "sologger-log-context" }
+sologger_log_transformer = { path = "sologger-log-transformer" }
+sologger_log_transport = { path = "sologger-log-transport" }

@@ -51,10 +51,10 @@ There are two configuration files that you will need to configure to get up and 
 The first is the sologger-config file. This file is used to configure the sologger binary.
 The second is the log4rs-config file. This file is used to configure the log4rs logger OR the opentelemetry-config file. This file is used to configure the logstash binary.
 
-By default, sologger will look for a config file named `sologger-config.json` in ./config/local/ directory. You can override this by setting the `SOLOGGER_APP_CONFIG_LOCATION` environment variable to the path of your config file. For example:
+By default, sologger will look for a config file named `sologger-config.json` in ./config/local/ directory. You can override this by setting the `SOLOGGER_APP_CONFIG_LOC` environment variable to the path of your config file. For example:
 
 ```shell
-SOLOGGER_APP_CONFIG_LOCATION=./config/sologger-config.json cargo run --features 'enable_logstash'
+SOLOGGER_APP_CONFIG_LOC=./config/sologger-config.json cargo run --features 'enable_logstash'
 ```
 
 ### Run
@@ -71,7 +71,7 @@ Running the sologger image with docker.
 #Run the logstash image with and mount your specific log4rs config and sologger config 
 docker run -d -t --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json sologger-logstash
 
-#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOCATION and specifying a different sologger config file name and/or location
+#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOC and specifying a different sologger config file name and/or location
 docker run -d -t -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json sologger-logstash
 ```
 

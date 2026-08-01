@@ -1,4 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
+#[cfg(test)]
 use serde_json::json;
 
 /// This is the main configuration file for sologger. The location of this file is specified by the `SOLOGGER_APP_CONFIG_LOC` environment variable or as the first argument via the cargo run command.

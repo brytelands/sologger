@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::Path;
 
 use anyhow::Result;
-use log::{trace, Log};
+use log::trace;
 
 use sologger_log_context::programs_selector::ProgramsSelector;
 use sologger::log_subscriber;

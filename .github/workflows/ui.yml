@@ -1,0 +1,31 @@
+name: UI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "sologger-ui/**"
+      - ".github/workflows/ui.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "sologger-ui/**"
+      - ".github/workflows/ui.yml"
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sologger-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: sologger-ui/package-lock.json
+      - run: npm ci
+      - run: npx vitest run
+      - run: npm run build

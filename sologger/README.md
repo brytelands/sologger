@@ -17,7 +17,7 @@ cargo run --features enable_logstash ./config/local/sologger-config.json
 
 ### Configure
 
-By default, the sologger binary will look for the config file at "./config/local/sologger-config.json" when run from the project root. You can override this by setting the SOLOGGER_APP_CONFIG_LOCATION environment variable to the location of your config file or specifying it as the first argument using cargo run.
+By default, the sologger binary will look for the config file at "./config/local/sologger-config.json" when run from the project root. You can override this by setting the SOLOGGER_APP_CONFIG_LOC environment variable to the location of your config file or specifying it as the first argument using cargo run.
 
 The spec for the configuration can be found in the [sologger-config-schema.json](sologger-config-schema.json) file.
 
@@ -38,13 +38,13 @@ program_ids: If you want to get logs for specific programs, then add the program
 
 **Run**
 
-SOLOGGER_APP_CONFIG_LOCATION=./config/sologger-config.json cargo run
+SOLOGGER_APP_CONFIG_LOC=./config/sologger-config.json cargo run
 
 ```shell
 #Run the logstash image with and mount your specific log4rs config and sologger config 
 docker run -d -t --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json sologger-logstash
 
-#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOCATION and specifying a different sologger config file name and/or location
+#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOC and specifying a different sologger config file name and/or location
 docker run -d -t -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json sologger-logstash
 ```
 

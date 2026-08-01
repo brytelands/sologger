@@ -120,7 +120,7 @@ describe('decodeWithIdl', () => {
     };
     const result = await decodeWithIdl(sampleIdl, log);
     expect(result.matchedInstructions).toHaveLength(0);
-    expect(result.note).toBe('No matching IDL instructions found in log messages. Raw data logs shown below.');
+    expect(result.note).toBe('No matching IDL instructions found in log messages.');
   });
 
   it('is case-insensitive when matching instruction names', async () => {

@@ -1,7 +1,7 @@
 use crate::programs_selector::ProgramsSelector;
 use crate::rpc_response::RpcResponse;
 use lazy_static::lazy_static;
-use log::{debug, info, trace, warn};
+use log::{info, trace, warn};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
