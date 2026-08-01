@@ -2,6 +2,7 @@
 name = "sologger"
 version = "0.2.4"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Will Kennedy"]
 description = "Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP"
 license = "Apache-2.0"

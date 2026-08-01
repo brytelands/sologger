@@ -2,6 +2,7 @@
 name = "sologger_log_transformer_wasm"
 version = "0.2.5"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Will Kennedy"]
 description = "This library provides utility to extract and structure logs from Solana API logSubscribe responses and provides WASM support."
 license = "Apache-2.0"

@@ -2,6 +2,7 @@
 name = "sologger_log_transport"
 version = "0.2.3"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Will Kennedy"]
 description = "Provides support for both LogStash and OpenTelemetry exports for logs."
 license = "Apache-2.0"

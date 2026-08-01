@@ -2,6 +2,7 @@
 name = "sologger_log_context"
 version = "0.2.4"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Will Kennedy"]
 description = "Provides functionality to turn raw logs output by Solana RPCs into structured logs for specified program IDs"
 license = "Apache-2.0"

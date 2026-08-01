@@ -9,6 +9,12 @@ members = [
     "sologger"
 ]
 
+# Minimum supported Rust version, inherited by every member via
+# `rust-version.workspace = true`. Keep in sync with ARG RUST_VERSION in
+# Dockerfile-logstash / Dockerfile-otel; enforced by the `msrv` job in CI.
+[workspace.package]
+rust-version = "1.92.0"
+
 # Workspace members declare their dependencies on each other by published
 # version (so the manifests publish cleanly), but this patch redirects those
 # requirements to the local source, so builds and tests exercise the code in

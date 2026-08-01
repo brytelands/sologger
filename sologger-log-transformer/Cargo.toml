@@ -2,6 +2,7 @@
 name = "sologger_log_transformer"
 version = "0.2.5"
 edition = "2021"
+rust-version.workspace = true
 authors = ["Will Kennedy"]
 description = "Provides utility to extract logs from various Solana API structs, such as blocks, transactions and responses."
 license = "Apache-2.0"

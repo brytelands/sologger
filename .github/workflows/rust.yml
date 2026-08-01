@@ -47,6 +47,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all --features 'enable_logstash enable_otel'
 
+  msrv:
+    name: MSRV (1.92.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --features 'enable_logstash logstash otel'
+
   wasm:
     name: WASM build
     runs-on: ubuntu-latest
