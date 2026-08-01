@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transport"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
 rust-version.workspace = true
 authors = ["Will Kennedy"]
@@ -17,13 +17,11 @@ doctest = false
 
 [dependencies]
 log = "0.4"
-opentelemetry-otlp = {version = "0.27.0", features = ["grpc-tonic", "http", "opentelemetry-http", "reqwest-client", "tonic", "logs", "metrics", "trace"], optional = true}
-opentelemetry-appender-log = {version = "0.27.0", default-features = false, optional = true}
-opentelemetry = {version = "0.27.0", features = ["logs", "metrics", "trace"]}
-opentelemetry_sdk = {version = "0.27.0", features = ["rt-tokio", "metrics", "logs", "trace"], optional = true}
-opentelemetry-stdout = {version = "0.27.0", features = ["logs", "metrics", "trace"], optional = true}
-opentelemetry_api = { version = "0.20.0", features = ["metrics", "logs", "trace"], optional = true}
-opentelemetry-semantic-conventions = {version = "0.27.0", optional = true}
+opentelemetry-otlp = {version = "0.32.0", features = ["grpc-tonic", "logs", "metrics", "trace"], optional = true}
+opentelemetry-appender-log = {version = "0.32.0", default-features = false, optional = true}
+opentelemetry = {version = "0.32.0", features = ["logs", "metrics", "trace"]}
+opentelemetry_sdk = {version = "0.32.0", features = ["metrics", "logs", "trace"], optional = true}
+opentelemetry-stdout = {version = "0.32.0", features = ["logs", "metrics", "trace"], optional = true}
 qoollo-logstash-rs = { version = "0.2.0", optional = true }
 qoollo-log4rs-logstash = { version = "0.2.0", optional = true }
 log4rs = { version = "1.4.0", features = ["json_format", "serde_json", "config_parsing"] }
@@ -36,4 +34,4 @@ tokio = { version = "1.49", features = ["macros"] }
 
 [features]
 logstash = ["qoollo-logstash-rs", "qoollo-log4rs-logstash"]
-otel = ["opentelemetry-otlp", "opentelemetry-appender-log", "opentelemetry_sdk", "opentelemetry-stdout", "opentelemetry_api", "opentelemetry-semantic-conventions"]
+otel = ["opentelemetry-otlp", "opentelemetry-appender-log", "opentelemetry_sdk", "opentelemetry-stdout"]

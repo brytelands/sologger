@@ -3,27 +3,21 @@ use std::str::FromStr;
 
 use anyhow::Result as AnyResult;
 use log::{Level, trace};
-use opentelemetry::{Key, KeyValue, metrics, trace::Tracer, global};
-use opentelemetry::metrics::{MeterProvider};
-use opentelemetry::trace::TraceError;
-use opentelemetry_api::global::logger_provider;
-use opentelemetry_api::metrics::MetricsError;
-use opentelemetry_api::trace::FutureExt;
-use opentelemetry_otlp::{LogExporter, WithExportConfig};
+use opentelemetry::{Key, KeyValue, global};
+use opentelemetry_otlp::{ExporterBuildError, LogExporter, WithExportConfig};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::{Resource, runtime, trace as sdktrace};
-use opentelemetry_sdk::logs::{BatchConfig, LogError, LoggerProvider};
+use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::trace::{Config, TracerProvider};
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_stdout::SpanExporter;
-use serde_json;
 
 use crate::opentelemetry_config::OpentelemetryConfig;
 
 /// Initialize the logger with the provided logstash config location
 pub fn init_logs_opentelemetry_with_config_path(
     path: &String,
-) -> AnyResult<LoggerProvider, LogError> {
+) -> AnyResult<SdkLoggerProvider, ExporterBuildError> {
     let config = get_otel_config(path);
 
     init_logs_opentelemetry(&config)
@@ -33,7 +27,7 @@ pub fn init_logs_opentelemetry_with_config_path(
 #[cfg(feature = "otel")]
 pub fn init_logs_opentelemetry(
     config: &OpentelemetryConfig,
-) -> AnyResult<LoggerProvider, LogError> {
+) -> AnyResult<SdkLoggerProvider, ExporterBuildError> {
     let log_config: Vec<KeyValue> = config
         .log_config
         .iter()
@@ -46,22 +40,12 @@ pub fn init_logs_opentelemetry(
         .with_endpoint(&config.endpoint)
         .build()?;
 
-    let logger = LoggerProvider::builder()
-        .with_resource(Resource::new(log_config))
-        .with_batch_exporter(exporter, runtime::Tokio)
-        .build();//.expect("Failed to initialize opentelemetry logging");
+    let logger = SdkLoggerProvider::builder()
+        .with_resource(Resource::builder().with_attributes(log_config).build())
+        .with_batch_exporter(exporter)
+        .build();
 
-    // let logger = opentelemetry_otlp::new_pipeline()
-    //     .logging().with_resource(Resource::new(log_config))
-    //     .with_exporter(
-    //         opentelemetry_otlp::new_exporter()
-    //             .tonic()
-    //             .with_endpoint(&config.endpoint),
-    //     )
-    //     .install_batch(runtime::Tokio)
-    //     .expect("Failed to initialize opentelemetry logging");
-
-    // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
+    // Create a new OpenTelemetryLogBridge using the above SdkLoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger);
     log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
     log::set_max_level(
@@ -74,25 +58,26 @@ pub fn init_logs_opentelemetry(
 
 // TODO add configuration
 #[cfg(feature = "otel")]
-pub fn init_tracer(config: &OpentelemetryConfig) -> Result<TracerProvider, TraceError> {
-    let provider = TracerProvider::builder()
+pub fn init_tracer(_config: &OpentelemetryConfig) -> AnyResult<SdkTracerProvider> {
+    let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
         .build();
-    
+
     Ok(provider)
 }
 
 // TODO add configuration
 #[cfg(feature = "otel")]
-pub fn init_metrics(config: &OpentelemetryConfig) -> Result<SdkMeterProvider, MetricsError> {
-    let exporter = opentelemetry_stdout::MetricExporterBuilder::default().build();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+pub fn init_metrics(_config: &OpentelemetryConfig) -> AnyResult<SdkMeterProvider> {
+    let exporter = opentelemetry_stdout::MetricExporter::default();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
-        .with_resource(Resource::new([KeyValue::new(
-            "service.name",
-            "metrics-basic-example",
-        )]))
+        .with_resource(
+            Resource::builder()
+                .with_attributes([KeyValue::new("service.name", "metrics-basic-example")])
+                .build(),
+        )
         .build();
     global::set_meter_provider(provider.clone());
     Ok(provider)

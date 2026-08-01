@@ -1,5 +1,6 @@
-use opentelemetry_api::{Key, KeyValue};
+use opentelemetry::{Key, KeyValue};
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use serde_json::json;
 use std::collections::HashMap;
 
