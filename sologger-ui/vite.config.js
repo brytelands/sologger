@@ -6,9 +6,6 @@ export default defineConfig({
   plugins: [
       vue(),
   ],
-  optimizeDeps: {
-    include: ['@handsontable/vue3']
-  },
   base: '/sologger/',
   build: {
     outDir: 'dist',

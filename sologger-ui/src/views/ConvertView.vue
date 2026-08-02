@@ -77,21 +77,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
 
 <script>
 import { WasmLogContextTransformer } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
-
-const sanitizeLogMessage = (message) => {
-  if (typeof message === 'object') {
-    return JSON.stringify(message, (key, value) => {
-      if (typeof value === 'string') {
-        return value.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-      }
-      return value;
-    });
-  }
-  if (typeof message === 'string') {
-    return message.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-  }
-  return message;
-};
+import { sanitizeLogMessage } from '../composables/useLogSanitizer';
 
 export default {
   name: 'ConvertView',

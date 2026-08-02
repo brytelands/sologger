@@ -70,7 +70,7 @@
       >
         <div class="mobile-log-card__header">
           <span class="mobile-log-card__time">{{ log.timestamp }}</span>
-          <span class="mobile-log-card__level" :class="'level-' + (log.level || 'unknown').toLowerCase()">{{ log.level || 'Unknown' }}</span>
+          <span class="level-badge" :class="'level-' + (log.level || 'unknown').toLowerCase()">{{ log.level || 'Unknown' }}</span>
           <span v-if="log.computeUnits" class="mobile-log-card__cu" :class="log.computeUnits > 100000 ? 'cu-high' : log.computeUnits > 50000 ? 'cu-mid' : 'cu-low'">{{ log.computeUnits.toLocaleString() }} CU</span>
         </div>
         <div class="mobile-log-card__program">
@@ -96,7 +96,7 @@
 
     <!-- Row detail modal -->
     <div v-if="selectedRow" class="modal-overlay" @click.self="selectedRow = null">
-      <div class="modal-panel">
+      <div class="modal-panel modal-panel--wide">
         <div class="modal-header">
           <span class="font-semibold text-base">Log Detail</span>
           <div class="flex gap-2">
@@ -108,7 +108,7 @@
             <button @click="selectedRow = null" class="btn btn-secondary">✕ Close</button>
           </div>
         </div>
-        <div class="modal-body">
+        <div class="modal-body modal-body--rows">
           <div v-for="col in allColumns" :key="col.id" class="detail-row">
             <span class="detail-label">{{ col.name }}</span>
             <span class="detail-value">{{ formatDetailValue(col.field, selectedRow[col.field]) }}</span>
@@ -125,52 +125,61 @@ import 'slickgrid/dist/styles/css/slick.grid.css';
 import 'slickgrid/dist/styles/css/slick-default-theme.css';
 
 const ALL_COLUMNS = [
-  { id: 'timestamp', name: 'Time', field: 'timestamp', width: 80, sortable: true, resizable: true },
-  { id: 'level', name: 'Level', field: 'level', width: 100, sortable: true, resizable: true },
+  {
+    id: 'timestamp', name: 'Time', field: 'timestamp', width: 80, sortable: true, resizable: true,
+    toolTip: 'Arrival time in this browser, not on-chain time'
+  },
+  {
+    id: 'level', name: 'Level', field: 'level', width: 100, sortable: true, resizable: true,
+    formatter: (_, __, value) => {
+      const level = String(value ?? 'Unknown');
+      return `<span class="level-badge level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level)}</span>`;
+    }
+  },
   {
     id: 'signature', name: 'Signature', field: 'signature', width: 110, resizable: true,
-    formatter: (_, __, value, _col, dataContext) => {
-      const sig = value?.signature ?? value ?? '';
+    formatter: (_, __, value) => {
+      const sig = String(value?.signature ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'tx');
-      return `<a href="${base}${sig}${suffix}" target="_blank" class="truncate-cell" title="${sig}">${String(sig).substring(0, 8)}...</a>`;
+      return `<a href="${escapeHtml(base + sig + suffix)}" target="_blank" rel="noopener" class="truncate-cell" title="${escapeHtml(sig)}">${escapeHtml(sig.substring(0, 8))}...</a>`;
     }
   },
   {
     id: 'slot', name: 'Slot', field: 'slot', width: 100, sortable: true, resizable: true,
     formatter: (_, __, value) => {
-      const slot = value?.slot ?? value ?? '';
+      const slot = String(value?.slot ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'block');
-      return `<a href="${base}${slot}${suffix}" target="_blank">${slot}</a>`;
+      return `<a href="${escapeHtml(base + slot + suffix)}" target="_blank" rel="noopener">${escapeHtml(slot)}</a>`;
     }
   },
   {
     id: 'programId', name: 'Program', field: 'programId', width: 110, resizable: true,
     formatter: (_, __, value, _col, dataContext) => {
-      const pid = value?.programId ?? value ?? '';
+      const pid = String(value?.programId ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'account');
-      const depth = dataContext.depth ?? 0;
+      const depth = Number(dataContext.depth) || 0;
       const indentStyle = depth > 0 ? `padding-left:${depth * 12}px;` : '';
       const childClass = depth > 0 ? ' cpi-child' : '';
-      return `<a href="${base}${pid}${suffix}" target="_blank" class="truncate-cell${childClass}" style="${indentStyle}" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      return `<a href="${escapeHtml(base + pid + suffix)}" target="_blank" rel="noopener" class="truncate-cell${childClass}" style="${indentStyle}" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
     }
   },
   {
     id: 'parentProgramId', name: 'Parent', field: 'parentProgramId', width: 110, resizable: true,
     formatter: (_, __, value) => {
-      const pid = value?.parentProgramId ?? value ?? '';
+      const pid = String(value?.parentProgramId ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'account');
       if (!pid) return '<span class="cu-na">—</span>';
-      return `<a href="${base}${pid}${suffix}" target="_blank" class="truncate-cell cpi-parent" title="${pid}">${String(pid).substring(0, 8)}...</a>`;
+      return `<a href="${escapeHtml(base + pid + suffix)}" target="_blank" rel="noopener" class="truncate-cell cpi-parent" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
     }
   },
   {
     id: 'depth', name: 'Depth', field: 'depth', width: 60, sortable: true, resizable: true,
-    formatter: (_, __, value, _col, dataContext) => {
-      const depth = value ?? 0;
+    formatter: (_, __, value) => {
+      const depth = Number(value) || 0;
       const indent = '&nbsp;&nbsp;&nbsp;'.repeat(depth);
       const badge = `<span class="cpi-depth-badge depth-${Math.min(depth, 5)}">${depth}</span>`;
       return `${indent}${badge}`;
@@ -190,39 +199,32 @@ const ALL_COLUMNS = [
   },
   {
     id: 'logMessages', name: 'Logs', field: 'logMessages', width: 200, resizable: true,
-    asyncPostRender: (cellNode, row, dataContext) => {
-      try {
-        const logs = JSON.parse(dataContext.logMessages);
-        const content = logs.join(' | ');
-        cellNode.innerHTML = `<div class="scrollable-cell" title="${content.replace(/"/g, '&quot;')}">${content}</div>`;
-      } catch {
-        cellNode.innerHTML = `<div class="scrollable-cell">${dataContext.logMessages ?? ''}</div>`;
-      }
-    }
+    asyncPostRender: (cellNode, _row, dataContext) => renderJsonArrayCell(cellNode, dataContext.logMessages)
   },
   {
     id: 'dataLogs', name: 'Data', field: 'dataLogs', width: 150, resizable: true,
-    formatter: (_, __, value) => `<div class="scrollable-cell" title="${value ?? ''}">${value ?? ''}</div>`
-  },
-  {
-    id: 'rawLogs', name: 'Raw Logs', field: 'rawLogs', width: 150, resizable: true,
-    asyncPostRender: (cellNode, row, dataContext) => {
-      try {
-        const logs = JSON.parse(dataContext.rawLogs);
-        const content = logs.join(' | ');
-        cellNode.innerHTML = `<div class="scrollable-cell" title="${content.replace(/"/g, '&quot;')}">${content}</div>`;
-      } catch {
-        cellNode.innerHTML = `<div class="scrollable-cell">${dataContext.rawLogs ?? ''}</div>`;
-      }
+    formatter: (_, __, value) => {
+      const text = escapeHtml(value);
+      return `<div class="scrollable-cell" title="${text}">${text}</div>`;
     }
   },
   {
+    id: 'rawLogs', name: 'Raw Logs', field: 'rawLogs', width: 150, resizable: true,
+    asyncPostRender: (cellNode, _row, dataContext) => renderJsonArrayCell(cellNode, dataContext.rawLogs)
+  },
+  {
     id: 'errors', name: 'Errors', field: 'errors', width: 150, resizable: true,
-    formatter: (_, __, value) => `<div class="scrollable-cell" title="${value ?? ''}">${value ?? ''}</div>`
+    formatter: (_, __, value) => {
+      const text = escapeHtml(value);
+      return `<div class="scrollable-cell" title="${text}">${text}</div>`;
+    }
   },
   {
     id: 'transactionError', name: 'TX Error', field: 'transactionError', width: 150, resizable: true,
-    formatter: (_, __, value) => `<div class="scrollable-cell" title="${value ?? ''}">${value ?? ''}</div>`
+    formatter: (_, __, value) => {
+      const text = escapeHtml(value);
+      return `<div class="scrollable-cell" title="${text}">${text}</div>`;
+    }
   }
 ];
 
@@ -238,8 +240,34 @@ function explorerBase(explorer, type) {
   return (EXPLORER_URLS[explorer] ?? EXPLORER_URLS.solscan)[type];
 }
 
+// Cell content comes from on-chain program logs — attacker-controlled strings. Everything a
+// formatter interpolates into grid HTML must pass through here.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// asyncPostRender cells bypass string formatting entirely: textContent can't be injected.
+function renderJsonArrayCell(cellNode, value) {
+  let content;
+  try {
+    content = JSON.parse(value).join(' | ');
+  } catch {
+    content = value ?? '';
+  }
+  const div = document.createElement('div');
+  div.className = 'scrollable-cell';
+  div.title = content;
+  div.textContent = content;
+  cellNode.replaceChildren(div);
+}
+
 export default {
-  props: ['parsedLogs', 'hotSettings', 'selectedExplorer', 'uploadedIdl'],
+  props: ['parsedLogs', 'uploadedIdl'],
   emits: ['decode-with-idl'],
   data() {
     return {
@@ -379,8 +407,9 @@ export default {
         const data = this.getSortedData();
         this.grid.setData(data, true);
         this.grid.render();
+        // Newest logs are unshifted to index 0, so following the stream means scrolling to the top.
         if (this.autoScroll && data.length > 0) {
-          this.grid.scrollRowIntoView(data.length - 1, false);
+          this.grid.scrollRowIntoView(0, false);
         }
       }
     }
@@ -417,29 +446,7 @@ export default {
 </script>
 
 <style>
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  background: var(--p-card-bg);
-}
-
-.btn {
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  border: 1px solid var(--p-card-border);
-  background: var(--p-card-bg);
-  color: var(--p-text-color);
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--p-primary-color);
-  color: var(--p-primary-contrast-color);
-}
-
+/* Unscoped on purpose: SlickGrid renders cells via innerHTML, which scoped styles cannot reach. */
 .slick-grid-wrapper {
   border: 1px solid var(--p-card-border);
   border-radius: 0.5rem;
@@ -473,81 +480,21 @@ export default {
   white-space: nowrap;
 }
 
-/* Row detail modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-panel {
-  background: var(--p-card-bg);
-  border: 1px solid var(--p-card-border);
-  border-radius: 0.75rem;
-  width: min(700px, 95vw);
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--p-card-border);
-  color: var(--p-text-color);
-}
-
-.modal-body {
-  overflow-y: auto;
-  padding: 0.75rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.detail-row {
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--p-card-border);
-  padding-bottom: 0.4rem;
-}
-
-.detail-label {
-  font-weight: 600;
-  color: var(--p-primary-color);
-  white-space: nowrap;
-}
-
-.detail-value {
-  color: var(--p-text-color);
-  word-break: break-all;
-  white-space: pre-wrap;
-}
-
 /* Override SlickGrid default theme to match app theme */
 .slick-grid-container .slick-header {
-  background: var(--p-surface-100, #1e1e2e) !important;
+  background: var(--p-table-header-bg) !important;
   border-bottom: 1px solid var(--p-card-border);
 }
 
 .slick-grid-container .slick-header-column {
-  background: var(--p-surface-100, #1e1e2e) !important;
-  color: var(--p-surface-50) !important;
+  background: var(--p-table-header-bg) !important;
+  color: var(--p-table-header-text) !important;
   border-right: 1px solid var(--p-card-border) !important;
   font-weight: 600;
 }
 
 .slick-grid-container .slick-header-column:hover {
-  background: var(--p-surface-200, #2a2a3e) !important;
+  background: var(--p-table-header-hover) !important;
 }
 
 /* Sort indicator styling */
@@ -558,20 +505,20 @@ export default {
 .slick-grid-container .slick-row {
   background: var(--p-card-bg);
   color: var(--p-text-color);
-  border-bottom: 1px solid var(--p-surface-300, rgba(128,128,128,0.35));
+  border-bottom: 1px solid var(--p-card-border);
 }
 
 .slick-grid-container .slick-row.odd {
-  background: var(--p-input-border);
+  background: var(--p-row-stripe);
 }
 
 .slick-grid-container .slick-row:hover .slick-cell {
-  background: var(--p-input-border) !important;
+  background: var(--p-row-hover) !important;
 }
 
 .slick-grid-container .slick-cell {
   color: var(--p-text-color);
-  border-right: 1px solid var(--p-surface-300, rgba(128,128,128,0.35));
+  border-right: 1px solid var(--p-card-border);
   padding: 4px 6px;
   overflow: hidden;
 }
@@ -680,7 +627,8 @@ export default {
   font-variant-numeric: tabular-nums;
 }
 
-.mobile-log-card__level {
+.level-badge {
+  display: inline-block;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 1px 6px;
@@ -730,12 +678,7 @@ export default {
   font-size: 0.9rem;
 }
 
-/* Pagination wrapping fix for mobile */
 @media (max-width: 768px) {
-  .pagination {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
   .logs-table-root {
     overflow-x: hidden;
   }

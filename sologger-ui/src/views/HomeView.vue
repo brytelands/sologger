@@ -15,7 +15,7 @@
         <div class="modal-panel">
           <div class="modal-header">
             <span class="font-semibold text-base">⚠️ Mainnet Warning</span>
-            <button @click="cancelMainnet" class="btn btn-secondary">✕</button>
+            <button @click="cancelMainnet" class="btn btn-secondary" aria-label="Close">✕</button>
           </div>
           <div class="modal-body">
             <p class="text-[var(--p-text-color)] mb-3">
@@ -51,12 +51,12 @@
 
       <!-- IDL Decoded Data Modal -->
       <div v-if="idlDecodedData" class="modal-overlay" @click.self="idlDecodedData = null">
-        <div class="modal-panel idl-modal-panel">
+        <div class="modal-panel modal-panel--wide">
           <div class="modal-header">
             <span class="font-semibold text-base">🔍 IDL Decoded Instruction Data</span>
             <button @click="idlDecodedData = null" class="btn btn-secondary">✕ Close</button>
           </div>
-          <div class="modal-body idl-modal-body">
+          <div class="modal-body modal-body--rows">
             <template v-if="parsedIdlDecodedData">
               <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
                 <span class="detail-label">{{ key }}</span>
@@ -121,124 +121,91 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="grid grid-cols-2 md:flex gap-2 md:gap-4">
-          <button
-              @click="disconnectWebSocket"
-              class="btn btn-danger"
-          >
-            Disconnect
-          </button>
-          <button
-              @click="startAllWebSockets"
-              class="btn btn-success"
-          >
-            Connect
-          </button>
-          <button
-              @click="togglePause"
-              :class="isPaused ? 'btn btn-success' : 'btn btn-warning'"
-          >
-            {{ isPaused ? 'Resume' : 'Pause' }}
-          </button>
-          <button
-              @click="clearLogs"
-              class="btn btn-warning"
-          >
-            Clear Logs
-          </button>
-          <div class="flex items-center gap-1">
-            <label class="text-xs text-[var(--p-text-muted)] whitespace-nowrap">Max Logs:</label>
-            <input
-                v-model.number="maxLogs"
-                type="number"
-                min="100"
-                step="100"
-                class="input-base w-24 text-sm"
-            />
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="flex flex-wrap gap-2">
+            <button
+                @click="startAllWebSockets"
+                class="btn btn-primary"
+            >
+              Connect
+            </button>
+            <button
+                @click="disconnectWebSocket"
+                class="btn btn-secondary"
+            >
+              Disconnect
+            </button>
+            <button
+                @click="togglePause"
+                :class="isPaused ? 'btn btn-warning' : 'btn btn-secondary'"
+            >
+              {{ isPaused ? 'Resume' : 'Pause' }}
+            </button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+                @click="clearLogs"
+                class="btn btn-secondary"
+            >
+              Clear Logs
+            </button>
+            <div class="flex items-center gap-1">
+              <label for="max-logs" class="text-xs text-[var(--p-text-muted)] whitespace-nowrap">Max Logs:</label>
+              <input
+                  id="max-logs"
+                  v-model.number="maxLogs"
+                  type="number"
+                  min="100"
+                  step="100"
+                  class="input-base w-24 text-sm"
+              />
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+                @click="exportJSON"
+                class="btn btn-secondary"
+                :disabled="!parsedLogs.length"
+            >
+              Export JSON
+            </button>
+            <button
+                @click="exportCSV"
+                class="btn btn-secondary"
+                :disabled="!parsedLogs.length"
+            >
+              Export CSV
+            </button>
           </div>
           <button
               @click="clearAll"
-              class="btn btn-danger"
+              class="btn btn-danger md:ml-auto"
           >
             Clear All
           </button>
-          <button
-              @click="exportJSON"
-              class="btn btn-info"
-              :disabled="!parsedLogs.length"
-          >
-            Export JSON
-          </button>
-          <button
-              @click="exportCSV"
-              class="btn btn-info"
-              :disabled="!parsedLogs.length"
-          >
-            Export CSV
-          </button>
         </div>
       </div>
 
-      <!-- Program Status Chips -->
-      <div class="mb-6 overflow-x-auto">
-        <div class="flex flex-wrap gap-2 min-w-min">
-          <div v-for="programId in programIds" :key="programId"
-               class="flex items-center gap-2 bg-[var(--p-card-bg)] border border-[var(--p-card-border)] px-3 py-1.5 rounded-lg text-sm">
-            <span class="truncate max-w-[150px] md:max-w-none">{{ programId }}</span>
-            <div v-if="connectingWebsockets.has(programId)" class="flex items-center gap-2">
-              <span class="text-[var(--p-primary-400)] text-xs md:text-sm">Connecting...</span>
-              <svg class="animate-spin h-4 w-4 text-[var(--p-primary-400)]"
-                   xmlns="http://www.w3.org/2000/svg"
-                   fill="none"
-                   viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-            <span v-else-if="websockets.has(programId) && receivingMessages" class="text-green-500 text-xs md:text-sm">Connected</span>
-            <span v-else-if="websockets.has(programId) && !receivingMessages" class="text-green-500 text-xs md:text-sm">Awaiting logs...May take several seconds</span>
-            <span v-else class="text-gray-500 text-xs md:text-sm">Disconnected</span>
-          </div>
-        </div>
-      </div>
+      <!-- Monitored Programs (status + remove) -->
+      <ProgramList :programs="programStatuses" @removeProgramId="removeProgramId"/>
 
-      <!-- Program List and Stats -->
-      <div class="space-y-4 mb-6">
-        <ProgramList :programIds="programIds" @removeProgramId="removeProgramId"/>
+      <!-- Stats & Charts -->
+      <CollapsibleSection title="Stats & Charts" storage-key="stats" bare class="mb-6">
         <StatsGrid
             :parsedLogs="parsedLogs"
             :uniqueSignaturesCount="uniqueSignaturesCount"
             :lastUpdateTime="lastUpdateTime"
         />
-      </div>
-
-      <!-- Global Search and Filter Bar -->
-      <div class="flex flex-col md:flex-row gap-2 mb-4">
-        <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search logs (supports regex)..."
-            class="input-base flex-1"
-        />
-        <select v-model="filterLevel" class="input-base w-full md:w-40">
-          <option value="">All Levels</option>
-          <option value="Info">Info</option>
-          <option value="Error">Error</option>
-          <option value="Warning">Warning</option>
-        </select>
-        <input
-            v-model="filterInstruction"
-            type="text"
-            placeholder="Filter by instruction name..."
-            class="input-base w-full md:w-56"
-        />
-      </div>
+      </CollapsibleSection>
 
       <!-- IDL Upload for WASM Decoding -->
-      <div class="card p-4 mb-4">
-        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">IDL Decoding
-          (WASM)</h3>
+      <CollapsibleSection
+          title="IDL Decoding"
+          storage-key="idl"
+          :default-open="false"
+          :badge="uploadedIdl ? 'Loaded: ' + idlFileName : ''"
+          class="mb-4"
+      >
         <div class="flex flex-col md:flex-row gap-2 items-start md:items-center">
           <label class="btn btn-secondary cursor-pointer">
             📂 {{ uploadedIdl ? '✅ IDL Loaded: ' + idlFileName : 'Upload IDL (JSON)' }}
@@ -254,11 +221,10 @@
             Select a log row in the table to decode its data logs using the uploaded IDL.
           </span>
         </div>
-      </div>
+      </CollapsibleSection>
 
       <!-- Log Replay Tool -->
-      <div class="card p-4 mb-4">
-        <h3 class="text-sm font-semibold mb-2 text-[var(--p-text-muted)] uppercase tracking-wider">Log Replay Tool</h3>
+      <CollapsibleSection title="Log Replay" storage-key="replay" :default-open="false" class="mb-4">
         <div class="flex flex-col md:flex-row gap-2">
           <input
               v-model="replaySignature"
@@ -268,21 +234,40 @@
           />
           <button
               @click="replayTransaction"
-              class="btn btn-info"
+              class="btn btn-secondary"
               :disabled="replayLoading || !replaySignature.trim()"
           >
             {{ replayLoading ? 'Fetching...' : 'Replay' }}
           </button>
         </div>
         <p v-if="replayError" class="text-red-500 text-xs mt-1">{{ replayError }}</p>
+      </CollapsibleSection>
+
+      <!-- Global Search and Filter Bar -->
+      <div class="flex flex-col md:flex-row gap-2 mb-4">
+        <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search logs (supports regex)..."
+            class="input-base flex-1"
+        />
+        <select v-model="filterLevel" class="input-base w-full md:w-40">
+          <option value="">All Levels</option>
+          <option value="Info">Info</option>
+          <option value="Error">Error</option>
+        </select>
+        <input
+            v-model="filterInstruction"
+            type="text"
+            placeholder="Filter by instruction name..."
+            class="input-base w-full md:w-56"
+        />
       </div>
 
       <!-- Logs Table with Mobile Optimization -->
       <div class="overflow-x-auto">
         <LogsTable
             :parsedLogs="filteredLogs"
-            :hotSettings="getMobileOptimizedHotSettings"
-            :selectedExplorer="selectedExplorer"
             :uploadedIdl="uploadedIdl"
             @decode-with-idl="decodeWithIdl"
         />
@@ -291,43 +276,27 @@
   </div>
 </template>
 <script>
-// Import your existing script here
 import {onMounted} from 'vue';
 import {useToast} from 'primevue/usetoast';
 import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import {decodeWithIdl as decodeLogWithIdl} from '../composables/useIdlDecoder';
+import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
 import LogsTable from '../components/LogsTable.vue';
-import Button from "primevue/button";
-
-
-const sanitizeLogMessage = (message) => {
-  if (typeof message === 'object') {
-    return JSON.stringify(message, (key, value) => {
-      if (typeof value === 'string') {
-        return value.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-      }
-      return value;
-    });
-  }
-  if (typeof message === 'string') {
-    return message.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-  }
-  return message;
-};
+import CollapsibleSection from '../components/CollapsibleSection.vue';
 
 export default {
   name: 'App',
   components: {
-    Button,
     ProgramIdForm,
     ProgramList,
     StatsGrid,
-    LogsTable
+    LogsTable,
+    CollapsibleSection
   },
   setup() {
     const toast = useToast();
@@ -340,7 +309,6 @@ export default {
   },
   data() {
     return {
-      // ... your existing data properties ...
       websockets: new Map(),
       connectingWebsockets: new Set(),
       receivingMessages: false,
@@ -351,7 +319,6 @@ export default {
       replaySignature: '',
       replayLoading: false,
       replayError: '',
-      replayEnvironment: 'https://api.devnet.solana.com',
       searchQuery: '',
       filterLevel: '',
       filterInstruction: '',
@@ -368,93 +335,21 @@ export default {
       customUrl: '',
       maskApiKey: true,
       selectedEnvironment: 'wss://api.devnet.solana.com',
-      onlyShowErrors: false,
       maxLogs: 1000,
       parsedLogs: [],
-      lastUpdateTime: '-',
-      hotSettings: {
-        columns: [
-          {data: 'timestamp', title: 'Time', width: 100, type: 'text'},
-          {data: 'level', title: 'Level', width: 80, type: 'text'},
-          {
-            data: 'signature', title: 'Signature', width: 200,
-            renderer: function (instance, td, row, col, prop, value, cellProperties) {
-              const link = document.createElement('a');
-              link.href = `https://solscan.io/tx/${value.signature}${value.linkSuffix}`;
-              link.target = '_blank';
-              link.textContent = value.signature;
-              td.innerHTML = '';
-              td.appendChild(link);
-              return td;
-            }
-          },
-          {
-            data: 'slot',
-            title: 'Slot',
-            width: 100,
-            renderer: function (instance, td, row, col, prop, value, cellProperties) {
-              const link = document.createElement('a');
-              link.href = `https://solscan.io/block/${value.slot}${value.linkSuffix}`;
-              link.target = '_blank';
-              link.textContent = value.slot;
-              td.innerHTML = '';
-              td.appendChild(link);
-              return td;
-            }
-          },
-          {
-            data: 'programId',
-            title: 'Program ID',
-            width: 150,
-            renderer: function (instance, td, row, col, prop, value, cellProperties) {
-              const link = document.createElement('a');
-              link.href = `https://solscan.io/account/${value.programId}${value.linkSuffix}`;
-              link.target = '_blank';
-              link.textContent = value.programId;
-              td.innerHTML = '';
-              td.appendChild(link);
-              return td;
-            }
-          },
-          {
-            data: 'parentProgramId', title: 'Parent Program', width: 150,
-            renderer: function (instance, td, row, col, prop, value, cellProperties) {
-              const link = document.createElement('a');
-              link.href = `https://solscan.io/account/${value.parentProgramId}${value.linkSuffix}`;
-              link.target = '_blank';
-              link.textContent = value.parentProgramId;
-              td.innerHTML = '';
-              td.appendChild(link);
-              return td;
-            }
-          },
-          {data: 'depth', title: 'Depth', width: 80, type: 'numeric'},
-          {data: 'instructionIndex', title: 'Index', width: 80, type: 'numeric'},
-          {data: 'invokeResult', title: 'Result', width: 100, type: 'text'},
-          {data: 'logMessages', title: 'Log Messages', width: 300, type: 'text'},
-          {data: 'rawLogs', title: 'Raw Logs', width: 300, type: 'text'},
-          {data: 'dataLogs', title: 'Data Logs', width: 200, type: 'text'},
-          {data: 'errors', title: 'Errors', width: 200, type: 'text'},
-          {data: 'transactionError', title: 'TX Error', width: 200, type: 'text'}
-        ],
-        licenseKey: 'non-commercial-and-evaluation',
-        columnSorting: true,
-        filters: true,
-        dropdownMenu: true,
-        colHeaders: true,
-        rowHeaders: true,
-        width: '100%',
-        manualRowResize: true,
-        manualColumnResize: true,
-        autoWrapRow: true,
-        autoWrapCol: true,
-        nestedRows: false,
-        contextMenu: true,
-        readOnly: true
-      }
+      lastUpdateTime: '-'
     };
   },
   computed: {
+    programStatuses() {
+      return this.programIds.map(id => {
+        let status;
+        if (this.connectingWebsockets.has(id)) status = 'connecting';
+        else if (this.websockets.has(id)) status = this.receivingMessages ? 'connected' : 'awaiting';
+        else status = 'disconnected';
+        return {id, status};
+      });
+    },
     filteredLogs() {
       let logs = this.parsedLogs;
       if (this.filterLevel) {
@@ -501,37 +396,16 @@ export default {
       return this.customUrl.replace(/([\?&]api-key=)([^&]+)/i, (_, prefix, key) => {
         return prefix + key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
       });
-    },
-    getMobileOptimizedHotSettings() {
-      const baseSettings = {...this.hotSettings};
-
-      // Adjust column widths for mobile
-      baseSettings.columns = baseSettings.columns.map(column => {
-        const newColumn = {...column};
-        if (window.innerWidth < 768) {
-          // Reduce column widths on mobile
-          newColumn.width = Math.min(column.width, 120);
-
-          // Truncate long text fields
-          if (['logMessages', 'rawLogs', 'dataLogs', 'errors'].includes(column.data)) {
-            newColumn.width = 150;
-          }
-        }
-        return newColumn;
-      });
-
-      // Additional mobile optimizations
-      if (window.innerWidth < 768) {
-        baseSettings.colHeaders = true;
-        baseSettings.rowHeaders = false; // Hide row headers on mobile
-        baseSettings.contextMenu = false; // Disable context menu on mobile
-        baseSettings.dropdownMenu = false; // Disable dropdown menu on mobile
-      }
-
-      return baseSettings;
     }
   },
   methods: {
+    // One transformer for the component's lifetime; kept off `data` so Vue doesn't proxy the WASM object.
+    getTransformer() {
+      if (!this._transformer) {
+        this._transformer = new WasmLogContextTransformer(['*']);
+      }
+      return this._transformer;
+    },
     formatIdlDetailValue(value) {
       if (value === null || value === undefined) return '';
       if (Array.isArray(value)) {
@@ -539,26 +413,6 @@ export default {
       }
       if (typeof value === 'object') return JSON.stringify(value, null, 2);
       return String(value);
-    },
-    explorerUrl(type, value, linkSuffix) {
-      const explorers = {
-        solscan: {
-          tx: `https://solscan.io/tx/${value}${linkSuffix}`,
-          block: `https://solscan.io/block/${value}${linkSuffix}`,
-          account: `https://solscan.io/account/${value}${linkSuffix}`,
-        },
-        solana: {
-          tx: `https://explorer.solana.com/tx/${value}${linkSuffix}`,
-          block: `https://explorer.solana.com/block/${value}${linkSuffix}`,
-          account: `https://explorer.solana.com/address/${value}${linkSuffix}`,
-        },
-        orb: {
-          tx: `https://orbmarkets.io/tx/${value}${linkSuffix}`,
-          block: `https://orbmarkets.io/block/${value}${linkSuffix}`,
-          account: `https://orbmarkets.io/address/${value}${linkSuffix}`,
-        },
-      };
-      return (explorers[this.selectedExplorer] ?? explorers.solscan)[type];
     },
     parseLog(logData) {
       const isDevnet = this.selectedEnvironment.includes('dev');
@@ -603,16 +457,6 @@ export default {
         errors: JSON.stringify(logData.solana.errors),
         transactionError: logData.solana.transaction_error || ''
       };
-    },
-    extractProgramId(logEntry) {
-      const match = logEntry.match(/Program (\w+) invoke/);
-      return match ? match[1] : logEntry.match(/Program (\w+) success/)?.[1] ?? null;
-    },
-    determineStatus(logEntry) {
-      if (logEntry.includes('success')) return 'Success';
-      if (logEntry.includes('failed')) return 'Failed';
-      if (logEntry.includes('invoke')) return 'Started';
-      return 'Processing';
     },
     async addProgramId() {
       if (this.newProgramId && !this.programIds.includes(this.newProgramId)) {
@@ -668,7 +512,12 @@ export default {
       if (this.customUrl && this.customUrl.startsWith('wss://')) {
         this.handleEnvironmentChange();
       } else {
-        alert('Please enter a valid WebSocket URL starting with "wss://"');
+        this.toast.add({
+          severity: 'warn',
+          summary: 'Invalid URL',
+          detail: 'Enter a WebSocket URL starting with "wss://".',
+          life: 4000
+        });
         this.customUrl = '';
         this.selectedEnvironment = 'wss://api.devnet.solana.com';
       }
@@ -779,7 +628,7 @@ export default {
       if (this.isPaused) return;
 
       if (eventData.method === 'logsNotification') {
-        const transformer = new WasmLogContextTransformer(["*"])
+        const transformer = this.getTransformer();
 
         const logs = eventData.params.result.value.logs;
         const slot = eventData.params.result.context.slot;
@@ -801,16 +650,7 @@ export default {
               solana: JSON.parse(sanitizeLogMessage(solana_log))
             };
 
-            if (sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "") {
-              // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
-            } else {
-              // console.log('Dev Solana logs', JSON.stringify(sanitizedLog));
-            }
-
-            if (!this.onlyShowErrors || (sanitizedLog.solana.transaction_error !== null && sanitizedLog.solana.transaction_error !== "")) {
-              sanitizedLogs.push(sanitizedLog);
-            }
-
+            sanitizedLogs.push(sanitizedLog);
           });
 
           try {
@@ -1107,10 +947,7 @@ export default {
         const logs = tx.meta?.logMessages ?? [];
         const slot = tx.slot;
         const err = tx.meta?.err ?? null;
-        // Feed through WASM transformer
-        const {WasmLogContextTransformer} = await import('../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js');
-        const transformer = new WasmLogContextTransformer(['*']);
-        const parsedLogs = transformer.from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
+        const parsedLogs = this.getTransformer().from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
         const newLogs = parsedLogs.map(l => this.parseLog({
           signature: sig, slot,
           solana: JSON.parse(sanitizeLogMessage(l))
@@ -1127,15 +964,7 @@ export default {
       } finally {
         this.replayLoading = false;
       }
-    },
-
-    watch: {
-      selectedEnvironment(newValue) {
-        console.log(`Environment changed to: ${newValue}`);
-      }
     }
-
-    // Remove the connectWebSocket and reconnectWebSocket methods as they're no longer needed
   },
   created() {
     this.loadFromLocalStorage();
@@ -1178,76 +1007,6 @@ export default {
   }
 }
 
-/* Mainnet warning / IDL modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 3000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-panel {
-  background: var(--p-card-bg);
-  border: 1px solid var(--p-card-border);
-  border-radius: 0.75rem;
-  width: min(560px, 95vw);
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.idl-modal-panel {
-  width: min(700px, 95vw);
-  max-height: 80vh;
-}
-
-.idl-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-}
-
-.detail-row {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  border-bottom: 1px solid var(--p-card-border);
-  padding-bottom: 0.4rem;
-}
-
-.detail-label {
-  font-weight: 600;
-  color: var(--p-primary-color);
-  white-space: nowrap;
-}
-
-.detail-value {
-  color: var(--p-text-color);
-  word-break: break-all;
-  white-space: pre-wrap;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--p-card-border);
-  color: var(--p-text-color);
-}
-
-.modal-body {
-  overflow-y: auto;
-  padding: 1rem;
-  color: var(--p-text-color);
-}
-
 .rpc-provider-link {
   display: flex;
   flex-direction: column;
@@ -1270,7 +1029,7 @@ export default {
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--p-text-color);
-  background: var(--p-surface-100);
+  background: var(--p-code-bg);
   border: 1px solid var(--p-card-border);
   padding: 0.75rem;
   border-radius: 0.5rem;
