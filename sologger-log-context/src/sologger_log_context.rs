@@ -5,13 +5,14 @@ use log::{info, trace, warn};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 
-//TODO add Transfer and Allocate?
-const LOG_REGEX: &str = r"(?<programInvoke>^Program (?<invokeProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) invoke \[(?<level>\d+)\]$)|(?<programSuccessResult>^Program (?<successResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) success$)|(?<programFailedResult>^Program (?<failedResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) failed: (?<failedResultErr>.*)$)|(?<programCompleteFailedResult>^Program failed to complete: (?<failedCompleteError>.*)$)|(?<programLog>^^Program log: (?<logMessage>.*)$)|(?<programData>^Program data: (?<data>.*)$)|(?<programConsumed>^Program (?<consumedProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) consumed (?<consumedComputeUnits>\d*) of (?<allComputedUnits>\d*) compute units$)|(?<programConsumption>^^Program consumption: (?<computeUnitsRemaining>.*)$)|(?<logTruncated>^Log truncated$)|(?<programReturn>^Program return: (?<returnProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) (?<returnMessage>.*)$)";
+const LOG_REGEX: &str = r"(?<programInvoke>^Program (?<invokeProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) invoke \[(?<level>\d+)\]$)|(?<programSuccessResult>^Program (?<successResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) success$)|(?<programFailedResult>^Program (?<failedResultProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) failed: (?<failedResultErr>.*)$)|(?<programCompleteFailedResult>^Program failed to complete: (?<failedCompleteError>.*)$)|(?<programLog>^^Program log: (?<logMessage>.*)$)|(?<programData>^Program data: (?<data>.*)$)|(?<programConsumed>^Program (?<consumedProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) consumed (?<consumedComputeUnits>\d*) of (?<allComputedUnits>\d*) compute units$)|(?<programConsumption>^^Program consumption: (?<computeUnitsRemaining>.*)$)|(?<logTruncated>^Log truncated$)|(?<programReturn>^Program return: (?<returnProgramId>[1-9A-HJ-NP-Za-km-z]{32,}) (?<returnMessage>.*)$)|(?<systemProgramLog>^(?<systemLogMessage>(?:Create Account|Allocate|Assign|Transfer|Advance nonce account|Withdraw nonce account|Initialize nonce account|Authorize nonce account): .*)$)";
 const CONSUMED_COMPUTE_REGEX: &str = r"consumed (\d+) of (\d+) compute units";
+const ERROR_CODE_REGEX: &str = r"custom program error: 0x([0-9a-fA-F]+)";
 
 lazy_static! {
     static ref LOG_CONTEXT_PARSER: Regex = Regex::new(LOG_REGEX).unwrap();
     static ref CONSUMED_COMPUTER_PARSER: Regex = Regex::new(CONSUMED_COMPUTE_REGEX).unwrap();
+    static ref ERROR_CODE_PARSER: Regex = Regex::new(ERROR_CODE_REGEX).unwrap();
 }
 
 /// A LogContext is a structured log format that represents the logs of a single program invocation, per processed slot, transaction or block.
@@ -23,8 +24,11 @@ pub struct LogContext {
     pub data_logs: Vec<String>,
     ///The raw logs produced by the program, including all logs that do not match the other log types. These logs are not parsed and are provided as-is.
     pub raw_logs: Vec<String>,
-    ///The errors produced by the program. These logs being with 'Program failed to complete:', for example 'Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)'
+    ///The errors produced by the program. These include logs beginning with 'Program failed to complete:' (for example 'Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)'), the error portion of 'Program <id> failed: <error>' logs, and system-program diagnostics such as 'Transfer: insufficient lamports 5628503, need 6799920'
     pub errors: Vec<String>,
+    ///The numeric code parsed from a 'custom program error: 0x…' failure, if this program invocation failed with one. Anchor error codes start at 6000 (0x1770)
+    #[serde(default)]
+    pub error_code: Option<u32>,
     ///The transaction error produced by the program. This value is not parsed from the raw logs, but is provided by the RPC log subscription response as to why a transaction might be rejected.
     pub transaction_error: String,
     ///The program ID of the program that produced the logs
@@ -37,6 +41,9 @@ pub struct LogContext {
     pub id: String,
     ///The index of the instruction that invoked the program that produced the logs
     pub instruction_index: usize,
+    ///The instruction name parsed from an Anchor-style 'Program log: Instruction: <Name>' message, or an empty string if the program did not log one
+    #[serde(default)]
+    pub instruction_name: String,
     ///The result of the program invocation from logs prefixed with 'Program return'
     pub invoke_result: String,
     ///The slot of the program invocation
@@ -62,12 +69,14 @@ impl LogContext {
             data_logs: vec![],
             raw_logs: vec![],
             errors: vec![],
+            error_code: None,
             transaction_error: "".to_string(),
             program_id,
             parent_program_id: "".to_string(),
             depth,
             id,
             instruction_index,
+            instruction_name: "".to_string(),
             invoke_result: "".to_string(),
             slot,
             signature,
@@ -294,7 +303,8 @@ impl LogContext {
                     let program_return = capture.name("programReturn");
                     let return_message = capture.name("returnMessage");
                     let return_program_id = capture.name("returnProgramId");
-                    let allocate = capture.name("allocate");
+                    let system_program_log = capture.name("systemProgramLog");
+                    let system_log_message = capture.name("systemLogMessage");
 
                     match log_truncated {
                         Some(_x) => {
@@ -380,6 +390,8 @@ impl LogContext {
                             result[call_ids[call_ids.len() - 1]]
                                 .errors
                                 .push(failed_result_err.unwrap().as_str().to_string());
+                            result[call_ids[call_ids.len() - 1]].error_code =
+                                extract_error_code(failed_result_err.unwrap().as_str());
                             result[call_ids[call_ids.len() - 1]].transaction_error =
                                 transaction_error.to_string();
                             //TODO double check this pop
@@ -404,12 +416,15 @@ impl LogContext {
 
                     match program_log {
                         Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .log_messages
-                                .push(log_message.unwrap().as_str().to_string());
+                            let message = log_message.unwrap().as_str();
+                            let context = &mut result[call_ids[call_ids.len() - 1]];
+                            context.raw_logs.push(log.clone());
+                            context.log_messages.push(message.to_string());
+                            if context.instruction_name.is_empty() {
+                                if let Some(name) = message.strip_prefix("Instruction: ") {
+                                    context.instruction_name = name.to_string();
+                                }
+                            }
                         }
                         None => {}
                     }
@@ -454,13 +469,14 @@ impl LogContext {
                         None => {}
                     }
 
-                    match allocate {
+                    match system_program_log {
                         Some(_x) => {
-                            println!("ALLOCATE:::");
-                            println!("{:?}", &logs);
-                            // result[call_ids[call_ids.len() - 1]]
-                            //     .raw_logs
-                            //     .push(log.clone());
+                            result[call_ids[call_ids.len() - 1]]
+                                .raw_logs
+                                .push(log.clone());
+                            result[call_ids[call_ids.len() - 1]]
+                                .errors
+                                .push(system_log_message.unwrap().as_str().to_string());
                         }
                         None => {}
                     }
@@ -518,10 +534,15 @@ fn extract_compute_numbers(log_str: &str) -> Option<(u64, u64)> {
     Some((first_num, second_num))
 }
 
+fn extract_error_code(err_str: &str) -> Option<u32> {
+    let captures = ERROR_CODE_PARSER.captures(err_str)?;
+    u32::from_str_radix(captures.get(1)?.as_str(), 16).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::programs_selector::ProgramsSelector;
-    use crate::sologger_log_context::{extract_compute_numbers, LogContext};
+    use crate::sologger_log_context::{extract_compute_numbers, extract_error_code, LogContext};
     use std::time::SystemTime;
 
     //TODO fix test for ID
@@ -579,6 +600,8 @@ mod tests {
         // assert_eq!(log_contexts[0].id, 0);
         assert_eq!(log_contexts[0].invoke_result, "");
         assert_eq!(log_contexts[0].instruction_index, 0);
+        assert_eq!(log_contexts[0].instruction_name, "Initialize");
+        assert_eq!(log_contexts[0].error_code, None);
         assert_eq!(log_contexts[0].max_cu, 200000);
         assert_eq!(log_contexts[0].consumed_cu, 59783);
 
@@ -618,6 +641,8 @@ mod tests {
         // assert_eq!(log_contexts[2].id, 2);
         assert_eq!(log_contexts[2].invoke_result, "");
         assert_eq!(log_contexts[2].instruction_index, 1);
+        assert_eq!(log_contexts[2].instruction_name, "");
+        assert_eq!(log_contexts[2].error_code, None);
         assert_eq!(log_contexts[2].max_cu, 200000);
         assert_eq!(log_contexts[2].consumed_cu, 5475);
     }
@@ -1056,7 +1081,7 @@ mod tests {
     fn log_parser_unmatched_test() {
         let raw_logs: Vec<String> = vec![
             "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD invoke [1]",
-            "Transfer: insufficient lamports 5628503, need 6799920",
+            "Some unrecognized native log line",
             "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD consumed 36432 of 1015220 compute units",
             "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD success"
         ].into_iter().map(|s| s.to_string()).collect();
@@ -1089,8 +1114,76 @@ mod tests {
         assert_eq!(log_contexts[0].instruction_index, 0);
         assert_eq!(
             log_contexts[0].raw_logs[1],
+            "Some unrecognized native log line"
+        );
+    }
+
+    #[test]
+    fn log_parser_system_program_line_test() {
+        let raw_logs: Vec<String> = vec![
+            "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD invoke [1]",
+            "Transfer: insufficient lamports 5628503, need 6799920",
+            "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD consumed 36432 of 1015220 compute units",
+            "Program ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD success"
+        ].into_iter().map(|s| s.to_string()).collect();
+
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &raw_logs,
+            "".to_string(),
+            &programs_selector,
+            2523,
+            "32432432".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 1);
+        assert_eq!(log_contexts[0].raw_logs.len(), 4);
+        assert_eq!(
+            log_contexts[0].raw_logs[1],
             "Transfer: insufficient lamports 5628503, need 6799920"
         );
+        assert_eq!(log_contexts[0].errors.len(), 1);
+        assert_eq!(
+            log_contexts[0].errors[0],
+            "Transfer: insufficient lamports 5628503, need 6799920"
+        );
+        assert!(log_contexts[0].has_errors());
+        assert_eq!(log_contexts[0].error_code, None);
+    }
+
+    #[test]
+    fn log_parser_system_program_line_variants_test() {
+        let raw_logs: Vec<String> = vec![
+            "Program 11111111111111111111111111111111 invoke [1]",
+            "Allocate: account Address { address: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T, base: None } already in use",
+            "Create Account: account Address { address: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T, base: None } already in use",
+            "Program 11111111111111111111111111111111 failed: custom program error: 0x0",
+        ].into_iter().map(|s| s.to_string()).collect();
+
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &raw_logs,
+            "".to_string(),
+            &programs_selector,
+            2523,
+            "32432432".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 1);
+        assert_eq!(log_contexts[0].errors.len(), 3);
+        assert_eq!(
+            log_contexts[0].errors[0],
+            "Allocate: account Address { address: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T, base: None } already in use"
+        );
+        assert_eq!(
+            log_contexts[0].errors[1],
+            "Create Account: account Address { address: 4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T, base: None } already in use"
+        );
+        assert_eq!(log_contexts[0].errors[2], "custom program error: 0x0");
+        assert_eq!(log_contexts[0].error_code, Some(0));
+        assert_eq!(log_contexts[0].raw_logs.len(), 4);
     }
 
     #[test]
@@ -1147,6 +1240,30 @@ mod tests {
         let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
 
         assert_eq!(log_contexts.len(), 12);
+
+        // Top-level CLMM invocation: Anchor instruction name and propagated custom error
+        assert_eq!(log_contexts[0].instruction_name, "OpenPosition");
+        assert_eq!(log_contexts[0].error_code, Some(1));
+
+        // The system-program invocation that ran out of lamports
+        assert_eq!(
+            log_contexts[11].program_id,
+            "11111111111111111111111111111111"
+        );
+        assert_eq!(
+            log_contexts[11].errors[0],
+            "Transfer: insufficient lamports 13792320, need 15616720"
+        );
+        assert_eq!(log_contexts[11].errors[1], "custom program error: 0x1");
+        assert_eq!(log_contexts[11].error_code, Some(1));
+
+        // Metaplex logs "IX: ..." rather than "Instruction: ...", so no name is captured
+        assert_eq!(
+            log_contexts[10].program_id,
+            "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        );
+        assert_eq!(log_contexts[10].instruction_name, "");
+        assert_eq!(log_contexts[10].error_code, Some(1));
     }
 
     #[test]
@@ -1227,6 +1344,15 @@ mod tests {
         let programs_selector = ProgramsSelector::new(&["*".to_string()]);
 
         let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
+
+        // The Jupiter route fails with Anchor error 6001 (0x1771, SlippageToleranceExceeded)
+        assert_eq!(
+            log_contexts[2].program_id,
+            "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB"
+        );
+        assert_eq!(log_contexts[2].instruction_name, "Route");
+        assert_eq!(log_contexts[2].errors[0], "custom program error: 0x1771");
+        assert_eq!(log_contexts[2].error_code, Some(6001));
     }
 
 
@@ -1388,6 +1514,46 @@ mod tests {
         assert_eq!(log_contexts[0].transaction_error, "Transaction failed");
         assert_eq!(log_contexts[0].errors.len(), 1);
         assert_eq!(log_contexts[0].errors[0], "custom program error: 0x1");
+        assert_eq!(log_contexts[0].error_code, Some(1));
+    }
+
+    #[test]
+    fn log_parser_instruction_name_test() {
+        let logs: Vec<String> = vec![
+            "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
+            "Program log: Instruction: Initialize".to_string(),
+            "Program log: Instruction: NotTheFirstOne".to_string(),
+            "Program A111111111111111111111111111111111111111 success".to_string(),
+            "Program B222222222222222222222222222222222222222 invoke [1]".to_string(),
+            "Program log: plain message".to_string(),
+            "Program B222222222222222222222222222222222222222 success".to_string(),
+        ];
+        let programs_selector = ProgramsSelector::new_all_programs();
+
+        let log_contexts = LogContext::parse_logs(
+            &logs,
+            "".to_string(),
+            &programs_selector,
+            1,
+            "12345".to_string(),
+        );
+
+        assert_eq!(log_contexts.len(), 2);
+        // Only the first "Instruction: " log names the invocation
+        assert_eq!(log_contexts[0].instruction_name, "Initialize");
+        // The message itself is still captured as a normal log message
+        assert_eq!(log_contexts[0].log_messages[0], "Instruction: Initialize");
+        assert_eq!(log_contexts[1].instruction_name, "");
+    }
+
+    #[test]
+    fn test_extract_error_code() {
+        assert_eq!(extract_error_code("custom program error: 0x1771"), Some(6001));
+        assert_eq!(extract_error_code("custom program error: 0x1"), Some(1));
+        assert_eq!(extract_error_code("custom program error: 0x0"), Some(0));
+        assert_eq!(extract_error_code("Program failed to complete"), None);
+        assert_eq!(extract_error_code("custom program error: not hex"), None);
+        assert_eq!(extract_error_code(""), None);
     }
 
     #[test]

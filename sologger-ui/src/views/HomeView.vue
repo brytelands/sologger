@@ -449,8 +449,10 @@ export default {
         parentProgramId: parentProgramData,
         depth: logData.solana.depth,
         instructionIndex: logData.solana.instruction_index,
+        instructionName: logData.solana.instruction_name || '',
         invokeResult: logData.solana.invoke_result,
         computeUnits: computeUnits,
+        errorCode: logData.solana.error_code ?? null,
         logMessages: JSON.stringify(logData.solana.log_messages),
         dataLogs: JSON.stringify(logData.solana.data_logs),
         rawLogs: JSON.stringify(logData.solana.raw_logs),
@@ -860,7 +862,7 @@ export default {
       try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const environment = this.getEnvironmentName();
-        const csvCols = ['timestamp', 'level', 'signature', 'slot', 'programId', 'parentProgramId', 'depth', 'instructionIndex', 'invokeResult', 'computeUnits', 'logMessages', 'dataLogs', 'rawLogs', 'errors', 'transactionError'];
+        const csvCols = ['timestamp', 'level', 'signature', 'slot', 'programId', 'parentProgramId', 'depth', 'instructionIndex', 'instructionName', 'invokeResult', 'computeUnits', 'logMessages', 'dataLogs', 'rawLogs', 'errors', 'errorCode', 'transactionError'];
         const escape = v => {
           if (v === null || v === undefined) return '';
           const s = typeof v === 'object' ? JSON.stringify(v) : String(v);

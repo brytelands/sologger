@@ -4302,7 +4302,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_log_context"
-version = "0.2.4"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "console_error_panic_hook",

@@ -186,6 +186,15 @@ const ALL_COLUMNS = [
     }
   },
   { id: 'instructionIndex', name: 'Idx', field: 'instructionIndex', width: 60, sortable: true, resizable: true },
+  {
+    id: 'instructionName', name: 'Instruction', field: 'instructionName', width: 130, sortable: true, resizable: true,
+    toolTip: 'Anchor instruction name parsed from "Program log: Instruction: ..."',
+    formatter: (_, __, value) => {
+      const name = String(value ?? '');
+      if (!name) return '<span class="cu-na">—</span>';
+      return `<span class="truncate-cell" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
+    }
+  },
   { id: 'invokeResult', name: 'Result', field: 'invokeResult', width: 200, resizable: true },
   { id: 'computeUnits', name: 'CU Used', field: 'computeUnits', width: 90, sortable: true, resizable: true,
     formatter: (_, __, value) => {
@@ -217,6 +226,15 @@ const ALL_COLUMNS = [
     formatter: (_, __, value) => {
       const text = escapeHtml(value);
       return `<div class="scrollable-cell" title="${text}">${text}</div>`;
+    }
+  },
+  {
+    id: 'errorCode', name: 'Error Code', field: 'errorCode', width: 90, sortable: true, resizable: true,
+    toolTip: 'Numeric code from "custom program error: 0x…" (Anchor errors start at 6000)',
+    formatter: (_, __, value) => {
+      if (value === null || value === undefined) return '<span class="cu-na">—</span>';
+      const code = Number(value);
+      return `<span class="cu-value cu-high" title="0x${code.toString(16)}">${code}</span>`;
     }
   },
   {
