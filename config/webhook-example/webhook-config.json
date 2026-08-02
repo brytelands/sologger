@@ -1,0 +1,8 @@
+{
+  "url": "https://discord.com/api/webhooks/<id>/<token>",
+  "format": "discord",
+  "errorsOnly": true,
+  "programs": [],
+  "instructions": [],
+  "timeoutMs": 5000
+}

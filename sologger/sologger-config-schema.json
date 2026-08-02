@@ -19,6 +19,40 @@
         "null"
       ]
     },
+    "backfill": {
+      "description": "Optional historical backfill run at startup: replays past transactions of the selected programs via getSignaturesForAddress + getTransaction through the normal pipeline. Requires explicit programs in programsSelector.",
+      "type": "object",
+      "properties": {
+        "fromSlot": {
+          "description": "Only replay transactions at or after this slot",
+          "type": ["integer", "null"]
+        },
+        "untilSlot": {
+          "description": "Only replay transactions at or before this slot",
+          "type": ["integer", "null"]
+        },
+        "limit": {
+          "description": "Maximum number of signatures to replay per program",
+          "default": 1000,
+          "type": "integer"
+        },
+        "throttleMs": {
+          "description": "Delay between getTransaction calls, to respect RPC rate limits",
+          "default": 200,
+          "type": "integer"
+        },
+        "exitAfter": {
+          "description": "Exit once the backfill finishes instead of continuing into the live tail (post-mortem mode)",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "backfillTruncated": {
+      "description": "When a transaction's logs arrive truncated ('Log truncated'), refetch the full transaction over HTTP (rpcHttpUrl) and re-parse it.",
+      "default": true,
+      "type": "boolean"
+    },
     "idls": {
       "description": "Optional map of program ID to the path of an Anchor IDL JSON file (legacy or 0.30+ spec). Logs from a listed program are enriched: 'Program data:' events are borsh-decoded into decoded_events and custom program error codes are resolved to error_name. Paths are relative to the working directory, like the other config locations.",
       "type": "object",
@@ -36,8 +70,23 @@
       "default": "",
       "type": "string"
     },
+    "rpcHttpUrl": {
+      "description": "The HTTP RPC endpoint used for getTransaction / getSignaturesForAddress calls (truncation backfill and historical backfill). When empty, it is derived from rpcUrl: ws(s):// becomes http(s)://, and port 8900 becomes 8899.",
+      "default": "",
+      "type": "string"
+    },
     "rpcUrl": {
       "description": "The URL of the RPC endpoint to connect to",
+      "type": "string"
+    },
+    "source": {
+      "description": "The WebSocket subscription used as the log source. blockSubscribe delivers whole blocks (one notification per block, all transactions) but is not enabled on every RPC provider.",
+      "default": "logsSubscribe",
+      "enum": ["logsSubscribe", "blockSubscribe"]
+    },
+    "webhookConfigLocation": {
+      "description": "The location of the webhook config file, used by binaries built with the enable_webhook feature. See the WebhookConfig docs in sologger_log_transport for the file's shape (url, format, errorsOnly, programs, instructions, timeoutMs).",
+      "default": "",
       "type": "string"
     }
   }

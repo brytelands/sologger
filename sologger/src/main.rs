@@ -17,6 +17,8 @@ async fn main() -> Result<()> {
     let (sologger_config, program_selector, idl_registry) =
         load_config().expect("Error loading sologger config");
     init_logger(&sologger_config);
+    #[cfg(feature = "enable_webhook")]
+    sologger::webhook_sender::init(&sologger_config);
 
     #[cfg(not(target_os = "windows"))]
     match spawn_signal_handler() {

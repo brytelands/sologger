@@ -37,9 +37,16 @@ pub fn export(log_contexts: &[LogContext]) {
 }
 
 /// Records a WebSocket reconnect, when metrics are enabled.
-#[allow(dead_code)]
 pub fn record_reconnect() {
     if let Some(metrics) = METRICS.get() {
         metrics.record_reconnect();
+    }
+}
+
+/// Records slots that passed while a subscription was disconnected, when metrics are
+/// enabled.
+pub fn record_slot_gap(missed_slots: u64) {
+    if let Some(metrics) = METRICS.get() {
+        metrics.record_slot_gap(missed_slots);
     }
 }

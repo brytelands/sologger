@@ -24,8 +24,10 @@ anyhow = "1.0"
 serde = { version = "1.0" }
 serde_json = { version = "1.0" }
 solana-pubsub-client = { version = "3.1", optional = true }
+solana-rpc-client = { version = "3.1", optional = true }
 solana-rpc-client-api = { version = "3.1", optional = true }
 solana-sdk = { version = "3.0", optional = true }
+solana-transaction-status = { version = "3.1", optional = true }
 sologger_idl_decoder = "0.1.0"
 sologger_log_context = "0.3.0"
 sologger_log_transformer = "0.2.5"
@@ -38,7 +40,8 @@ signal-hook = { version = "0.4.1" }
 
 [features]
 default = ["solana_client_subscriber"]
-solana_client_subscriber = ["solana-pubsub-client", "solana-rpc-client-api", "solana-sdk"]
+solana_client_subscriber = ["solana-pubsub-client", "solana-rpc-client", "solana-rpc-client-api", "solana-sdk", "solana-transaction-status"]
 enable_otel = ["sologger_log_transport/otel"]
 enable_logstash = ["sologger_log_transport/logstash"]
+enable_webhook = ["sologger_log_transport/webhook"]
 enable_tokio_rt_metrics = ["tokio-metrics"]

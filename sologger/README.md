@@ -40,6 +40,95 @@ program_ids: If you want to get logs for specific programs, then add the program
 
 ````
 
+### Ingestion robustness
+
+**Reconnect + gap detection.** Each subscription is supervised: on disconnect or subscribe
+failure it reconnects with exponential backoff (1s doubling to a 30s cap, reset once
+messages flow again). After a reconnect, the first slot seen is compared with the last slot
+seen before the drop; a gap is logged and counted in the `sologger.slots.missed` metric
+(OTel builds with `enableMetrics`), alongside `sologger.websocket.reconnects`.
+
+**Truncation backfill.** When a transaction's logs arrive truncated (`Log truncated`), the
+full transaction is refetched over HTTP via `getTransaction` and re-parsed, so downstream
+consumers see the complete CPI tree. On by default; disable with `"backfillTruncated": false`.
+The HTTP endpoint is `rpcHttpUrl`, or derived from `rpcUrl` when unset (ws→http, port
+8900→8899 for local validators).
+
+**Historical backfill (post-mortem mode).** An optional `backfill` block replays past
+transactions of the selected programs through the normal pipeline before (or instead of)
+the live tail:
+
+```json
+{
+  "rpcUrl": "wss://api.mainnet-beta.solana.com",
+  "programsSelector": { "programs": ["CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"] },
+  "backfill": {
+    "fromSlot": 250000000,
+    "untilSlot": 250100000,
+    "limit": 500,
+    "throttleMs": 200,
+    "exitAfter": true
+  }
+}
+```
+
+`limit` caps signatures per program, `throttleMs` spaces out `getTransaction` calls for RPC
+rate limits, and `exitAfter: true` exits when the replay finishes. Explicit programs are
+required — there is no all-programs history API.
+
+**blockSubscribe source.** Set `"source": "blockSubscribe"` to ingest whole blocks instead
+of per-transaction log notifications (one WebSocket message per block, every matching
+transaction inside). Note that many public RPC providers do not enable blockSubscribe;
+`logsSubscribe` remains the default.
+
+### Pretty console mode (no config needed)
+
+When no transport is configured — the binary was built without transport features, or the
+configured transport config files don't exist — sologger falls back to colored, CPI-indented
+console output instead of exiting. That makes a bare run an everyday `tail -f` for
+`solana-test-validator`:
+
+```shell
+cargo run    # no transport config: pretty console output
+```
+
+```
+── slot 216778028 · 5j2K…9Qw ✗ FAILED
+  CLMM9tUo… OpenPosition 90232/400000 CU ✗
+    11111111… ✗
+      ✗ Transfer: insufficient lamports 13792320, need 15616720
+```
+
+Colors are applied only when stdout is a terminal.
+
+### Webhook transport (optional)
+
+A binary built with `enable_webhook` POSTs matching records to Discord, Slack, or any HTTP
+endpoint. Point `webhookConfigLocation` in sologger-config.json at a webhook config:
+
+```json
+{
+  "url": "https://discord.com/api/webhooks/<id>/<token>",
+  "format": "discord",
+  "errorsOnly": true,
+  "programs": ["CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"],
+  "instructions": [],
+  "timeoutMs": 5000
+}
+```
+
+- `format`: `discord` ({"content": ...}), `slack` ({"text": ...}), or `json` (the raw structured
+  log record). Defaults to `json`.
+- `errorsOnly`, `programs`, `instructions`: matching rules, combined with AND; empty lists match
+  everything.
+
+See `config/webhook-example/` for a ready-made pair. Deliveries happen off the ingestion path;
+failures are logged and dropped, not retried.
+
+```shell
+cargo run --features enable_webhook ./config/webhook-example/sologger-config.json
+```
+
 ### IDL decoding (optional)
 
 If you provide an Anchor IDL for a program, sologger decodes its logs as it parses them:

@@ -1,0 +1,7 @@
+{
+  "rpcUrl": "wss://api.devnet.solana.com",
+  "webhookConfigLocation": "./config/webhook-example/webhook-config.json",
+  "programsSelector": {
+    "programs": ["*"]
+  }
+}

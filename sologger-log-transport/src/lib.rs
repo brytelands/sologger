@@ -32,6 +32,17 @@
 //!Enable them with `enableTraces` / `enableMetrics` in the OpenTelemetry config. Span
 //!durations are synthetic — consumed compute units rendered as microseconds — because
 //!Solana logs carry no timestamps.
+//!
+//!**Webhook**
+//!
+//!```rust
+//!let transport = WebhookTransport::from_config_path(&"./webhook-config.json".to_string())?;
+//!transport.send_all(&log_contexts).await;
+//!```
+//!
+//!The `webhook` feature POSTs matched records to Discord, Slack, or any HTTP endpoint,
+//!with simple matching rules: errors only, a program allowlist, and instruction-name
+//!matching. See `WebhookConfig` for the config file shape.
 
 #[cfg(feature = "logstash")]
 pub mod logstash_lib;
@@ -41,3 +52,7 @@ pub mod opentelemetry_config;
 pub mod opentelemetry_lib;
 #[cfg(feature = "otel")]
 pub mod solana_telemetry;
+#[cfg(feature = "webhook")]
+pub mod webhook_config;
+#[cfg(feature = "webhook")]
+pub mod webhook_lib;

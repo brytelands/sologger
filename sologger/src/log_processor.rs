@@ -4,6 +4,10 @@ use log::{error, info};
 use sologger_log_context::sologger_log_context::LogContext;
 
 pub async fn log_contexts_from_logs(log_contexts: &Vec<LogContext>) -> Result<()> {
+    if crate::console_logger::is_enabled() {
+        crate::console_logger::print_log_contexts(log_contexts);
+        return Ok(());
+    }
     for log_context in log_contexts {
         if log_context.has_errors() {
             error!("{}", &log_context.to_json());

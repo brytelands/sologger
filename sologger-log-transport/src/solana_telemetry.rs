@@ -217,6 +217,7 @@ pub struct SologgerMetrics {
     transaction_failures: Counter<u64>,
     truncated_logs: Counter<u64>,
     websocket_reconnects: Counter<u64>,
+    slots_missed: Counter<u64>,
 }
 
 impl SologgerMetrics {
@@ -249,6 +250,10 @@ impl SologgerMetrics {
             websocket_reconnects: meter
                 .u64_counter("sologger.websocket.reconnects")
                 .with_description("WebSocket subscription reconnects")
+                .build(),
+            slots_missed: meter
+                .u64_counter("sologger.slots.missed")
+                .with_description("Slots that passed while a subscription was disconnected")
                 .build(),
         }
     }
@@ -302,6 +307,12 @@ impl SologgerMetrics {
     /// Increments the WebSocket reconnect counter (used by the ingestion layer).
     pub fn record_reconnect(&self) {
         self.websocket_reconnects.add(1, &[]);
+    }
+
+    /// Records slots that passed while a subscription was disconnected — detected by
+    /// comparing the last slot seen before a reconnect with the first one after.
+    pub fn record_slot_gap(&self, missed_slots: u64) {
+        self.slots_missed.add(missed_slots, &[]);
     }
 }
 
