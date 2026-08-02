@@ -40,10 +40,16 @@
           {{ idlFileName || 'Upload IDL (optional)' }}
           <input type="file" accept=".json" class="hidden" @change="handleIdlUpload"/>
         </label>
+        <label class="flex items-center gap-2 text-xs text-[var(--p-text-muted)] cursor-pointer select-none">
+          <input type="checkbox" v-model="autoFetchIdls" @change="persistRpcChoice" class="accent-[var(--p-primary-color)]"/>
+          Auto-fetch on-chain IDLs
+        </label>
         <span class="text-xs text-[var(--p-text-muted)]">
           With an IDL, Program data events are decoded and error codes resolved to names.
+          Anchor programs that publish their IDL on chain are picked up automatically.
         </span>
       </div>
+      <p v-if="idlNotice" class="text-green-500 text-xs">{{ idlNotice }}</p>
       <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
     </div>
 
@@ -81,7 +87,7 @@
 
       <!-- Parsed invocations -->
       <div class="overflow-x-auto">
-        <LogsTable :parsedLogs="rows" :uploadedIdl="uploadedIdl" @decode-with-idl="openDecode"/>
+        <LogsTable :parsedLogs="rows" :uploadedIdl="tableIdl" @decode-with-idl="openDecode"/>
       </div>
     </div>
     <div v-else-if="!loading" class="h-40 flex items-center justify-center border border-dashed border-[var(--p-card-border)] rounded-xl bg-[var(--p-card-bg)]">
@@ -109,7 +115,7 @@ import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import {decodeWithIdl} from '../composables/useIdlDecoder';
-import {mapLogContext} from '../composables/useLogMapper';
+import {idlCandidatePrograms, mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import LogsTable from '../components/LogsTable.vue';
 import CuFlamegraph from '../components/CuFlamegraph.vue';
@@ -138,6 +144,11 @@ export default {
       uploadedIdl: null,
       idlFileName: '',
       idlDecodedData: null,
+      // Signature -> program -> on-chain IDL discovery
+      autoFetchIdls: true,
+      autoIdls: {},
+      autoIdlPrograms: [],
+      idlNotice: '',
     };
   },
   computed: {
@@ -166,6 +177,12 @@ export default {
       return this.rows
           .filter(row => row.depth === 1)
           .reduce((sum, row) => sum + (row.computeUnits ?? 0), 0);
+    },
+    // Truthy when any IDL (manual or discovered) exists, so LogsTable offers the
+    // decode button; openDecode picks the right IDL per program
+    tableIdl() {
+      if (this.uploadedIdl) return this.uploadedIdl;
+      return this.autoIdlPrograms.length ? this.autoIdls[this.autoIdlPrograms[0]] : null;
     }
   },
   created() {
@@ -173,6 +190,8 @@ export default {
     if (savedRpc) this.selectedRpc = savedRpc;
     const savedCustom = localStorage.getItem('sologger_lookupCustomRpc');
     if (savedCustom) this.customRpcUrl = savedCustom;
+    const savedAutoIdl = localStorage.getItem('sologger_lookupAutoIdl');
+    if (savedAutoIdl !== null) this.autoFetchIdls = savedAutoIdl === 'true';
     // Shareable deep link: /lookup?sig=<signature>
     const querySig = this.$route.query.sig;
     if (querySig) {
@@ -192,6 +211,7 @@ export default {
     persistRpcChoice() {
       localStorage.setItem('sologger_lookupRpc', this.selectedRpc);
       localStorage.setItem('sologger_lookupCustomRpc', this.customRpcUrl);
+      localStorage.setItem('sologger_lookupAutoIdl', String(this.autoFetchIdls));
     },
     handleIdlUpload(event) {
       const file = event.target.files[0];
@@ -231,19 +251,74 @@ export default {
       }
     },
     async openDecode(row) {
-      if (!this.uploadedIdl) return;
+      // Prefer the IDL discovered for this row's own program over the manual upload
+      const programId = row.programId?.programId ?? row.programId ?? '';
+      const idl = this.autoIdls[programId] ?? this.uploadedIdl;
+      if (!idl) return;
       try {
-        const decoded = await decodeWithIdl(this.uploadedIdl, row);
+        const decoded = await decodeWithIdl(idl, row);
         this.idlDecodedData = JSON.stringify(decoded, null, 2);
       } catch (e) {
         this.idlDecodedData = `Error decoding with IDL: ${e.message}`;
       }
+    },
+    parseRows(sig, err, logs, slot) {
+      const parsed = this.getTransformer().from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
+      const explorer = localStorage.getItem('sologger_selectedExplorer') || 'solscan';
+      return parsed.map(solanaLog => mapLogContext({
+        signature: sig,
+        slot,
+        solana: JSON.parse(sanitizeLogMessage(solanaLog))
+      }, {linkSuffix: this.linkSuffix, explorer}));
+    },
+    // Trace the transaction's programs to their published on-chain IDLs (Anchor stores
+    // the IDL at a deterministic PDA; Program.fetchIdl resolves and inflates it).
+    // Returns how many new IDLs were registered with the transformer.
+    async discoverOnChainIdls() {
+      const known = new Set(Object.keys(this.autoIdls));
+      if (this.uploadedIdl?.address) known.add(this.uploadedIdl.address);
+      const candidates = idlCandidatePrograms(this.rows, {known});
+      if (!candidates.length) return 0;
+
+      let found = 0;
+      try {
+        const {Program} = await import('@coral-xyz/anchor');
+        const {Connection, PublicKey} = await import('@solana/web3.js');
+        const connection = new Connection(this.rpcUrl);
+
+        const results = await Promise.allSettled(candidates.map(async programId => {
+          const idl = await Program.fetchIdl(new PublicKey(programId), {connection});
+          return {programId, idl};
+        }));
+        for (const result of results) {
+          if (result.status !== 'fulfilled' || !result.value.idl) continue;
+          const {programId, idl} = result.value;
+          try {
+            this.getTransformer().add_idl(programId, JSON.stringify(idl));
+            this.autoIdls[programId] = idl;
+            this.autoIdlPrograms.push(programId);
+            found++;
+          } catch (e) {
+            console.warn(`Discovered IDL for ${programId} but registration failed:`, e);
+          }
+        }
+      } catch (e) {
+        console.warn('On-chain IDL discovery failed:', e);
+      }
+
+      if (this.autoIdlPrograms.length) {
+        this.idlNotice = `On-chain IDL loaded for ${
+            this.autoIdlPrograms.map(p => p.substring(0, 8) + '…').join(', ')
+        }`;
+      }
+      return found;
     },
     async lookup() {
       const sig = this.signature.trim();
       if (!sig || !this.rpcUrl) return;
       this.loading = true;
       this.error = '';
+      this.idlNotice = '';
       this.persistRpcChoice();
       // Keep the URL shareable
       if (this.$route.query.sig !== sig) {
@@ -269,22 +344,21 @@ export default {
         const err = tx.meta?.err ?? null;
 
         this.registerIdl();
-        const parsed = this.getTransformer().from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
-        this.rows = parsed.map(solanaLog => mapLogContext({
-          signature: sig,
-          slot,
-          solana: JSON.parse(sanitizeLogMessage(solanaLog))
-        }, {linkSuffix: this.linkSuffix, explorer: localStorage.getItem('sologger_selectedExplorer') || 'solscan'}));
+        this.rows = this.parseRows(sig, err, logs, slot);
 
-        // An IDL uploaded before we knew the involved programs: register and re-parse once
+        // A manual IDL without an address: now that the programs are known, register
+        // it against them and re-parse once
         if (this.uploadedIdl && !this.uploadedIdl.address && this.rows.length) {
           this.registerIdl();
-          const reparsed = this.getTransformer().from_rpc_logs_response({signature: sig, err, logs}, BigInt(slot));
-          this.rows = reparsed.map(solanaLog => mapLogContext({
-            signature: sig,
-            slot,
-            solana: JSON.parse(sanitizeLogMessage(solanaLog))
-          }, {linkSuffix: this.linkSuffix, explorer: localStorage.getItem('sologger_selectedExplorer') || 'solscan'}));
+          this.rows = this.parseRows(sig, err, logs, slot);
+        }
+
+        // Auto-discovery: rows are already on screen; enrich them when IDLs turn up
+        if (this.autoFetchIdls && this.rows.length) {
+          const found = await this.discoverOnChainIdls();
+          if (found > 0) {
+            this.rows = this.parseRows(sig, err, logs, slot);
+          }
         }
       } catch (e) {
         this.rows = [];

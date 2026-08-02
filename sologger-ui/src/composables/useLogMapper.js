@@ -48,3 +48,37 @@ export function mapLogContext(logData, options = {}) {
         transactionError: solana.transaction_error || ''
     };
 }
+
+// Native/SPL programs that never publish an Anchor IDL — not worth an RPC round trip.
+const NATIVE_PROGRAMS = new Set([
+    '11111111111111111111111111111111',
+    'ComputeBudget111111111111111111111111111111',
+    'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+    'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+    'Vote111111111111111111111111111111111111111',
+    'Stake11111111111111111111111111111111111111',
+    'AddressLookupTab1e1111111111111111111111111',
+    'BPFLoaderUpgradeab1e11111111111111111111111',
+    'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+    'Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo',
+]);
+
+/**
+ * The programs of a parsed transaction worth asking the chain for an Anchor IDL:
+ * unique, in invoke order, minus native programs and anything already `known`,
+ * capped so one lookup never fans out into unbounded RPC calls.
+ */
+export function idlCandidatePrograms(rows, {known = new Set(), limit = 6} = {}) {
+    const candidates = [];
+    for (const row of rows) {
+        const programId = row.programId?.programId ?? String(row.programId ?? '');
+        if (!programId || NATIVE_PROGRAMS.has(programId) || known.has(programId)
+            || candidates.includes(programId)) {
+            continue;
+        }
+        candidates.push(programId);
+        if (candidates.length >= limit) break;
+    }
+    return candidates;
+}

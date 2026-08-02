@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {mapLogContext} from '../composables/useLogMapper';
+import {idlCandidatePrograms, mapLogContext} from '../composables/useLogMapper';
 
 function sampleContext(overrides = {}) {
     return {
@@ -80,5 +80,47 @@ describe('mapLogContext', () => {
     it('uses a provided timestamp instead of the wall clock', () => {
         const row = mapLogContext(sampleContext(), {timestamp: '12:00:00'});
         expect(row.timestamp).toBe('12:00:00');
+    });
+});
+
+describe('idlCandidatePrograms', () => {
+    const row = programId => ({programId: {programId}});
+
+    it('returns unique programs in invoke order, skipping natives', () => {
+        const candidates = idlCandidatePrograms([
+            row('ComputeBudget111111111111111111111111111111'),
+            row('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C'),
+            row('11111111111111111111111111111111'),
+            row('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+            row('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C'),
+            row('JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB'),
+        ]);
+        expect(candidates).toEqual([
+            'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C',
+            'JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB',
+        ]);
+    });
+
+    it('skips programs the caller already has an IDL for', () => {
+        const known = new Set(['CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C']);
+        const candidates = idlCandidatePrograms([
+            row('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C'),
+            row('JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB'),
+        ], {known});
+        expect(candidates).toEqual(['JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB']);
+    });
+
+    it('caps the number of candidates', () => {
+        const rows = [];
+        for (let i = 0; i < 10; i++) {
+            rows.push(row(`Program${i}1111111111111111111111111111111111`));
+        }
+        expect(idlCandidatePrograms(rows, {limit: 3})).toHaveLength(3);
+        expect(idlCandidatePrograms(rows)).toHaveLength(6);
+    });
+
+    it('handles empty and malformed rows', () => {
+        expect(idlCandidatePrograms([])).toEqual([]);
+        expect(idlCandidatePrograms([{programId: null}, {programId: {programId: ''}}])).toEqual([]);
     });
 });
