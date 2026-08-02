@@ -121,6 +121,8 @@ impl WasmLogContextTransformer {
 /// matches no event in the IDL. Throws on malformed IDL JSON or a corrupt payload.
 #[wasm_bindgen]
 pub fn decode_program_data(idl_json: String, data_base64: String) -> Result<JsValue, JsValue> {
+    use serde::Serialize;
+
     let idl = Idl::from_json(&idl_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let decoded =
         decode_event(&idl, &data_base64).map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -128,7 +130,10 @@ pub fn decode_program_data(idl_json: String, data_base64: String) -> Result<JsVa
         None => Ok(JsValue::NULL),
         Some(event) => {
             let value = serde_json::json!({ "name": event.name, "data": event.data });
-            serde_wasm_bindgen::to_value(&value).map_err(|e| e.into())
+            // json_compatible: JSON objects become plain JS objects rather than JS Maps
+            value
+                .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+                .map_err(JsValue::from)
         }
     }
 }

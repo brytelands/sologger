@@ -56,11 +56,21 @@
         </div>
       </div>
     </div>
+
+    <!-- CU flamegraph of the most recent transaction -->
+    <div v-if="latestTransactionRows.length" class="card p-4">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-[var(--p-text-muted)] mb-2">
+        CU Breakdown — Latest Transaction
+        <span class="normal-case font-mono font-normal">{{ latestTransactionSignature }}</span>
+      </h4>
+      <CuFlamegraph :rows="latestTransactionRows"/>
+    </div>
   </div>
 </template>
 
 <script>
 import { Line, Doughnut, Bar } from 'vue-chartjs';
+import CuFlamegraph from './CuFlamegraph.vue';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -87,7 +97,7 @@ ChartJS.register(
 );
 
 export default {
-  components: { Line, Doughnut, Bar },
+  components: { Line, Doughnut, Bar, CuFlamegraph },
   props: ['parsedLogs', 'uniqueSignaturesCount', 'lastUpdateTime'],
   data() {
     return {
@@ -115,6 +125,24 @@ export default {
       if (!this.parsedLogs.length) return 0;
       const failed = this.parsedLogs.filter(log => log.transactionError && log.transactionError !== '').length;
       return ((failed / this.parsedLogs.length) * 100).toFixed(1);
+    },
+    // The newest batch is unshifted as a block, so the latest transaction is the run of
+    // rows sharing the first row's signature — still in invoke order
+    latestTransactionRows() {
+      if (!this.parsedLogs.length) return [];
+      const signatureOf = row => row.signature?.signature ?? row.signature;
+      const first = signatureOf(this.parsedLogs[0]);
+      const rows = [];
+      for (const row of this.parsedLogs) {
+        if (signatureOf(row) !== first) break;
+        rows.push(row);
+      }
+      return rows;
+    },
+    latestTransactionSignature() {
+      const first = this.latestTransactionRows[0];
+      const signature = String(first?.signature?.signature ?? first?.signature ?? '');
+      return signature.length > 16 ? signature.substring(0, 16) + '…' : signature;
     },
     isDarkMode() {
       // themeKey dependency ensures this recomputes when theme changes

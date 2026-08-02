@@ -62,6 +62,12 @@
               Convert Logs
             </router-link>
             <router-link
+                to="/lookup"
+                class="px-3 py-2 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
+            >
+              Lookup
+            </router-link>
+            <router-link
                 to="/about"
                 class="px-3 py-2 rounded-lg text-sm font-medium text-surface-50/80 hover:text-surface-50 hover:bg-white/10 transition-all"
             >
@@ -261,6 +267,7 @@ export default {
     const navigationLinks = [
       { to: '/', text: 'Home' },
       { to: '/convert', text: 'Convert Logs' },
+      { to: '/lookup', text: 'Lookup' },
       { to: '/about', text: 'About' }
     ];
 

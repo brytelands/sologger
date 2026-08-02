@@ -1,6 +1,7 @@
 import {createRouter, createWebHashHistory, createWebHistory} from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import ConvertView from '../views/ConvertView.vue';
+import LookupView from '../views/LookupView.vue';
 import AboutView from '../views/AboutView.vue';
 
 const routes = [
@@ -13,6 +14,11 @@ const routes = [
         path: '/convert',
         name: 'convert',
         component: ConvertView
+    },
+    {
+        path: '/lookup',
+        name: 'lookup',
+        component: LookupView
     },
     {
         path: '/about',

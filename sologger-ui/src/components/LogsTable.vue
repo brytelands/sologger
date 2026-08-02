@@ -211,6 +211,11 @@ const ALL_COLUMNS = [
     asyncPostRender: (cellNode, _row, dataContext) => renderJsonArrayCell(cellNode, dataContext.logMessages)
   },
   {
+    id: 'decodedEvents', name: 'Events', field: 'decodedEvents', width: 200, resizable: true,
+    toolTip: 'Anchor events decoded from Program data logs via the IDL',
+    asyncPostRender: (cellNode, _row, dataContext) => renderJsonArrayCell(cellNode, dataContext.decodedEvents)
+  },
+  {
     id: 'dataLogs', name: 'Data', field: 'dataLogs', width: 150, resizable: true,
     formatter: (_, __, value) => {
       const text = escapeHtml(value);
@@ -229,12 +234,21 @@ const ALL_COLUMNS = [
     }
   },
   {
-    id: 'errorCode', name: 'Error Code', field: 'errorCode', width: 90, sortable: true, resizable: true,
-    toolTip: 'Numeric code from "custom program error: 0x…" (Anchor errors start at 6000)',
-    formatter: (_, __, value) => {
+    id: 'errorCode', name: 'Error Code', field: 'errorCode', width: 130, sortable: true, resizable: true,
+    toolTip: 'Numeric code from "custom program error: 0x…", with the IDL-resolved name when available',
+    formatter: (_, __, value, _col, dataContext) => {
       if (value === null || value === undefined) return '<span class="cu-na">—</span>';
       const code = Number(value);
-      return `<span class="cu-value cu-high" title="0x${code.toString(16)}">${code}</span>`;
+      const name = dataContext.errorName ? ` ${escapeHtml(dataContext.errorName)}` : '';
+      return `<span class="cu-value cu-high" title="0x${code.toString(16)}">${code}${name}</span>`;
+    }
+  },
+  {
+    id: 'errorName', name: 'Error Name', field: 'errorName', width: 130, sortable: true, resizable: true,
+    toolTip: 'Error name resolved from the IDL errors array',
+    formatter: (_, __, value) => {
+      if (!value) return '<span class="cu-na">—</span>';
+      return `<span class="cu-value cu-high">${escapeHtml(value)}</span>`;
     }
   },
   {
@@ -246,7 +260,7 @@ const ALL_COLUMNS = [
   }
 ];
 
-const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs', 'parentProgramId']);
+const DEFAULT_HIDDEN = new Set(['rawLogs', 'dataLogs', 'parentProgramId', 'errorName']);
 
 const EXPLORER_URLS = {
   solscan:  { tx: 'https://solscan.io/tx/', block: 'https://solscan.io/block/', account: 'https://solscan.io/account/' },

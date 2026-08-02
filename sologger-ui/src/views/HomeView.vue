@@ -282,6 +282,7 @@ import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import {decodeWithIdl as decodeLogWithIdl} from '../composables/useIdlDecoder';
+import {mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
@@ -420,45 +421,23 @@ export default {
       let linkSuffix = '';
       if (isDevnet) linkSuffix = '?cluster=devnet';
       else if (isTestnet) linkSuffix = '?cluster=testnet';
-      let signatureData = {signature: logData.signature, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
-      let slotData = {slot: logData.slot, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
-      let programData = {programId: logData.solana.program_id, linkSuffix: linkSuffix, explorer: this.selectedExplorer};
-      let parentProgramData = {
-        parentProgramId: logData.solana.parent_program_id,
-        linkSuffix: linkSuffix,
-        explorer: this.selectedExplorer
-      };
-
-      // Extract compute units consumed from raw logs
-      let computeUnits = null;
-      const rawLogsArr = logData.solana.raw_logs ?? [];
-      for (const entry of rawLogsArr) {
-        const cuMatch = String(entry).match(/consumed\s+(\d+)\s+of\s+\d+\s+compute units/i);
-        if (cuMatch) {
-          computeUnits = parseInt(cuMatch[1], 10);
-          break;
+      return mapLogContext(logData, {linkSuffix, explorer: this.selectedExplorer});
+    },
+    // Registers an IDL with the WASM transformer so every subsequently parsed log for
+    // that program arrives with decoded_events / error_name already filled in by the
+    // Rust decoder. Targets the IDL's own address (0.30+ spec) when present, else all
+    // monitored programs.
+    registerIdlWithTransformer(idl) {
+      if (!idl) return;
+      const idlJson = JSON.stringify(idl);
+      const targets = idl.address ? [idl.address] : [...this.programIds];
+      for (const programId of targets) {
+        try {
+          this.getTransformer().add_idl(programId, idlJson);
+        } catch (e) {
+          console.warn(`Failed to register IDL for ${programId}:`, e);
         }
       }
-
-      return {
-        timestamp: new Date().toLocaleTimeString(),
-        level: logData.solana.transaction_error !== null && logData.solana.transaction_error !== "" ? "Error" : "Info",
-        signature: signatureData,
-        slot: slotData,
-        programId: programData,
-        parentProgramId: parentProgramData,
-        depth: logData.solana.depth,
-        instructionIndex: logData.solana.instruction_index,
-        instructionName: logData.solana.instruction_name || '',
-        invokeResult: logData.solana.invoke_result,
-        computeUnits: computeUnits,
-        errorCode: logData.solana.error_code ?? null,
-        logMessages: JSON.stringify(logData.solana.log_messages),
-        dataLogs: JSON.stringify(logData.solana.data_logs),
-        rawLogs: JSON.stringify(logData.solana.raw_logs),
-        errors: JSON.stringify(logData.solana.errors),
-        transactionError: logData.solana.transaction_error || ''
-      };
     },
     async addProgramId() {
       if (this.newProgramId && !this.programIds.includes(this.newProgramId)) {
@@ -479,6 +458,9 @@ export default {
           if (idl) {
             this.uploadedIdl = idl;
             this.idlFileName = `${programIdToAdd.substring(0, 8)}...-on-chain.json`;
+            // Anchor's fetchIdl result may lack `address`; register for the program we
+            // fetched it for so live parsing decodes its events from here on
+            this.getTransformer().add_idl(programIdToAdd, JSON.stringify(idl));
             this.toast.add({
               severity: 'success',
               summary: 'IDL Found',
@@ -862,7 +844,7 @@ export default {
       try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const environment = this.getEnvironmentName();
-        const csvCols = ['timestamp', 'level', 'signature', 'slot', 'programId', 'parentProgramId', 'depth', 'instructionIndex', 'instructionName', 'invokeResult', 'computeUnits', 'logMessages', 'dataLogs', 'rawLogs', 'errors', 'errorCode', 'transactionError'];
+        const csvCols = ['timestamp', 'level', 'signature', 'slot', 'programId', 'parentProgramId', 'depth', 'instructionIndex', 'instructionName', 'invokeResult', 'computeUnits', 'logMessages', 'decodedEvents', 'dataLogs', 'rawLogs', 'errors', 'errorCode', 'errorName', 'transactionError'];
         const escape = v => {
           if (v === null || v === undefined) return '';
           const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
@@ -900,6 +882,7 @@ export default {
       reader.onload = (e) => {
         try {
           this.uploadedIdl = JSON.parse(e.target.result);
+          this.registerIdlWithTransformer(this.uploadedIdl);
           this.toast.add({
             severity: 'success',
             summary: 'IDL Loaded',

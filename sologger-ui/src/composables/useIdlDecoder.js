@@ -1,14 +1,17 @@
 // Decodes a parsed log row against an uploaded Anchor IDL.
-// Framework-free on purpose: HomeView.vue and the test suite both import this,
-// so behavior changes here are covered by src/tests/decodeWithIdl.test.js.
+//
+// Event decoding is done by the Rust decoder (sologger-idl-decoder) through the WASM
+// module's decode_program_data export — the former @coral-xyz/anchor BorshCoder path
+// was retired once the Rust decoder shipped, so browser and binary share one decoder.
+//
+// Framework-free on purpose: HomeView.vue and the test suite both import this, so
+// behavior changes here are covered by src/tests/decodeWithIdl.test.js. The WASM module
+// must be initialized before calling (HomeView does this on mount; tests use initSync).
+import {decode_program_data} from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+
 export async function decodeWithIdl(uploadedIdl, log) {
     if (!uploadedIdl) return null;
 
-    // Dynamic import keeps @coral-xyz/anchor out of the initial bundle.
-    const {BorshCoder} = await import('@coral-xyz/anchor');
-    const coder = new BorshCoder(uploadedIdl);
-
-    // Extract data logs from the row
     let dataLogs = [];
     try {
         dataLogs = JSON.parse(log.dataLogs ?? '[]');
@@ -41,24 +44,15 @@ export async function decodeWithIdl(uploadedIdl, log) {
         }
     }
 
-    // Decode instruction data from dataLogs using BorshCoder
-    const decodedInstructions = [];
-    for (const b64 of dataLogs) {
-        try {
-            const buf = Buffer.from(b64, 'base64');
-            const decoded = coder.instruction.decode(buf);
-            if (decoded) decodedInstructions.push({name: decoded.name, data: decoded.data});
-        } catch { /* skip undecoded entries */
-        }
-    }
-
-    // Decode events from dataLogs using BorshCoder
+    // Borsh-decode events from dataLogs with the Rust decoder (handles both the legacy
+    // and the 0.30+ IDL spec)
+    const idlJson = JSON.stringify(uploadedIdl);
     const decodedEvents = [];
     for (const b64 of dataLogs) {
         try {
-            const decoded = coder.events.decode(b64);
+            const decoded = decode_program_data(idlJson, String(b64));
             if (decoded) decodedEvents.push({name: decoded.name, data: decoded.data});
-        } catch { /* skip undecoded entries */
+        } catch { /* skip undecodable entries */
         }
     }
 
@@ -66,7 +60,6 @@ export async function decodeWithIdl(uploadedIdl, log) {
         program: log.programId?.programId ?? log.programId ?? '',
         signature: log.signature?.signature ?? log.signature ?? '',
         matchedInstructions,
-        decodedInstructions,
         decodedEvents,
         dataLogs,
         rawLogs,

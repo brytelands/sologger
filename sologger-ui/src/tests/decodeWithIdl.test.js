@@ -1,5 +1,24 @@
-import {describe, expect, it} from 'vitest';
+import {beforeAll, describe, expect, it} from 'vitest';
+import {readFileSync} from 'fs';
+import {dirname, resolve} from 'path';
+import {fileURLToPath} from 'url';
+import {
+    initSync,
+    WasmLogContextTransformer
+} from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import {decodeWithIdl} from '../composables/useIdlDecoder';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// The decoder now lives in Rust (sologger-idl-decoder) behind the WASM module, so the
+// suite initializes the real committed WASM build — the same artifact the app serves.
+beforeAll(() => {
+    const wasmBytes = readFileSync(resolve(
+        __dirname,
+        '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm_bg.wasm'
+    ));
+    initSync({module: wasmBytes});
+});
 
 const sampleIdl = {
     name: 'my_program',
@@ -16,6 +35,13 @@ const sampleIdl = {
     errors: [],
     types: []
 };
+
+const raydiumIdl = JSON.parse(readFileSync(
+    resolve(__dirname, 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C-idl.json'), 'utf-8'
+));
+
+// A real SwapEvent payload captured from a mainnet Raydium CPMM swap_base_input
+const swapEventBase64 = 'QMbN6CYIceLSNPnH1+FupbOsfFcMMAYfk5pbewHNLOiV2Y+rcY++tVceiNvqAAAAXCE+PG0YAQAAQFlzBwAAAEdVjQ2aCAAAAAAAAAAAAAAAAAAAAAAAAAEGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAcIpi8RZuMywUoWwsWLby7IdSeCUTeKHmUBTEknb34PhALTEBAAAAAAAAAAAAAAAAAE=';
 
 describe('decodeWithIdl', () => {
     it('returns null when no IDL is uploaded', async () => {
@@ -140,15 +166,19 @@ describe('decodeWithIdl', () => {
         expect(result.matchedInstructions).toHaveLength(0);
     });
 
-    it('decodes real Raydium CPMM swap_base_input log data using the CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C IDL', async () => {
-        const {readFileSync} = await import('fs');
-        const {resolve, dirname} = await import('path');
-        const {fileURLToPath} = await import('url');
-        const __dirname = dirname(fileURLToPath(import.meta.url));
-        const raydiumIdl = JSON.parse(readFileSync(resolve(__dirname, 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C-idl.json'), 'utf-8'));
+    it('skips data logs that match no event in the IDL', async () => {
+        const log = {
+            programId: 'P',
+            signature: 'S',
+            logMessages: '[]',
+            dataLogs: JSON.stringify(['AAAAAAAAAAAAAAAAAAA=', 'not!!valid@@base64']),
+            rawLogs: '[]'
+        };
+        const result = await decodeWithIdl(raydiumIdl, log);
+        expect(result.decodedEvents).toHaveLength(0);
+    });
 
-        const base64Data = 'QMbN6CYIceLSNPnH1+FupbOsfFcMMAYfk5pbewHNLOiV2Y+rcY++tVceiNvqAAAAXCE+PG0YAQAAQFlzBwAAAEdVjQ2aCAAAAAAAAAAAAAAAAAAAAAAAAAEGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAcIpi8RZuMywUoWwsWLby7IdSeCUTeKHmUBTEknb34PhALTEBAAAAAAAAAAAAAAAAAE=';
-
+    it('decodes real Raydium CPMM swap_base_input log data through the Rust WASM decoder', async () => {
         const log = {
             programId: 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C',
             signature: '5xTestSignature',
@@ -157,7 +187,7 @@ describe('decodeWithIdl', () => {
                 'Program log: Instruction: swap_base_input',
                 'Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C success'
             ]),
-            dataLogs: JSON.stringify([base64Data]),
+            dataLogs: JSON.stringify([swapEventBase64]),
             rawLogs: '[]'
         };
 
@@ -169,18 +199,44 @@ describe('decodeWithIdl', () => {
         expect(result.program).toBe('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C');
         expect(result.matchedInstructions).toHaveLength(1);
         expect(result.matchedInstructions[0].name).toBe('swap_base_input');
-        expect(result.dataLogs).toEqual([base64Data]);
+        expect(result.dataLogs).toEqual([swapEventBase64]);
         expect(result.note).toBe('Found 1 matching instruction(s) in IDL.');
 
-        // BorshCoder event decoding: the base64 data is a SwapEvent
+        // Rust-decoder event decoding: the base64 data is a SwapEvent
         expect(result.decodedEvents).toHaveLength(1);
         expect(result.decodedEvents[0].name).toBe('SwapEvent');
         expect(result.decodedEvents[0].data).toHaveProperty('pool_id');
         expect(result.decodedEvents[0].data).toHaveProperty('input_amount');
         expect(result.decodedEvents[0].data).toHaveProperty('output_amount');
         expect(result.decodedEvents[0].data.base_input).toBe(true);
+    });
+});
 
-        // No instruction-level decoding expected for this data
-        expect(result.decodedInstructions).toHaveLength(0);
+describe('WasmLogContextTransformer.add_idl', () => {
+    it('enriches parsed logs with decoded events and error names', () => {
+        const transformer = new WasmLogContextTransformer(['*']);
+        transformer.add_idl('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C', JSON.stringify(raydiumIdl));
+
+        const parsed = transformer.from_rpc_logs_response({
+            signature: 'ENRICHSIG',
+            err: null,
+            logs: [
+                'Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C invoke [1]',
+                'Program log: Instruction: swap_base_input',
+                `Program data: ${swapEventBase64}`,
+                'Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C failed: custom program error: 0x1770'
+            ]
+        }, BigInt(123));
+
+        // from_rpc_logs_response returns an array of LogContext objects
+        expect(parsed).toHaveLength(1);
+        const context = parsed[0];
+        expect(context.instruction_name).toBe('swap_base_input');
+        expect(context.error_code).toBe(6000);
+        expect(context.error_name).toBe('NotApproved');
+        expect(context.decoded_events).toHaveLength(1);
+        const event = JSON.parse(context.decoded_events[0]);
+        expect(event.name).toBe('SwapEvent');
+        expect(event.data.base_input).toBe(true);
     });
 });
