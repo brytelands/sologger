@@ -25,7 +25,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Build the WASM transformer from current source so the published site
       # can never ship a stale parser, regardless of what is committed under
