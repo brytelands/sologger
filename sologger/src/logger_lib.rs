@@ -1,3 +1,4 @@
+#[cfg(feature = "enable_logstash")]
 use std::path::Path;
 #[cfg(feature = "enable_otel")]
 use sologger_log_transport::opentelemetry_lib::get_otel_config;
@@ -26,6 +27,19 @@ pub fn init_logger_logstash(sologger_config: &SologgerConfig) {
 pub fn init_logger_otel(sologger_config: &SologgerConfig) {
     let config = get_otel_config(&sologger_config.opentelemetry_config_location);
     let _ = sologger_log_transport::opentelemetry_lib::init_logs_opentelemetry(&config);
+
+    if config.enable_traces {
+        match sologger_log_transport::opentelemetry_lib::init_tracer(&config) {
+            Ok(_provider) => crate::telemetry::enable_traces(),
+            Err(err) => eprintln!("sologger: failed to initialize OTel tracer: {}", err),
+        }
+    }
+    if config.enable_metrics {
+        match sologger_log_transport::opentelemetry_lib::init_metrics(&config) {
+            Ok(_provider) => crate::telemetry::enable_metrics(),
+            Err(err) => eprintln!("sologger: failed to initialize OTel metrics: {}", err),
+        }
+    }
 }
 
 // #[cfg(test)]

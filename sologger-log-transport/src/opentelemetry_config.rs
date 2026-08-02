@@ -18,6 +18,15 @@ pub struct OpentelemetryConfig {
     pub traces_endpoint: String,
     ///Sets the global maximum log level.
     pub log_level: String,
+    ///Export each transaction as a trace: one span per program invocation, parented by
+    ///CPI depth. Span durations are synthetic (proportional to consumed compute units),
+    ///since Solana logs carry no timestamps. Off by default.
+    #[serde(default)]
+    pub enable_traces: bool,
+    ///Export metrics: compute-unit histograms per program/instruction, transaction
+    ///failure counter, truncated-log counter, WebSocket reconnect counter. Off by default.
+    #[serde(default)]
+    pub enable_metrics: bool,
 }
 
 /// OpenTelemetry configuration

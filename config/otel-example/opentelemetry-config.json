@@ -5,5 +5,7 @@
   "endpoint": "http://localhost:4317",
   "metricsEndpoint": "http://localhost:4317",
   "tracesEndpoint": "http://localhost:4317",
-  "logLevel": "INFO"
+  "logLevel": "INFO",
+  "enableTraces": true,
+  "enableMetrics": true
 }

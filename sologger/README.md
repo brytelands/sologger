@@ -61,6 +61,36 @@ Add an `idls` map to sologger-config.json, keyed by program ID, with paths relat
 An IDL that is missing or fails to parse is reported at startup and skipped; log parsing continues without enrichment
 for that program.
 
+### Traces and metrics (optional, OTel builds)
+
+A binary built with `enable_otel` can export each transaction as an OpenTelemetry trace and record metrics, in
+addition to shipping logs. Enable them in the OpenTelemetry config file:
+
+```json
+{
+  "logConfig": { "service.name": "sologger" },
+  "endpoint": "http://localhost:4317",
+  "tracesEndpoint": "http://localhost:4317",
+  "metricsEndpoint": "http://localhost:4317",
+  "logLevel": "INFO",
+  "enableTraces": true,
+  "enableMetrics": true
+}
+```
+
+**Traces:** one trace per transaction, one span per program invocation, parented by CPI depth — a Jaeger/SigNoz
+waterfall of the call tree, with program ID, instruction name, compute units and error details as span attributes.
+The transaction signature is the `solana.signature` attribute on the root span. **Span durations are synthetic:**
+Solana logs carry no timestamps, so each span's duration is its consumed compute units rendered as microseconds
+(1 CU = 1µs). Durations show CU proportions, not wall time.
+
+**Metrics:** `sologger.compute_units` (histogram per program and instruction), `sologger.transactions`,
+`sologger.transactions.failed` (attributed to the deepest failing program), `sologger.logs.truncated`, and
+`sologger.websocket.reconnects`.
+
+When `tracesEndpoint`/`metricsEndpoint` (and `endpoint`) are empty, spans and metrics print to stdout, which is handy
+for local development.
+
 **Run**
 
 SOLOGGER_APP_CONFIG_LOC=./config/sologger-config.json cargo run

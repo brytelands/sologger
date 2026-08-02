@@ -1,5 +1,7 @@
 pub mod sologger_config;
 mod log_processor;
+#[cfg(feature = "enable_otel")]
+pub mod telemetry;
 #[cfg_attr(
     feature = "solana_client_subscriber",
     path = "solana_client_subscriber.rs"

@@ -124,6 +124,10 @@ pub async fn start_client(
                         // Decode Anchor events / resolve error names for programs with a configured IDL
                         idl_registry.enrich_all(&mut log_contexts);
 
+                        // Export transaction traces / metrics when enabled in the OTel config
+                        #[cfg(feature = "enable_otel")]
+                        crate::telemetry::export(&log_contexts);
+
                         log_contexts_from_logs(&log_contexts)
                             .await
                             .expect("Failed to log from log contexts");

@@ -1,6 +1,6 @@
 [package]
 name = "sologger_log_transport"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version.workspace = true
 authors = ["Will Kennedy"]
@@ -28,10 +28,12 @@ log4rs = { version = "1.4.0", features = ["json_format", "serde_json", "config_p
 anyhow = "1.0"
 serde = "1.0"
 serde_json = "1.0"
+sologger_log_context = { version = "0.3.0", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.49", features = ["macros"] }
+opentelemetry_sdk = { version = "0.32.0", features = ["metrics", "logs", "trace", "testing"] }
 
 [features]
 logstash = ["qoollo-logstash-rs", "qoollo-log4rs-logstash"]
-otel = ["opentelemetry-otlp", "opentelemetry-appender-log", "opentelemetry_sdk", "opentelemetry-stdout"]
+otel = ["opentelemetry-otlp", "opentelemetry-appender-log", "opentelemetry_sdk", "opentelemetry-stdout", "sologger_log_context"]

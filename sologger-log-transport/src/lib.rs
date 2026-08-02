@@ -23,8 +23,15 @@
 //!init_logs_opentelemetry_with_config_path(&"./tests/configs/opentelemetry-config.json".to_string());
 //!```
 //!
-//!OpenTelemetry support is provided by [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-rust). Currently, tracer and metrics functionality are not supported. Using the OpenTelemetry exporter will result in logs being sent to the configured endpoint, such as [Signoz](https://signoz.io/) or [Vector](https://vector.dev/)
+//!OpenTelemetry support is provided by [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-rust). Logs, traces and metrics are sent to the configured endpoints, such as [Signoz](https://signoz.io/) or [Vector](https://vector.dev/).
 //!For a list of all available configuration options, see the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/otel/resource/semantic_conventions/)
+//!
+//!The `solana_telemetry` module turns parsed `LogContext` records into one trace per
+//!transaction (a span per program invocation, parented by CPI depth) and into metrics
+//!(compute-unit histograms, transaction failure / truncated-log / reconnect counters).
+//!Enable them with `enableTraces` / `enableMetrics` in the OpenTelemetry config. Span
+//!durations are synthetic — consumed compute units rendered as microseconds — because
+//!Solana logs carry no timestamps.
 
 #[cfg(feature = "logstash")]
 pub mod logstash_lib;
@@ -32,3 +39,5 @@ pub mod logstash_lib;
 pub mod opentelemetry_config;
 #[cfg(feature = "otel")]
 pub mod opentelemetry_lib;
+#[cfg(feature = "otel")]
+pub mod solana_telemetry;

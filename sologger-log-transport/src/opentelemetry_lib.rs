@@ -56,29 +56,69 @@ pub fn init_logs_opentelemetry(
     Ok(logger)
 }
 
-// TODO add configuration
+/// Initializes the tracer provider and installs it globally. Spans export over OTLP
+/// (tonic) to `tracesEndpoint` — falling back to `endpoint` — or to stdout when neither
+/// is configured, which suits local development.
 #[cfg(feature = "otel")]
-pub fn init_tracer(_config: &OpentelemetryConfig) -> AnyResult<SdkTracerProvider> {
-    let provider = SdkTracerProvider::builder()
-        .with_simple_exporter(SpanExporter::default())
+pub fn init_tracer(config: &OpentelemetryConfig) -> AnyResult<SdkTracerProvider> {
+    let resource = Resource::builder()
+        .with_attributes(config.key_values())
         .build();
+    let builder = SdkTracerProvider::builder().with_resource(resource);
 
+    let endpoint = if config.traces_endpoint.is_empty() {
+        &config.endpoint
+    } else {
+        &config.traces_endpoint
+    };
+    let provider = if endpoint.is_empty() {
+        builder
+            .with_simple_exporter(SpanExporter::default())
+            .build()
+    } else {
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(endpoint)
+            .build()?;
+        builder.with_batch_exporter(exporter).build()
+    };
+
+    global::set_tracer_provider(provider.clone());
     Ok(provider)
 }
 
-// TODO add configuration
+/// Initializes the meter provider and installs it globally. Metrics export over OTLP
+/// (tonic) to `metricsEndpoint` — falling back to `endpoint` — or to stdout when neither
+/// is configured.
 #[cfg(feature = "otel")]
-pub fn init_metrics(_config: &OpentelemetryConfig) -> AnyResult<SdkMeterProvider> {
-    let exporter = opentelemetry_stdout::MetricExporter::default();
-    let reader = PeriodicReader::builder(exporter).build();
-    let provider = SdkMeterProvider::builder()
-        .with_reader(reader)
-        .with_resource(
-            Resource::builder()
-                .with_attributes([KeyValue::new("service.name", "metrics-basic-example")])
-                .build(),
-        )
+pub fn init_metrics(config: &OpentelemetryConfig) -> AnyResult<SdkMeterProvider> {
+    let resource = Resource::builder()
+        .with_attributes(config.key_values())
         .build();
+
+    let endpoint = if config.metrics_endpoint.is_empty() {
+        &config.endpoint
+    } else {
+        &config.metrics_endpoint
+    };
+    // PeriodicReader is generic over the exporter, so each branch builds its own provider
+    let provider = if endpoint.is_empty() {
+        SdkMeterProvider::builder()
+            .with_reader(
+                PeriodicReader::builder(opentelemetry_stdout::MetricExporter::default()).build(),
+            )
+            .with_resource(resource)
+            .build()
+    } else {
+        let exporter = opentelemetry_otlp::MetricExporter::builder()
+            .with_tonic()
+            .with_endpoint(endpoint)
+            .build()?;
+        SdkMeterProvider::builder()
+            .with_reader(PeriodicReader::builder(exporter).build())
+            .with_resource(resource)
+            .build()
+    };
     global::set_meter_provider(provider.clone());
     Ok(provider)
 }
