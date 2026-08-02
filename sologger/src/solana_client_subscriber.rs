@@ -1,20 +1,27 @@
 use crate::log_processor::log_contexts_from_logs;
+use crate::sologger_config::SologgerConfig;
 use anyhow::Result;
 use futures_util::StreamExt;
 use log::trace;
-use sologger_log_context::programs_selector::ProgramsSelector;
 use solana_pubsub_client::nonblocking::pubsub_client::PubsubClient;
-use solana_rpc_client_api::config::{CommitmentConfig, CommitmentLevel, RpcTransactionLogsConfig, RpcTransactionLogsFilter};
+use solana_rpc_client_api::config::{
+    CommitmentConfig, CommitmentLevel, RpcTransactionLogsConfig, RpcTransactionLogsFilter,
+};
+use sologger_idl_decoder::IdlRegistry;
+use sologger_log_context::programs_selector::ProgramsSelector;
+use sologger_log_transformer::log_context_transformer::from_rpc_response;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::unbounded_channel;
-use sologger_log_transformer::log_context_transformer::from_rpc_response;
-use crate::sologger_config::SologgerConfig;
 
 #[cfg(feature = "solana_client_subscriber")]
-pub async fn start_client(sologger_config: &SologgerConfig, program_selector: &ProgramsSelector) -> Result<()> {
+pub async fn start_client(
+    sologger_config: &SologgerConfig,
+    program_selector: &ProgramsSelector,
+    idl_registry: &IdlRegistry,
+) -> Result<()> {
     trace!("{:?}", &program_selector);
     // Subscription tasks will send a ready signal when they have subscribed.
     let (ready_sender, mut ready_receiver) = unbounded_channel::<()>();
@@ -83,9 +90,15 @@ pub async fn start_client(sologger_config: &SologgerConfig, program_selector: &P
                 let pubsub_client = Arc::clone(&pubsub_client);
                 let program_key = program_key.clone();
                 let program_selector = Arc::new(program_selector.clone());
+                let idl_registry = Arc::new(idl_registry.clone());
                 async move {
                     let (mut log_notifications, log_unsubscribe) = pubsub_client
-                        .logs_subscribe(log_filter, RpcTransactionLogsConfig { commitment: commitment_config })
+                        .logs_subscribe(
+                            log_filter,
+                            RpcTransactionLogsConfig {
+                                commitment: commitment_config,
+                            },
+                        )
                         .await?;
 
                     // With the subscription started,
@@ -105,7 +118,11 @@ pub async fn start_client(sologger_config: &SologgerConfig, program_selector: &P
                     // Do something with the subscribed messages.
                     // This loop will end once the main task unsubscribes.
                     while let Some(log_info) = log_notifications.next().await {
-                        let log_contexts = from_rpc_response(&log_info, &program_selector).expect("Error getting log contexts from RPC response");
+                        let mut log_contexts = from_rpc_response(&log_info, &program_selector)
+                            .expect("Error getting log contexts from RPC response");
+
+                        // Decode Anchor events / resolve error names for programs with a configured IDL
+                        idl_registry.enrich_all(&mut log_contexts);
 
                         log_contexts_from_logs(&log_contexts)
                             .await
@@ -182,7 +199,7 @@ mod tests {
     fn create_test_program_selector() -> ProgramsSelector {
         ProgramsSelector::new(&[
             "11111111111111111111111111111111".to_string(),
-            "22222222222222222222222222222222".to_string()
+            "22222222222222222222222222222222".to_string(),
         ])
     }
 
@@ -194,7 +211,7 @@ mod tests {
     fn test_log_filters_creation_specific_programs() {
         let config = create_test_config();
         let program_selector = create_test_program_selector();
-        
+
         // Simulate the log filter creation logic from start_client
         let all_log_filter: RpcTransactionLogsFilter = if config.all_with_votes {
             RpcTransactionLogsFilter::AllWithVotes
@@ -204,7 +221,7 @@ mod tests {
 
         let mut log_filters: HashMap<String, RpcTransactionLogsFilter> =
             HashMap::with_capacity(program_selector.programs.len());
-        
+
         if program_selector.select_all_programs {
             log_filters.insert("all".to_string(), all_log_filter);
         } else {
@@ -220,9 +237,14 @@ mod tests {
         assert_eq!(log_filters.len(), 2);
         assert!(log_filters.contains_key("11111111111111111111111111111111"));
         assert!(log_filters.contains_key("22222222222222222222222222222222"));
-        
-        if let Some(RpcTransactionLogsFilter::Mentions(mentions)) = log_filters.get("11111111111111111111111111111111") {
-            assert_eq!(mentions, &vec!["11111111111111111111111111111111".to_string()]);
+
+        if let Some(RpcTransactionLogsFilter::Mentions(mentions)) =
+            log_filters.get("11111111111111111111111111111111")
+        {
+            assert_eq!(
+                mentions,
+                &vec!["11111111111111111111111111111111".to_string()]
+            );
         } else {
             panic!("Expected Mentions filter");
         }
@@ -232,7 +254,7 @@ mod tests {
     fn test_log_filters_creation_all_programs() {
         let config = create_test_config();
         let program_selector = create_test_program_selector_all();
-        
+
         // Simulate the log filter creation logic from start_client
         let all_log_filter: RpcTransactionLogsFilter = if config.all_with_votes {
             RpcTransactionLogsFilter::AllWithVotes
@@ -242,7 +264,7 @@ mod tests {
 
         let mut log_filters: HashMap<String, RpcTransactionLogsFilter> =
             HashMap::with_capacity(program_selector.programs.len());
-        
+
         if program_selector.select_all_programs {
             log_filters.insert("all".to_string(), all_log_filter);
         } else {
@@ -257,7 +279,7 @@ mod tests {
 
         assert_eq!(log_filters.len(), 1);
         assert!(log_filters.contains_key("all"));
-        
+
         if let Some(RpcTransactionLogsFilter::All) = log_filters.get("all") {
             // Expected All filter
         } else {
@@ -270,7 +292,7 @@ mod tests {
         let mut config = create_test_config();
         config.all_with_votes = true;
         let program_selector = create_test_program_selector_all();
-        
+
         // Simulate the log filter creation logic from start_client
         let all_log_filter: RpcTransactionLogsFilter = if config.all_with_votes {
             RpcTransactionLogsFilter::AllWithVotes
@@ -280,7 +302,7 @@ mod tests {
 
         let mut log_filters: HashMap<String, RpcTransactionLogsFilter> =
             HashMap::with_capacity(program_selector.programs.len());
-        
+
         if program_selector.select_all_programs {
             log_filters.insert("all".to_string(), all_log_filter);
         } else {
@@ -295,7 +317,7 @@ mod tests {
 
         assert_eq!(log_filters.len(), 1);
         assert!(log_filters.contains_key("all"));
-        
+
         if let Some(RpcTransactionLogsFilter::AllWithVotes) = log_filters.get("all") {
             // Expected AllWithVotes filter
         } else {
@@ -306,7 +328,7 @@ mod tests {
     #[test]
     fn test_commitment_config_creation_none() {
         let config = create_test_config();
-        
+
         // Simulate the commitment config creation logic from start_client
         let commitment_config = match &config.commitment_level {
             Some(level) => {
@@ -325,7 +347,7 @@ mod tests {
     fn test_commitment_config_creation_finalized() {
         let mut config = create_test_config();
         config.commitment_level = Some("finalized".to_string());
-        
+
         // Simulate the commitment config creation logic from start_client
         let commitment_config = match &config.commitment_level {
             Some(level) => {
@@ -346,7 +368,7 @@ mod tests {
     fn test_commitment_config_creation_confirmed() {
         let mut config = create_test_config();
         config.commitment_level = Some("confirmed".to_string());
-        
+
         // Simulate the commitment config creation logic from start_client
         let commitment_config = match &config.commitment_level {
             Some(level) => {
@@ -367,7 +389,7 @@ mod tests {
     fn test_commitment_config_creation_processed() {
         let mut config = create_test_config();
         config.commitment_level = Some("processed".to_string());
-        
+
         // Simulate the commitment config creation logic from start_client
         let commitment_config = match &config.commitment_level {
             Some(level) => {
@@ -391,10 +413,10 @@ mod tests {
         // Since it spawns a background task, we can't easily test its output
         // But we can verify it doesn't crash
         enable_tokio_rt_metrics();
-        
+
         // Give the spawned task a moment to start
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        
+
         // If we reach here without panicking, the test passes
         assert!(true);
     }

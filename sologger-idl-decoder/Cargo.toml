@@ -1,0 +1,25 @@
+[package]
+name = "sologger_idl_decoder"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+authors = ["Will Kennedy"]
+description = "Decodes Anchor events and error codes out of structured Solana logs using a program's IDL, without depending on anchor-lang"
+license = "Apache-2.0"
+repository = "https://github.com/brytelands/sologger"
+readme = "README.md"
+keywords = ["solana", "anchor", "idl", "borsh", "logging"]
+categories = ["development-tools::debugging"]
+exclude = ["/target", "/.github", "/.gitignore", "/.idea"]
+
+[lib]
+doctest = false
+
+[dependencies]
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+base64 = "0.22"
+bs58 = "0.5.1"
+sologger_log_context = "0.3.0"

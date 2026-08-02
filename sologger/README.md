@@ -1,7 +1,8 @@
-
 # sologger
 
-Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana logs to either a LogStash or OpenTelemetry endpoint via TCP. This helps improve the observability of your programs running on chain.
+Configurable standalone service to parse raw logs emitted from a Solana RPC into structured logs and transport Solana
+logs to either a LogStash or OpenTelemetry endpoint via TCP. This helps improve the observability of your programs
+running on chain.
 
 Logs that contain errors will have the log level set to ERROR. All other logs will have the log level set to INFO.
 
@@ -17,11 +18,14 @@ cargo run --features enable_logstash ./config/local/sologger-config.json
 
 ### Configure
 
-By default, the sologger binary will look for the config file at "./config/local/sologger-config.json" when run from the project root. You can override this by setting the SOLOGGER_APP_CONFIG_LOC environment variable to the location of your config file or specifying it as the first argument using cargo run.
+By default, the sologger binary will look for the config file at "./config/local/sologger-config.json" when run from the
+project root. You can override this by setting the SOLOGGER_APP_CONFIG_LOC environment variable to the location of your
+config file or specifying it as the first argument using cargo run.
 
 The spec for the configuration can be found in the [sologger-config-schema.json](sologger-config-schema.json) file.
 
-Update the sologger-config.json and log4rs-config.yml or opentelemetry-config.json options in ./config directory to your needs.
+Update the sologger-config.json and log4rs-config.yml or opentelemetry-config.json options in ./config directory to your
+needs.
 
 ````
 {
@@ -35,6 +39,27 @@ rpc_url: This is the url which the Solana pubsub client will connect to for the 
 program_ids: If you want to get logs for specific programs, then add the program ID as a string to this array. If the array contains an empty string, then all logs are retrieved.
 
 ````
+
+### IDL decoding (optional)
+
+If you provide an Anchor IDL for a program, sologger decodes its logs as it parses them:
+`Program data:` events are borsh-decoded into the `decoded_events` field of each structured log record, and
+`custom program error` codes are resolved against the IDL's `errors` array into `error_name`. Both the legacy (pre-0.30)
+and the 0.30+ IDL spec are supported.
+
+Add an `idls` map to sologger-config.json, keyed by program ID, with paths relative to the working directory:
+
+```json
+{
+  "rpcUrl": "wss://...",
+  "idls": {
+    "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C": "./idls/raydium_cp_swap.json"
+  }
+}
+```
+
+An IDL that is missing or fails to parse is reported at startup and skipped; log parsing continues without enrichment
+for that program.
 
 **Run**
 

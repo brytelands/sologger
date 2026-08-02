@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "sologger-log-context",
+    "sologger-idl-decoder",
     "sologger-log-transport",
     "sologger-log-transformer",
     "sologger-log-transformer-wasm",
@@ -22,5 +23,6 @@ rust-version = "1.92.0"
 # published packages, so `cargo publish` is unaffected.
 [patch.crates-io]
 sologger_log_context = { path = "sologger-log-context" }
+sologger_idl_decoder = { path = "sologger-idl-decoder" }
 sologger_log_transformer = { path = "sologger-log-transformer" }
 sologger_log_transport = { path = "sologger-log-transport" }

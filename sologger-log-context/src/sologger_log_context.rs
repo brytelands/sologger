@@ -22,6 +22,9 @@ pub struct LogContext {
     pub log_messages: Vec<String>,
     ///The data messages containing serialized data produced by the program, usually via the emit! or emit_cpi! macros provided by Anchor. These logs begin with 'Program data:'
     pub data_logs: Vec<String>,
+    ///Anchor events decoded from data_logs by an IDL-aware consumer such as sologger_idl_decoder. Each entry is a JSON string of the form {"name":"EventName","data":{...}}. Empty unless enrichment ran with an IDL registered for this program
+    #[serde(default)]
+    pub decoded_events: Vec<String>,
     ///The raw logs produced by the program, including all logs that do not match the other log types. These logs are not parsed and are provided as-is.
     pub raw_logs: Vec<String>,
     ///The errors produced by the program. These include logs beginning with 'Program failed to complete:' (for example 'Program failed to complete: Invoked an instruction with data that is too large (12178014311288245306 > 10240)'), the error portion of 'Program <id> failed: <error>' logs, and system-program diagnostics such as 'Transfer: insufficient lamports 5628503, need 6799920'
@@ -29,6 +32,9 @@ pub struct LogContext {
     ///The numeric code parsed from a 'custom program error: 0x…' failure, if this program invocation failed with one. Anchor error codes start at 6000 (0x1770)
     #[serde(default)]
     pub error_code: Option<u32>,
+    ///The error name resolved from a program IDL's errors array for error_code, filled by an IDL-aware consumer such as sologger_idl_decoder
+    #[serde(default)]
+    pub error_name: Option<String>,
     ///The transaction error produced by the program. This value is not parsed from the raw logs, but is provided by the RPC log subscription response as to why a transaction might be rejected.
     pub transaction_error: String,
     ///The program ID of the program that produced the logs
@@ -51,7 +57,7 @@ pub struct LogContext {
     ///The signature of the transaction that invoked the program that produced the logs
     pub signature: String,
     pub consumed_cu: u64,
-    pub max_cu: u64
+    pub max_cu: u64,
 }
 
 impl LogContext {
@@ -67,9 +73,11 @@ impl LogContext {
         Self {
             log_messages: vec![],
             data_logs: vec![],
+            decoded_events: vec![],
             raw_logs: vec![],
             errors: vec![],
             error_code: None,
+            error_name: None,
             transaction_error: "".to_string(),
             program_id,
             parent_program_id: "".to_string(),
@@ -450,10 +458,8 @@ impl LogContext {
                             match computer_numbers {
                                 None => {}
                                 Some((consumed_cu, max_cu)) => {
-                                    result[call_ids[call_ids.len() - 1]]
-                                        .max_cu = max_cu;
-                                    result[call_ids[call_ids.len() - 1]]
-                                        .consumed_cu = consumed_cu;
+                                    result[call_ids[call_ids.len() - 1]].max_cu = max_cu;
+                                    result[call_ids[call_ids.len() - 1]].consumed_cu = consumed_cu;
                                 }
                             }
                         }
@@ -926,8 +932,7 @@ mod tests {
                                          "Log truncated",
                                          "Program log: Instruction: Mint"].into_iter().map(|s| s.to_string()).collect();
 
-        let programs_selector =
-            ProgramsSelector::new_all_programs();
+        let programs_selector = ProgramsSelector::new_all_programs();
 
         let log_contexts = LogContext::parse_logs(
             &raw_logs,
@@ -1282,10 +1287,13 @@ mod tests {
             "Program 4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc consumed 159581 of 499850 compute units",
             "Program 4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc success"
         ].into_iter().map(|s| s.to_string()).collect();
-        
-        let programs_selector = ProgramsSelector::new(&["4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc".to_string(), "8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCb".to_string()]);
+
+        let programs_selector = ProgramsSelector::new(&[
+            "4rWe4F9bpyy98MTAePXKNBXmGd3XJfzGPYwXKtrTHWmc".to_string(),
+            "8PTUyQsde4zDXUcAStXJFHkAUtcWnDJsPgGRZGp4PMCb".to_string(),
+        ]);
         let log_contexts = LogContext::parse_logs(&raw_logs, "".to_string(), &programs_selector,216778028, "KDhFgTogstghe9P1jVjVepnwfR9ZbcU8a6D21jXBh3PPyfkkd92MmevsWW7qb6QtfmfmWxAPYnL3xZR81xVCmeQ".to_string());
-        
+
         assert_eq!(log_contexts.len(), 2);
         assert_eq!(log_contexts[0].raw_logs.len(), 5);
         assert_eq!(log_contexts[0].data_logs[0], "oWrjgGd+/JKekEroa6JPkB0K2UIdT+zKkvpV785cVe4O1d6G7jztJ3Xn+TcIhLQvmcg+pEqtGTsojLCZDoewAWPHW+ZX5ivISu0LxJpgTDQ1zb/sX2P93/i+El/IMD4yW/HuO09pT3WsoYcb9r4iDmwY6rdZmzYEM2qK1Tje670ZtSxChoG0awAAxS68orEAAADFLryisQA=");
@@ -1355,7 +1363,6 @@ mod tests {
         assert_eq!(log_contexts[2].error_code, Some(6001));
     }
 
-
     #[test]
     fn log_parser_empty_logs_test() {
         let logs: Vec<String> = vec![];
@@ -1393,9 +1400,18 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 3);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
-        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
-        assert_eq!(log_contexts[2].program_id, "C333333333333333333333333333333333333333");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
+        assert_eq!(
+            log_contexts[1].program_id,
+            "B222222222222222222222222222222222222222"
+        );
+        assert_eq!(
+            log_contexts[2].program_id,
+            "C333333333333333333333333333333333333333"
+        );
         assert_eq!(log_contexts[0].depth, 1);
         assert_eq!(log_contexts[1].depth, 2);
         assert_eq!(log_contexts[2].depth, 3);
@@ -1419,8 +1435,14 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 2);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
-        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
+        assert_eq!(
+            log_contexts[1].program_id,
+            "B222222222222222222222222222222222222222"
+        );
     }
 
     #[test]
@@ -1441,7 +1463,10 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 1);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
         assert_eq!(log_contexts[0].invoke_result, "SomeReturnValue");
     }
 
@@ -1463,9 +1488,14 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 1);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
         assert_eq!(log_contexts[0].raw_logs.len(), 3);
-        assert!(log_contexts[0].raw_logs.contains(&"Program consumption: 50000".to_string()));
+        assert!(log_contexts[0]
+            .raw_logs
+            .contains(&"Program consumption: 50000".to_string()));
     }
 
     #[test]
@@ -1487,8 +1517,14 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 2);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
-        assert_eq!(log_contexts[1].program_id, "B222222222222222222222222222222222222222");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
+        assert_eq!(
+            log_contexts[1].program_id,
+            "B222222222222222222222222222222222222222"
+        );
         assert_eq!(log_contexts[0].instruction_index, 0);
         assert_eq!(log_contexts[1].instruction_index, 1);
     }
@@ -1497,7 +1533,8 @@ mod tests {
     fn log_parser_transaction_error_test() {
         let logs: Vec<String> = vec![
             "Program A111111111111111111111111111111111111111 invoke [1]".to_string(),
-            "Program A111111111111111111111111111111111111111 failed: custom program error: 0x1".to_string(),
+            "Program A111111111111111111111111111111111111111 failed: custom program error: 0x1"
+                .to_string(),
         ];
         let programs_selector = ProgramsSelector::new_all_programs();
 
@@ -1510,7 +1547,10 @@ mod tests {
         );
 
         assert_eq!(log_contexts.len(), 1);
-        assert_eq!(log_contexts[0].program_id, "A111111111111111111111111111111111111111");
+        assert_eq!(
+            log_contexts[0].program_id,
+            "A111111111111111111111111111111111111111"
+        );
         assert_eq!(log_contexts[0].transaction_error, "Transaction failed");
         assert_eq!(log_contexts[0].errors.len(), 1);
         assert_eq!(log_contexts[0].errors[0], "custom program error: 0x1");
@@ -1548,7 +1588,10 @@ mod tests {
 
     #[test]
     fn test_extract_error_code() {
-        assert_eq!(extract_error_code("custom program error: 0x1771"), Some(6001));
+        assert_eq!(
+            extract_error_code("custom program error: 0x1771"),
+            Some(6001)
+        );
         assert_eq!(extract_error_code("custom program error: 0x1"), Some(1));
         assert_eq!(extract_error_code("custom program error: 0x0"), Some(0));
         assert_eq!(extract_error_code("Program failed to complete"), None);
@@ -1605,8 +1648,12 @@ mod tests {
 
     #[test]
     fn test_very_large_numbers() {
-        let log = "Program Test consumed 18446744073709551615 of 18446744073709551615 compute units";
-        assert_eq!(extract_compute_numbers(log), Some((18446744073709551615, 18446744073709551615)));
+        let log =
+            "Program Test consumed 18446744073709551615 of 18446744073709551615 compute units";
+        assert_eq!(
+            extract_compute_numbers(log),
+            Some((18446744073709551615, 18446744073709551615))
+        );
     }
 
     #[test]

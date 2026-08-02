@@ -19,6 +19,13 @@
         "null"
       ]
     },
+    "idls": {
+      "description": "Optional map of program ID to the path of an Anchor IDL JSON file (legacy or 0.30+ spec). Logs from a listed program are enriched: 'Program data:' events are borsh-decoded into decoded_events and custom program error codes are resolved to error_name. Paths are relative to the working directory, like the other config locations.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "log4rsConfigLocation": {
       "description": "The location of the log4rs config file",
       "default": "",

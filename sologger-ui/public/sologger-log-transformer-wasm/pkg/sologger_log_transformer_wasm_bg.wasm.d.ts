@@ -2,6 +2,8 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_wasmlogcontexttransformer_free: (a: number, b: number) => void;
+export const decode_program_data: (a: number, b: number, c: number, d: number) => [number, number, number];
+export const wasmlogcontexttransformer_add_idl: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const wasmlogcontexttransformer_from_rpc_logs_response: (a: number, b: any, c: bigint) => [number, number, number];
 export const wasmlogcontexttransformer_from_rpc_response: (a: number, b: any) => [number, number, number];
 export const wasmlogcontexttransformer_new: (a: number, b: number) => number;

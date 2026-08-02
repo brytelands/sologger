@@ -19,9 +19,11 @@ pub async fn log_contexts_from_logs_test() {
     let log_context = LogContext {
         log_messages: vec![],
         data_logs: vec![],
+        decoded_events: vec![],
         raw_logs: vec![],
         errors: vec![],
         error_code: None,
+        error_name: None,
         transaction_error: "".to_string(),
         program_id: "".to_string(),
         parent_program_id: "".to_string(),
@@ -39,9 +41,11 @@ pub async fn log_contexts_from_logs_test() {
     let log_context_error = LogContext {
         log_messages: vec![],
         data_logs: vec![],
+        decoded_events: vec![],
         raw_logs: vec![],
         errors: vec![],
         error_code: None,
+        error_name: None,
         transaction_error: "Error".to_string(),
         program_id: "".to_string(),
         parent_program_id: "".to_string(),
