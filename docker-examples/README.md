@@ -15,4 +15,4 @@ This is a simple example of how to use the sologger-logstash image to send logs 
 
 **docker-signoz**
 
-This is a example of how to use Signoz to manage Solana logs. It uses the sologger-otel to an OpenTelemetry collector provided by Signoz.
+This is an example of how to use Signoz to manage Solana observability. It uses the sologger-otel image to send logs — plus per-transaction CPI traces and compute-unit/failure metrics (`enableTraces`/`enableMetrics`) — to the OpenTelemetry collector provided by Signoz.

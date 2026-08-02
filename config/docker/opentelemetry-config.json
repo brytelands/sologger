@@ -1,0 +1,11 @@
+{
+  "logConfig": {
+    "service.name": "sologger"
+  },
+  "endpoint": "http://localhost:4317",
+  "metricsEndpoint": "",
+  "tracesEndpoint": "",
+  "logLevel": "INFO",
+  "enableTraces": false,
+  "enableMetrics": false
+}
