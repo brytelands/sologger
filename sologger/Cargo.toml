@@ -33,7 +33,7 @@ sologger_log_context = "0.3.0"
 sologger_log_transformer = "0.3.0"
 sologger_log_transport = "0.4.0"
 tokio = { version = "1.49", features = ["full"] }
-tokio-metrics = { version = "0.4", optional = true }
+tokio-metrics = { version = "0.5", optional = true }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook = { version = "0.4.1" }
