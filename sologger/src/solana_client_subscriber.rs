@@ -14,6 +14,7 @@ use solana_rpc_client_api::config::{
     CommitmentConfig, CommitmentLevel, RpcBlockSubscribeConfig, RpcBlockSubscribeFilter,
     RpcTransactionConfig, RpcTransactionLogsConfig, RpcTransactionLogsFilter,
 };
+use solana_rpc_client_api::response::RpcBlockUpdate;
 use solana_sdk::signature::Signature;
 use solana_transaction_status::{TransactionDetails, UiTransactionEncoding};
 use sologger_idl_decoder::IdlRegistry;
@@ -115,26 +116,24 @@ impl LogPipeline {
             return group;
         };
 
-        let config = RpcTransactionConfig {
-            encoding: Some(UiTransactionEncoding::Json),
-            commitment: Some(CommitmentConfig::confirmed()),
-            max_supported_transaction_version: Some(0),
-        };
-        match rpc_client.get_transaction_with_config(&signature, config).await {
+        match rpc_client
+            .get_transaction_with_config(&signature, transaction_config())
+            .await
+        {
             Ok(transaction) => {
                 let slot = transaction.slot;
-                match from_encoded_confirmed_transaction(
-                    &transaction,
-                    slot,
-                    &self.program_selector,
-                ) {
+                match from_encoded_confirmed_transaction(&transaction, slot, &self.program_selector)
+                {
                     Ok(full) if !full.is_empty() => {
                         info!("backfilled truncated logs for {}", signature_str);
                         full
                     }
                     Ok(_) => group,
                     Err(err) => {
-                        warn!("re-parse of {} failed: {}; keeping truncated logs", signature_str, err);
+                        warn!(
+                            "re-parse of {} failed: {}; keeping truncated logs",
+                            signature_str, err
+                        );
                         group
                     }
                 }
@@ -150,6 +149,38 @@ impl LogPipeline {
     }
 }
 
+/// Highest transaction version requested from the RPC. A newer transaction makes the node
+/// fail the whole getTransaction, getBlock or blockSubscribe result rather than omit it.
+const MAX_SUPPORTED_TRANSACTION_VERSION: u8 = 1;
+
+/// Request settings for every getTransaction call (truncated-log refetch and backfill).
+pub(crate) fn transaction_config() -> RpcTransactionConfig {
+    RpcTransactionConfig {
+        encoding: Some(UiTransactionEncoding::Json),
+        commitment: Some(CommitmentConfig::confirmed()),
+        max_supported_transaction_version: Some(MAX_SUPPORTED_TRANSACTION_VERSION),
+    }
+}
+
+/// Request settings for a blockSubscribe subscription.
+fn block_subscribe_config(commitment: Option<CommitmentConfig>) -> RpcBlockSubscribeConfig {
+    RpcBlockSubscribeConfig {
+        commitment,
+        encoding: Some(UiTransactionEncoding::Json),
+        transaction_details: Some(TransactionDetails::Full),
+        show_rewards: Some(false),
+        max_supported_transaction_version: Some(MAX_SUPPORTED_TRANSACTION_VERSION),
+    }
+}
+
+/// Describes why a block notification carries no block, if the node reported a failure.
+fn describe_block_failure(update: &RpcBlockUpdate) -> Option<String> {
+    update
+        .err
+        .as_ref()
+        .map(|err| format!("node could not deliver block {}: {}", update.slot, err))
+}
+
 /// What one supervised task subscribes to.
 #[derive(Clone, Debug)]
 enum SubscriptionKind {
@@ -163,7 +194,7 @@ pub async fn start_client(
     program_selector: &ProgramsSelector,
     idl_registry: &IdlRegistry,
 ) -> Result<()> {
-    trace!("{:?}", &program_selector);
+    trace!("{:?}", program_selector);
 
     let commitment_config = match &sologger_config.commitment_level {
         Some(level) => {
@@ -304,7 +335,10 @@ async fn supervise_subscription(
         .await
         {
             Ok(messages) => {
-                info!("[{}] subscription stream ended after {} messages", key, messages);
+                info!(
+                    "[{}] subscription stream ended after {} messages",
+                    key, messages
+                );
                 if messages > 0 {
                     backoff = INITIAL_BACKOFF;
                 }
@@ -368,12 +402,7 @@ async fn connect_and_stream(
     match kind {
         SubscriptionKind::Logs(filter) => {
             let (mut notifications, _unsubscribe) = client
-                .logs_subscribe(
-                    filter.clone(),
-                    RpcTransactionLogsConfig {
-                        commitment,
-                    },
-                )
+                .logs_subscribe(filter.clone(), RpcTransactionLogsConfig { commitment })
                 .await?;
             info!("[{}] subscribed via logsSubscribe", key);
 
@@ -389,20 +418,17 @@ async fn connect_and_stream(
             }
         }
         SubscriptionKind::Block(filter) => {
-            let config = RpcBlockSubscribeConfig {
-                commitment,
-                encoding: Some(UiTransactionEncoding::Json),
-                transaction_details: Some(TransactionDetails::Full),
-                show_rewards: Some(false),
-                max_supported_transaction_version: Some(0),
-            };
-            let (mut notifications, _unsubscribe) =
-                client.block_subscribe(filter.clone(), Some(config)).await?;
+            let (mut notifications, _unsubscribe) = client
+                .block_subscribe(filter.clone(), Some(block_subscribe_config(commitment)))
+                .await?;
             info!("[{}] subscribed via blockSubscribe", key);
 
             while let Some(response) = notifications.next().await {
                 let slot = response.value.slot;
                 observe_slot(slot, last_seen_slot, &mut gap_checked);
+                if let Some(failure) = describe_block_failure(&response.value) {
+                    warn!("[{}] {}", key, failure);
+                }
                 let Some(block) = response.value.block else {
                     continue;
                 };
@@ -456,6 +482,53 @@ mod tests {
             "11111111111111111111111111111111".to_string(),
             "22222222222222222222222222222222".to_string(),
         ])
+    }
+
+    #[test]
+    fn test_transaction_config_accepts_v1_transactions() {
+        assert_eq!(
+            transaction_config().max_supported_transaction_version,
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn test_block_subscribe_config_accepts_v1_transactions() {
+        assert_eq!(
+            block_subscribe_config(None).max_supported_transaction_version,
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn test_describe_block_failure_reports_slot_and_cause() {
+        let update = RpcBlockUpdate {
+            slot: 42,
+            block: None,
+            err: Some(
+                solana_rpc_client_api::response::RpcBlockUpdateError::UnsupportedTransactionVersion(
+                    2,
+                ),
+            ),
+        };
+
+        let failure = describe_block_failure(&update).expect("a failed update must be reported");
+        assert!(failure.contains("42"), "missing slot: {failure}");
+        assert!(
+            failure.contains("unsupported transaction version (2)"),
+            "missing cause: {failure}"
+        );
+    }
+
+    #[test]
+    fn test_describe_block_failure_ignores_updates_without_error() {
+        let update = RpcBlockUpdate {
+            slot: 42,
+            block: None,
+            err: None,
+        };
+
+        assert_eq!(describe_block_failure(&update), None);
     }
 
     #[test]

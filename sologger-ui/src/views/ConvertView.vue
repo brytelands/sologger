@@ -31,7 +31,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
         <button
             @click="convertLogs"
             class="btn btn-primary"
-            :disabled="!inputLogs"
+            :disabled="!inputLogs || !transformer"
         >
           Convert Logs
         </button>
@@ -76,7 +76,7 @@ Program AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL failed: Program failed to c
 </template>
 
 <script>
-import { WasmLogContextTransformer } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
+import init, { WasmLogContextTransformer } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import { sanitizeLogMessage } from '../composables/useLogSanitizer';
 
 export default {
@@ -94,8 +94,13 @@ export default {
       return this.convertedLogs ? JSON.stringify(this.convertedLogs, null, 2) : '';
     }
   },
-  mounted() {
-    this.transformer = new WasmLogContextTransformer(["*"]);
+  async mounted() {
+    try {
+      await init();
+      this.transformer = new WasmLogContextTransformer(["*"]);
+    } catch (error) {
+      this.error = `Failed to load the log parser: ${error.message}`;
+    }
   },
   methods: {
     handleInput() {

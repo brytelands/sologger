@@ -284,6 +284,7 @@ import init, {
 import {decodeWithIdl as decodeLogWithIdl} from '../composables/useIdlDecoder';
 import {mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
+import {getTransactionRequestBody} from '../composables/useTransactionRequest';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
@@ -920,10 +921,7 @@ export default {
         // Determine HTTP RPC URL from current WS environment
         let rpcUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
         rpcUrl = rpcUrl.replace(/^wss?:\/\//, 'https://');
-        const body = JSON.stringify({
-          jsonrpc: '2.0', id: 1, method: 'getTransaction',
-          params: [sig, {encoding: 'json', maxSupportedTransactionVersion: 0}]
-        });
+        const body = getTransactionRequestBody(sig);
         const resp = await fetch(rpcUrl, {method: 'POST', headers: {'Content-Type': 'application/json'}, body});
         const json = await resp.json();
         if (json.error) throw new Error(json.error.message);

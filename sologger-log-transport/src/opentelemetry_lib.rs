@@ -2,14 +2,14 @@ use std::fs;
 use std::str::FromStr;
 
 use anyhow::Result as AnyResult;
-use log::{Level, trace};
-use opentelemetry::{Key, KeyValue, global};
-use opentelemetry_otlp::{ExporterBuildError, LogExporter, WithExportConfig};
+use log::{trace, Level};
+use opentelemetry::{global, Key, KeyValue};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::Resource;
+use opentelemetry_otlp::{ExporterBuildError, LogExporter, WithExportConfig};
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
 use opentelemetry_stdout::SpanExporter;
 
 use crate::opentelemetry_config::OpentelemetryConfig;

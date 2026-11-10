@@ -81,7 +81,7 @@ pub fn test_key_value() {
     let config = serde_json::from_value::<OpentelemetryConfig>(config).unwrap();
     let key_values = config.key_values();
 
-    let key_value = key_values.get(0).unwrap();
+    let key_value = key_values.first().unwrap();
     assert_eq!(key_value.key.as_str(), "service.name");
     assert_eq!(key_value.value.as_str(), "basic-otlp-logging-example");
 }

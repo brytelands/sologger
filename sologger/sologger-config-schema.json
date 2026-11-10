@@ -8,7 +8,7 @@
   ],
   "properties": {
     "allWithVotes": {
-      "description": "Set to true to subscribe to all transactions, including simple vote transactions. Otherwise, subscribe to all transactions except for simple vote transactions",
+      "description": "Set to true to subscribe to all transactions, including simple vote transactions. Otherwise, subscribe to all transactions except for simple vote transactions. Has no effect on vote traffic where Alpenglow is active (including mainnet), because consensus votes are no longer on-chain transactions.",
       "default": false,
       "type": "boolean"
     },

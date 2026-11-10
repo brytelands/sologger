@@ -71,9 +71,9 @@ fn build_invocation_tree(log_contexts: &[LogContext]) -> Vec<InvocationNode> {
             children: Vec::new(),
         };
         // Walk down the current path to the insertion point
-        let siblings = path.iter().fold(&mut roots, |level, &i| {
-            &mut level[i].children
-        });
+        let siblings = path
+            .iter()
+            .fold(&mut roots, |level, &i| &mut level[i].children);
         siblings.push(node);
         path.push(siblings.len() - 1);
     }
@@ -92,8 +92,8 @@ where
     let tree = build_invocation_tree(log_contexts);
     let start_time = SystemTime::now();
 
-    let transaction_failed = !first.transaction_error.is_empty()
-        || log_contexts.iter().any(|c| !c.errors.is_empty());
+    let transaction_failed =
+        !first.transaction_error.is_empty() || log_contexts.iter().any(|c| !c.errors.is_empty());
 
     let mut root_attributes = vec![
         KeyValue::new("solana.signature", first.signature.clone()),
@@ -171,7 +171,11 @@ fn span_name(context: &LogContext) -> String {
 }
 
 fn short_id(id: &str) -> &str {
-    if id.len() > 8 { &id[..8] } else { id }
+    if id.len() > 8 {
+        &id[..8]
+    } else {
+        id
+    }
 }
 
 fn span_attributes(context: &LogContext) -> Vec<KeyValue> {
@@ -241,7 +245,9 @@ impl SologgerMetrics {
                 .build(),
             transaction_failures: meter
                 .u64_counter("sologger.transactions.failed")
-                .with_description("Transactions that failed, attributed to the deepest failing program")
+                .with_description(
+                    "Transactions that failed, attributed to the deepest failing program",
+                )
                 .build(),
             truncated_logs: meter
                 .u64_counter("sologger.logs.truncated")
@@ -264,8 +270,7 @@ impl SologgerMetrics {
     pub fn record(&self, log_contexts: &[LogContext]) {
         for context in log_contexts {
             if context.consumed_cu > 0 {
-                let mut attributes =
-                    vec![KeyValue::new("program_id", context.program_id.clone())];
+                let mut attributes = vec![KeyValue::new("program_id", context.program_id.clone())];
                 if !context.instruction_name.is_empty() {
                     attributes.push(KeyValue::new(
                         "instruction",

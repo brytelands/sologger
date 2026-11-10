@@ -7,17 +7,16 @@ use anyhow::Result;
 use log::{info, warn};
 use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_rpc_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
-use solana_rpc_client_api::config::{CommitmentConfig, RpcTransactionConfig};
+use solana_rpc_client_api::config::CommitmentConfig;
 use solana_rpc_client_api::response::RpcConfirmedTransactionStatusWithSignature;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
-use solana_transaction_status::UiTransactionEncoding;
 use sologger_log_context::programs_selector::ProgramsSelector;
 use sologger_log_transformer::log_context_transformer::from_encoded_confirmed_transaction;
 use std::str::FromStr;
 use std::time::Duration;
 
-use crate::log_subscriber::LogPipeline;
+use crate::log_subscriber::{transaction_config, LogPipeline};
 use crate::sologger_config::BackfillConfig;
 
 /// getSignaturesForAddress returns at most 1000 entries per call.
@@ -48,8 +47,7 @@ pub(crate) async fn run(
             continue;
         };
 
-        let signatures =
-            collect_signatures(rpc_client, &address, backfill_config).await?;
+        let signatures = collect_signatures(rpc_client, &address, backfill_config).await?;
         info!(
             "[backfill] {}: replaying {} transactions",
             program_id,
@@ -63,19 +61,13 @@ pub(crate) async fn run(
             let Ok(signature) = Signature::from_str(&status.signature) else {
                 continue;
             };
-            let config = RpcTransactionConfig {
-                encoding: Some(UiTransactionEncoding::Json),
-                commitment: Some(CommitmentConfig::confirmed()),
-                max_supported_transaction_version: Some(0),
-            };
-            match rpc_client.get_transaction_with_config(&signature, config).await {
+            match rpc_client
+                .get_transaction_with_config(&signature, transaction_config())
+                .await
+            {
                 Ok(transaction) => {
                     let slot = transaction.slot;
-                    match from_encoded_confirmed_transaction(
-                        &transaction,
-                        slot,
-                        program_selector,
-                    ) {
+                    match from_encoded_confirmed_transaction(&transaction, slot, program_selector) {
                         Ok(log_contexts) => {
                             replayed += 1;
                             pipeline.process(log_contexts).await;
@@ -91,7 +83,10 @@ pub(crate) async fn run(
                 ),
             }
         }
-        info!("[backfill] {}: replayed {} transactions", program_id, replayed);
+        info!(
+            "[backfill] {}: replayed {} transactions",
+            program_id, replayed
+        );
     }
     Ok(())
 }

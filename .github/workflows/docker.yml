@@ -1,13 +1,31 @@
 name: Docker Publish
 
-# Builds and pushes the two transport images to Docker Hub. Manual trigger:
-# Actions tab -> Docker Publish -> Run workflow.
+# Builds the two transport images on pull requests that could break them, and pushes to Docker
+# Hub only from a v* tag. To republish an existing tag: Actions tab -> Docker Publish -> Run
+# workflow, selecting that tag. Running it on a branch only checks that the images build.
 #
 # Requires two repository secrets (Settings -> Secrets and variables -> Actions):
 #   DOCKERHUB_USERNAME - the Docker Hub account (brytelands)
 #   DOCKERHUB_TOKEN    - a Docker Hub access token with Read & Write scope
 on:
+  push:
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "Dockerfile-*"
+      - ".dockerignore"
+      - "Cargo.lock"
+      - "**/Cargo.toml"
+      - "config/docker/**"
+      - ".github/workflows/docker.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
   publish:
@@ -20,25 +38,32 @@ jobs:
           - dockerfile: Dockerfile-otel
             image: brytelands/sologger-otel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Tag images with the sologger binary version alongside latest
       - name: Read sologger version
         id: version
-        run: echo "version=$(grep '^version' sologger/Cargo.toml | head -1 | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(grep '^version' sologger/Cargo.toml | head -1 | cut -d'"' -f2)"
+          if [[ "$PUBLISH" == "true" && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match sologger version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: env.PUBLISH == 'true'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: true
+          push: ${{ env.PUBLISH == 'true' }}
           tags: |
             ${{ matrix.image }}:latest
             ${{ matrix.image }}:${{ steps.version.outputs.version }}

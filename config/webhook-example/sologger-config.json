@@ -1,5 +1,6 @@
 {
   "rpcUrl": "wss://api.devnet.solana.com",
+  "commitmentLevel": "confirmed",
   "webhookConfigLocation": "./config/webhook-example/webhook-config.json",
   "programsSelector": {
     "programs": ["*"]

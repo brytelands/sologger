@@ -28,3 +28,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # The tag on this action names the Rust version it installs, so a bump would silently
+    # raise the MSRV job. Change it by hand along with rust-version and the Dockerfiles.
+    ignore:
+      - dependency-name: "dtolnay/rust-toolchain"

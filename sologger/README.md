@@ -81,12 +81,21 @@ of per-transaction log notifications (one WebSocket message per block, every mat
 transaction inside). Note that many public RPC providers do not enable blockSubscribe;
 `logsSubscribe` remains the default.
 
+**Commitment level.** The example configs set `"commitmentLevel": "confirmed"`. Without it,
+subscriptions use the RPC default of `finalized`. Under Alpenglow, `processed` and `finalized`
+notifications can skip slots, so `logsSubscribe` can miss logs at those levels
+([agave#16689](https://github.com/anza-xyz/agave/pull/16689), open as of November 2026).
+Slot-gap detection only runs after a reconnect, so it does not flag these misses.
+
+**`allWithVotes`.** Where Alpenglow is active, including mainnet, consensus votes are no longer
+on-chain transactions, so this option adds no vote traffic there.
+
 ### Pretty console mode (no config needed)
 
 When no transport is configured — the binary was built without transport features, or the
 configured transport config files don't exist — sologger falls back to colored, CPI-indented
-console output instead of exiting. That makes a bare run an everyday `tail -f` for
-`solana-test-validator`:
+console output instead of exiting. Warnings and sologger's own status messages go to stderr.
+That makes a bare run an everyday `tail -f` for `solana-test-validator`:
 
 ```shell
 cargo run    # no transport config: pretty console output

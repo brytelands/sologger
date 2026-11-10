@@ -1,14 +1,15 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use solana_rpc_client_api::response::{Response, RpcLogsResponse, RpcResponseContext};
 use solana_sdk::signature::Signature;
-use solana_transaction_status::{
-    EncodedConfirmedBlock, EncodedTransaction, EncodedTransactionWithStatusMeta,
-    TransactionDetails, UiConfirmedBlock, UiMessage, UiParsedMessage,
-    UiTransaction, UiTransactionStatusMeta,
-};
 use solana_transaction_status::option_serializer::OptionSerializer;
+use solana_transaction_status::{
+    EncodedConfirmedBlock, EncodedTransaction, EncodedTransactionWithStatusMeta, UiConfirmedBlock,
+    UiMessage, UiParsedMessage, UiTransaction, UiTransactionStatusMeta,
+};
 use sologger_log_context::programs_selector::ProgramsSelector;
-use sologger_log_transformer::log_context_transformer::{from_encoded_confirmed_block, from_rpc_logs_response, from_rpc_response, from_ui_confirmed_block};
+use sologger_log_transformer::log_context_transformer::{
+    from_rpc_logs_response, from_rpc_response, from_ui_confirmed_block,
+};
 
 fn create_mock_ui_confirmed_block() -> UiConfirmedBlock {
     let signature = Signature::new_unique();

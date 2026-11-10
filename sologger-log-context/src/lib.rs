@@ -148,7 +148,7 @@
 //!If logs are provided that are out of order or not from a contained unit such as a block, transaction or websocket frame, then the LogContext will most likely fail.
 //!
 //! Here is the JSON schema for the LogContext:
-//! 
+//!
 //!```json
 //! {
 //!  "$schema": "http://json-schema.org/draft-04/schema#",
@@ -224,10 +224,10 @@
 //!}
 //!```
 
-use wasm_bindgen::JsValue;
-use wasm_bindgen::prelude::wasm_bindgen;
 use crate::programs_selector::ProgramsSelector;
 use crate::sologger_log_context::LogContext;
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
 
 pub mod programs_selector;
 mod rpc_response;
@@ -248,7 +248,13 @@ impl WasmLogParser {
         }
     }
 
-    pub fn parse_logs(&self, logs: Vec<String>, transaction_error: String, slot: u64, signature: String) -> JsValue {
+    pub fn parse_logs(
+        &self,
+        logs: Vec<String>,
+        transaction_error: String,
+        slot: u64,
+        signature: String,
+    ) -> JsValue {
         let log_contexts = LogContext::parse_logs(
             &logs,
             transaction_error,
