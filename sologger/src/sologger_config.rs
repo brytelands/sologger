@@ -41,6 +41,7 @@ pub struct SologgerConfig {
     #[serde(default)]
     pub commitment_level: Option<String>,
     /// Set to true to subscribe to all transactions, including simple vote transactions. Otherwise, subscribe to all transactions except for simple vote transactions
+    /// Has no effect on vote traffic where Alpenglow is active (including mainnet), because consensus votes are no longer on-chain transactions.
     #[serde(default)]
     pub all_with_votes: bool,
 }
@@ -181,7 +182,10 @@ pub fn test_deserialize_ingestion_options() {
     let sologger_config = serde_json::from_value::<SologgerConfig>(config).unwrap();
     assert_eq!(sologger_config.source, LogSource::BlockSubscribe);
     assert!(!sologger_config.backfill_truncated);
-    assert_eq!(sologger_config.rpc_http_url, "https://api.mainnet-beta.solana.com");
+    assert_eq!(
+        sologger_config.rpc_http_url,
+        "https://api.mainnet-beta.solana.com"
+    );
     let backfill = sologger_config.backfill.unwrap();
     assert_eq!(backfill.from_slot, Some(1000));
     assert_eq!(backfill.until_slot, Some(2000));
@@ -217,7 +221,7 @@ pub fn test_deserialize() {
         sologger_config.log4rs_config_location,
         "./config/log4rs-config.yml"
     );
-    assert_eq!(sologger_config.all_with_votes, false);
+    assert!(!sologger_config.all_with_votes);
     assert_eq!(sologger_config.commitment_level, None);
 }
 
@@ -246,6 +250,6 @@ pub fn test_deserialize_all() {
         sologger_config.opentelemetry_config_location,
         "./config/opentelemetry-config.json"
     );
-    assert_eq!(sologger_config.all_with_votes, true);
+    assert!(sologger_config.all_with_votes);
     assert_eq!(sologger_config.commitment_level.unwrap(), "recent");
 }

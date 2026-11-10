@@ -8,13 +8,21 @@ on:
     paths:
       - "Cargo.lock"
       - "**/Cargo.toml"
+      - ".cargo/audit.toml"
+      - "sologger-ui/package-lock.json"
       - ".github/workflows/audit.yml"
   pull_request:
     branches: [ "main" ]
     paths:
       - "Cargo.lock"
       - "**/Cargo.toml"
+      - ".cargo/audit.toml"
+      - "sologger-ui/package-lock.json"
+      - ".github/workflows/audit.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   cargo-audit:
@@ -25,3 +33,14 @@ jobs:
       # Fails on vulnerabilities; unmaintained/unsound/yanked advisories are
       # reported as warnings and do not fail the job.
       - run: cargo audit
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sologger-ui
+    steps:
+      - uses: actions/checkout@v7
+      # Covers what ships in the UI. High-severity findings currently include packages with
+      # no fix available (via @coral-xyz/anchor), so only critical ones fail the job.
+      - run: npm audit --omit=dev --audit-level=critical

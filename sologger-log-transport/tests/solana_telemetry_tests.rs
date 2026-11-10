@@ -112,10 +112,7 @@ fn cpi_span_tree_test() {
 
     let root = spans.iter().find(|s| s.name == "transaction").unwrap();
     assert_eq!(root.parent_span_id, SpanId::INVALID);
-    assert_eq!(
-        attr(root, "solana.signature").unwrap().as_str(),
-        "SIG_A"
-    );
+    assert_eq!(attr(root, "solana.signature").unwrap().as_str(), "SIG_A");
     assert!(matches!(root.status, Status::Error { .. }));
 
     // The CLMM top-level invocation: named from Phase 1's instruction_name, child of root
@@ -125,10 +122,7 @@ fn cpi_span_tree_test() {
         .unwrap();
     assert_eq!(clmm.parent_span_id, root.span_context.span_id());
     assert!(matches!(clmm.status, Status::Error { .. }));
-    assert_eq!(
-        attr(clmm, "solana.error_code").unwrap(),
-        &Value::I64(1)
-    );
+    assert_eq!(attr(clmm, "solana.error_code").unwrap(), &Value::I64(1));
     // Synthetic duration: consumed CU rendered as microseconds
     assert_eq!(duration(clmm), Duration::from_micros(90232));
 
@@ -139,22 +133,22 @@ fn cpi_span_tree_test() {
     // The deepest failure: the system program invocation under metaplex
     let transfer_failure = spans
         .iter()
-        .find(|s| {
-            s.parent_span_id == metaplex.span_context.span_id()
-        })
+        .find(|s| s.parent_span_id == metaplex.span_context.span_id())
         .unwrap();
     assert_eq!(
-        attr(transfer_failure, "solana.program_id").unwrap().as_str(),
+        attr(transfer_failure, "solana.program_id")
+            .unwrap()
+            .as_str(),
         "11111111111111111111111111111111"
     );
-    assert_eq!(attr(transfer_failure, "solana.depth").unwrap(), &Value::I64(3));
+    assert_eq!(
+        attr(transfer_failure, "solana.depth").unwrap(),
+        &Value::I64(3)
+    );
     assert!(matches!(transfer_failure.status, Status::Error { .. }));
 
     // A successful CPI leaf keeps an Unset status and its own CU duration
-    let mint_to = spans
-        .iter()
-        .find(|s| s.name == "Tokenkeg MintTo")
-        .unwrap();
+    let mint_to = spans.iter().find(|s| s.name == "Tokenkeg MintTo").unwrap();
     assert_eq!(mint_to.status, Status::Unset);
     assert_eq!(duration(mint_to), Duration::from_micros(4538));
     assert_eq!(

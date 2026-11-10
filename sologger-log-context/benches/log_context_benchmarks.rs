@@ -4,7 +4,7 @@ use sologger_log_context::sologger_log_context::LogContext;
 
 fn generate_sample_logs(n: usize) -> Vec<String> {
     let mut logs = Vec::with_capacity(n);
-    for i in 0..n {
+    for _i in 0..n {
         logs.push("Program 9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7 invoke [1]".to_string());
         logs.push("Program log: Instruction: Initialize".to_string());
         logs.push("Program 11111111111111111111111111111111 invoke [2]".to_string());
@@ -64,9 +64,7 @@ fn bench_to_json(c: &mut Criterion) {
         "signature".to_string(),
     );
 
-    c.bench_function("to_json", |b| {
-        b.iter(|| black_box(&log_context).to_json())
-    });
+    c.bench_function("to_json", |b| b.iter(|| black_box(&log_context).to_json()));
 }
 
 criterion_group!(

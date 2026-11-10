@@ -49,7 +49,7 @@ fn load_config() -> Result<(SologgerConfig, ProgramsSelector, IdlRegistry)> {
         .expect("Failed to read contents of sologger-config.json");
 
     let result: serde_json::Value = serde_json::from_str(&contents).unwrap();
-    trace!("SologgerConfig: {}", result.to_string());
+    trace!("SologgerConfig: {}", result);
     let programs_selector = create_programs_selector_from_config(&result);
     let idl_registry = create_idl_registry_from_config(&result);
     let sologger_config = serde_json::from_str(&contents).map_err(|_err| ConfigError::Loading)?;

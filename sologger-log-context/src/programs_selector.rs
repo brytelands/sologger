@@ -74,14 +74,10 @@ pub(crate) mod tests {
         ]);
 
         assert_eq!(programs_selector.programs.len(), 2);
-        assert!(
-            programs_selector
-                .is_program_selected_string("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin")
-        );
-        assert!(
-            programs_selector
-                .is_program_selected_string("1xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin")
-        );
+        assert!(programs_selector
+            .is_program_selected_string("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"));
+        assert!(programs_selector
+            .is_program_selected_string("1xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"));
     }
 
     #[test]

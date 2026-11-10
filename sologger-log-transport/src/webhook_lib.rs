@@ -287,7 +287,10 @@ mod tests {
         let contexts = parse_fixture();
         let payload = transport.build_payload(&contexts[1]);
         let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
-        assert_eq!(parsed["program_id"], "CLMM9tUoggJu2wagPkkqs9eFG4BWhVBZWkP1qv3Sp7tR");
+        assert_eq!(
+            parsed["program_id"],
+            "CLMM9tUoggJu2wagPkkqs9eFG4BWhVBZWkP1qv3Sp7tR"
+        );
         assert_eq!(parsed["error_code"], 1);
     }
 

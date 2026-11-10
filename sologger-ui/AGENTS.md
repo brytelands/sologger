@@ -94,6 +94,7 @@ npm run dev        # vite dev server
 npm run build      # -> dist/
 npm run preview    # builds, then serves
 npx vitest run     # there is no `npm test` script
+npm run test:e2e   # Playwright; first run `npx playwright install chromium`
 ```
 
 Publishing to GitHub Pages is automatic: `.github/workflows/pages.yml` builds fresh WASM + the UI
@@ -101,8 +102,15 @@ and deploys `dist/` on every push to `main` that touches this directory — see 
 
 ## Testing
 
-All 27 tests pass on a clean checkout, and CI runs them (`.github/workflows/ui.yml`: `npm ci`,
-`npx vitest run`, `npm run build`).
+All Vitest specs pass on a clean checkout, and CI runs them along with the Playwright suite
+(`.github/workflows/ui.yml`: `npm ci`, `npx vitest run`, `npm run build`, `npm run test:e2e`).
+
+`e2e/ui.spec.js` drives the real views in Chromium against the Vite dev server (started by
+`playwright.config.js` on port 5199). All off-origin traffic is stubbed, so it needs no live RPC; the
+`getTransaction` stub rejects requests lacking `maxSupportedTransactionVersion >= 1`, as a node does.
+It loads the committed WASM build, so parser changes need `wasm-sync` before they show up here
+(`pages.yml` runs it against freshly built WASM before deploying). Set
+`PLAYWRIGHT_CHROMIUM_PATH` to use an already-installed Chromium instead of downloading one.
 
 The suite initializes the committed WASM build with `initSync` (reading the `.wasm` bytes from
 `public/` via `fs`), so `decodeWithIdl` and `add_idl` enrichment are tested against the real Rust

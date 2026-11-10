@@ -72,7 +72,7 @@ binary falls back to pretty console output — colored, CPI-indented — rather 
 `sologger/src/console_logger.rs`.
 
 When building the whole workspace you need both spellings, because `--workspace` resolves features
-across every member. That is why CI uses `--features 'enable_logstash logstash otel'`.
+across every member. That is why CI uses `--features 'enable_logstash logstash otel enable_webhook webhook'`.
 
 Building with both transports at once compiles, but the README advises against running it that way —
 ship two binaries instead.
@@ -87,13 +87,14 @@ Verified working as of this writing (cargo 1.97.1, node 24.12.0, wasm-pack 0.14.
 
 ```bash
 # Fast feedback — matches the feature set CI tests with
-cargo check --workspace --features 'enable_logstash logstash otel'
-cargo test  --workspace --features 'enable_logstash logstash otel'
+cargo check --workspace --features 'enable_logstash logstash otel enable_webhook webhook'
+cargo test  --workspace --features 'enable_logstash logstash otel enable_webhook webhook'
 
 # What CI actually runs
-cargo build --release --features 'enable_logstash enable_otel'
-cargo clippy --all --features 'enable_logstash enable_otel'
-cargo llvm-cov --features 'enable_logstash logstash otel' --workspace --lcov --output-path lcov.info
+cargo build --locked --release --features 'enable_logstash enable_otel enable_webhook'
+cargo fmt --all --check
+cargo clippy --locked --all --features 'enable_logstash enable_otel enable_webhook' -- -D warnings
+cargo llvm-cov --locked --features 'enable_logstash logstash otel enable_webhook webhook' --workspace --lcov --output-path lcov.info
 
 # Benchmarks (criterion)
 cargo bench -p sologger_log_context
@@ -105,6 +106,7 @@ cd sologger-log-transformer-wasm && wasm-pack build --target web
 # UI — note there is no `npm test` script defined
 cd sologger-ui && npm install && npm run dev
 cd sologger-ui && npx vitest run
+cd sologger-ui && npm run test:e2e   # Playwright; first run `npx playwright install chromium`
 ```
 
 ## Running the binary
@@ -166,6 +168,9 @@ never lags, because `pages.yml` rebuilds and overwrites it during every deploy.
 Vite `base` is `/sologger/`, matched by the router's `createWebHistory('/sologger/')` — changing one
 without the other breaks deep links on Pages.
 
+Docker images are built on pull requests that touch them and pushed to Docker Hub only from a
+`v*` tag, which must match the version in `sologger/Cargo.toml` (`.github/workflows/docker.yml`).
+
 `Cargo.lock` is tracked (this workspace produces a binary). Commit lockfile changes alongside the
 dependency change that caused them; do not regenerate it gratuitously.
 
@@ -178,8 +183,11 @@ Do not treat these as regressions you caused:
   warning-free — `sologger-log-transport` is on OpenTelemetry 0.32 and must stay warning-free.
 - `cargo audit` (run weekly and on dependency changes by `.github/workflows/audit.yml`) passes with
   a handful of *warnings* — unmaintained/unsound advisories against crates pinned deep in the Solana
-  dependency tree (`bincode`, `rand`, `keccak`). Warnings do not fail the job; new *vulnerabilities*
-  do, and are usually fixable with a targeted `cargo update -p <crate>`.
+  dependency tree (`bincode`, `rand`). Warnings do not fail the job; new *vulnerabilities* do, and
+  are usually fixable with a targeted `cargo update -p <crate>`. Accepted exceptions live in
+  `.cargo/audit.toml`, each with its reason.
+- `sologger-log-transformer` allows `deprecated` in `log_context_transformer.rs` because the Solana
+  3.x status types are flagged ahead of 4.0. Drop that when upgrading the Solana crates.
 
 ## Conventions
 

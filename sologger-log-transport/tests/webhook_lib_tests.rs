@@ -50,7 +50,9 @@ fn one_shot_server(status_line: &'static str) -> (String, mpsc::Receiver<String>
         stream
             .write_all(format!("{}\r\ncontent-length: 0\r\n\r\n", status_line).as_bytes())
             .unwrap();
-        sender.send(String::from_utf8_lossy(&raw).to_string()).unwrap();
+        sender
+            .send(String::from_utf8_lossy(&raw).to_string())
+            .unwrap();
     });
 
     (url, receiver)
