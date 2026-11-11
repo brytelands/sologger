@@ -7,7 +7,9 @@ description: Build and run the sologger binary or its Docker stacks against a So
 
 Getting this running requires three things to agree: the **feature flag** the binary was built with,
 the **sologger-config.json** you point it at, and the **transport config** that file references. A
-mismatch panics at startup rather than degrading gracefully.
+mismatch does not crash: a transport whose config is missing or invalid is disabled with a notice on
+stderr, and with no transport left sologger falls back to pretty console output. So "it runs but
+prints colored transaction trees" usually means the transport you wanted is not active — read stderr.
 
 ## Choose a transport first
 
@@ -16,9 +18,11 @@ mismatch panics at startup rather than degrading gracefully.
 | Local dev, logs to file/stdout | `enable_logstash` | `log4rs-config.yml` |
 | Ship to LogStash / OpenSearch / ELK | `enable_logstash` | `log4rs-config.yml` |
 | Ship to an OTLP endpoint (SigNoz, Vector) | `enable_otel` | `opentelemetry-config.json` |
+| Both at once | `enable_logstash enable_otel` | both (`config/combined-example/`) |
+| Quick look, no backend | none | none — pretty console output |
 
-Build with one, not both. Both compile together, but the project's guidance is to ship separate
-binaries. `solana_client_subscriber` is on by default and is what provides the WebSocket subscription.
+Both transports can run in one binary; each keeps its own level. `solana_client_subscriber` is on by
+default and is what provides the WebSocket subscription.
 
 ## Fastest path — local, devnet, file output
 
@@ -71,11 +75,15 @@ wants mainnet, they need a private endpoint.
 docker build -f Dockerfile-logstash --tag sologger-logstash .
 docker build -f Dockerfile-otel     --tag sologger-otel .
 
-docker run -d -t \
+docker run -d \
   -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml \
   -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json \
   sologger-logstash
 ```
+
+No `-i`/`-t` needed: sologger never reads stdin. Released images are `brytelands/sologger-logstash`
+and `brytelands/sologger-otel` (linux/amd64 + arm64); images published before v0.4.0 crash at startup
+without `-t` ("Error starting WebSocket for log subscription: unexpected end of file").
 
 The images set `SOLOGGER_APP_CONFIG_LOC=/config/sologger-config.json`, so a mounted config must land
 at exactly that path — or override the env var to match where you mounted it.
@@ -88,6 +96,11 @@ README recommends.
 ```bash
 cd docker-examples/docker-parseable && docker compose up
 ```
+
+Every stack (and the root `docker-compose.yaml`) builds sologger from the repo source as
+`sologger-logstash:local` / `sologger-otel:local` with `pull_policy: build`, so `docker compose up`
+picks up local code changes; the first build takes several minutes. The SigNoz swarm stack is the
+exception — `docker stack deploy` ignores `build:`, so run `docker compose build` first.
 
 To watch different programs, edit the `sologger-config.json` inside that example directory — each
 stack mounts its own copy.
@@ -104,17 +117,23 @@ Startup is silent on success. Signs of life:
   within seconds on devnet. Other config directories may route to a file or a LogStash socket
   instead; read the appenders before concluding nothing happened.
 - OTel build: logs go to the configured OTLP endpoint; nothing local to look at unless the stdout
-  exporter is enabled.
+  exporter is enabled. To check it end to end, run `otel/opentelemetry-collector-contrib` with an
+  OTLP gRPC receiver on 4317 and `file` exporters, and see `AGENTS.md` ("Running the binary") for
+  what to compare. Set `OTEL_METRIC_EXPORT_INTERVAL=10000` to see metrics within a short run.
+- No transport: colored, CPI-indented transaction trees on stdout.
 
-Set `RUST_LOG=trace` to see the config path and parsed config echoed at startup — `main.rs` logs both
-at trace level.
+`RUST_LOG` does nothing — sologger's log levels come from the transport configs.
+
+Stopping: Ctrl-C or `docker stop` (SIGINT/SIGTERM) delivers buffered OpenTelemetry data first, waiting
+up to 5 seconds. A second Ctrl-C exits immediately.
 
 Common failures:
 
-- *"Log4rs config file not found"* panic — built with `enable_logstash` but `log4rsConfigLocation`
-  does not resolve from your working directory. Run from the repo root.
-- Builds and exits immediately with no output — likely built with neither transport feature, so
-  `init_logger` is a no-op. Check the `--features` flag.
+- *"log4rs config '…' not found — logstash transport disabled"* (or the otel equivalent) —
+  the config path does not resolve from your working directory. Run from the repo root.
+- *"invalid log4rs config"* / *"invalid OpenTelemetry config"* / *"failed to initialize the OTel log
+  exporter"* — the transport config is broken (bad YAML or JSON, a missing `endpoint`/`logLevel`, a
+  malformed endpoint URL); the message names the file and the problem. That transport is disabled.
 - No logs ever arrive — the selected programs may simply not be active on that network, or the RPC
   dropped the subscription. Try `"programs": ["*"]` on devnet to confirm the pipeline works.
 

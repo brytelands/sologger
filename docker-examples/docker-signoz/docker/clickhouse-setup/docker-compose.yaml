@@ -273,8 +273,12 @@ services:
     restart: on-failure
 
   sologger-otel:
-    image: brytelands/sologger-otel:latest
-    tty: true
+    # Built from this repository's source (Dockerfile-otel), not pulled from Docker Hub
+    image: sologger-otel:local
+    build:
+      context: ../../../..
+      dockerfile: Dockerfile-otel
+    pull_policy: build
     environment:
       SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
     volumes:
