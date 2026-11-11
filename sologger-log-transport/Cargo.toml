@@ -17,25 +17,26 @@ doctest = false
 
 [dependencies]
 log = "0.4"
-opentelemetry-otlp = {version = "0.32.0", features = ["grpc-tonic", "logs", "metrics", "trace"], optional = true}
-opentelemetry-appender-log = {version = "0.32.0", default-features = false, optional = true}
-opentelemetry = {version = "0.32.0", features = ["logs", "metrics", "trace"]}
-opentelemetry_sdk = {version = "0.32.0", features = ["metrics", "logs", "trace"], optional = true}
-opentelemetry-stdout = {version = "0.32.0", features = ["logs", "metrics", "trace"], optional = true}
+opentelemetry-otlp = {version = "0.33.1", features = ["grpc-tonic", "logs", "metrics", "trace"], optional = true}
+opentelemetry-appender-log = {version = "0.33.1", default-features = false, optional = true}
+opentelemetry = {version = "0.33.1", features = ["logs", "metrics", "trace"]}
+opentelemetry_sdk = {version = "0.33.1", features = ["metrics", "logs", "trace"], optional = true}
+opentelemetry-stdout = {version = "0.33.1", features = ["logs", "metrics", "trace"], optional = true}
 qoollo-logstash-rs = { version = "0.2.0", optional = true }
 qoollo-log4rs-logstash = { version = "0.2.0", optional = true }
+serde_yaml = { version = "0.9", optional = true }
 log4rs = { version = "1.4.0", features = ["json_format", "serde_json", "config_parsing"] }
 anyhow = "1.0"
 serde = "1.0"
 serde_json = "1.0"
-sologger_log_context = { version = "0.3.0", optional = true }
+sologger_log_context = { version = "0.3.0", path = "../sologger-log-context", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.49", features = ["macros"] }
-opentelemetry_sdk = { version = "0.32.0", features = ["metrics", "logs", "trace", "testing"] }
+opentelemetry_sdk = { version = "0.33.1", features = ["metrics", "logs", "trace", "testing"] }
 
 [features]
-logstash = ["qoollo-logstash-rs", "qoollo-log4rs-logstash"]
+logstash = ["qoollo-logstash-rs", "qoollo-log4rs-logstash", "serde_yaml"]
 otel = ["opentelemetry-otlp", "opentelemetry-appender-log", "opentelemetry_sdk", "opentelemetry-stdout", "sologger_log_context"]
 webhook = ["reqwest", "sologger_log_context"]

@@ -6,6 +6,16 @@ running on chain.
 
 Logs that contain errors will have the log level set to ERROR. All other logs will have the log level set to INFO.
 
+### Install
+
+```shell
+cargo install --locked sologger --features enable_logstash   # or enable_otel
+```
+
+Prebuilt Linux binaries (x86_64 and arm64) are attached to each
+[GitHub Release](https://github.com/brytelands/sologger/releases), and Docker images are published
+as `brytelands/sologger-logstash` and `brytelands/sologger-otel`.
+
 ### Quick Start
 
 **See the parent README for running with Docker. This is specific to the sologger binary.
@@ -81,12 +91,21 @@ of per-transaction log notifications (one WebSocket message per block, every mat
 transaction inside). Note that many public RPC providers do not enable blockSubscribe;
 `logsSubscribe` remains the default.
 
+**Commitment level.** The example configs set `"commitmentLevel": "confirmed"`. Without it,
+subscriptions use the RPC default of `finalized`. Under Alpenglow, `processed` and `finalized`
+notifications can skip slots, so `logsSubscribe` can miss logs at those levels
+([agave#16689](https://github.com/anza-xyz/agave/pull/16689), open as of November 2026).
+Slot-gap detection only runs after a reconnect, so it does not flag these misses.
+
+**`allWithVotes`.** Where Alpenglow is active, including mainnet, consensus votes are no longer
+on-chain transactions, so this option adds no vote traffic there.
+
 ### Pretty console mode (no config needed)
 
 When no transport is configured — the binary was built without transport features, or the
 configured transport config files don't exist — sologger falls back to colored, CPI-indented
-console output instead of exiting. That makes a bare run an everyday `tail -f` for
-`solana-test-validator`:
+console output instead of exiting. Warnings and sologger's own status messages go to stderr.
+That makes a bare run an everyday `tail -f` for `solana-test-validator`:
 
 ```shell
 cargo run    # no transport config: pretty console output
@@ -180,17 +199,39 @@ Solana logs carry no timestamps, so each span's duration is its consumed compute
 When `tracesEndpoint`/`metricsEndpoint` (and `endpoint`) are empty, spans and metrics print to stdout, which is handy
 for local development.
 
+**Delivery and shutdown.** Logs and spans are batched, and metrics are exported every 60 seconds by default (set
+`OTEL_METRIC_EXPORT_INTERVAL`, in milliseconds, to change it). Exports to an unavailable collector are retried with
+backoff. On SIGINT/SIGTERM (Ctrl-C, `docker stop`) sologger exports whatever is still buffered before exiting, so the
+last batch and the final metric values are not lost; it waits at most 5 seconds when the collector cannot be reached.
+An OpenTelemetry config that cannot be used — invalid JSON, a missing `endpoint` or `logLevel`, or an `endpoint` the
+exporter cannot use such as a malformed URL — is reported at startup and disables the transport. `tracesEndpoint`,
+`metricsEndpoint` and `logConfig` are optional.
+
+### LogStash and OpenTelemetry together
+
+A binary built with both `enable_logstash` and `enable_otel` sends every log to both transports when the
+sologger-config sets both `log4rsConfigLocation` and `opentelemetryConfigLocation`. Each keeps its own level: the
+log4rs config's levels for LogStash, `logLevel` for OpenTelemetry. The log4rs `refresh_rate` reload still works and
+only changes the LogStash side. `config/combined-example/` has a ready-made pair:
+
+```shell
+cargo run --features 'enable_logstash enable_otel' ./config/combined-example/sologger-config.json
+```
+
 **Run**
 
 SOLOGGER_APP_CONFIG_LOC=./config/sologger-config.json cargo run
 
 ```shell
-#Run the logstash image with and mount your specific log4rs config and sologger config 
-docker run -d -t --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json sologger-logstash
+#Run the logstash image and mount your specific log4rs config and sologger config
+docker run -d --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json brytelands/sologger-logstash
 
-#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOC and specifying a different sologger config file name and/or location
-docker run -d -t -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json sologger-logstash
+#The same with volumes. The image reads /config/sologger-config.json; override SOLOGGER_APP_CONFIG_LOC to use a different path
+docker run -d -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json brytelands/sologger-logstash
 ```
+
+sologger runs until SIGINT/SIGTERM and never reads stdin, so it needs no `-i`/`-t` and works under Docker, systemd and
+nohup. A stop delivers buffered OpenTelemetry data first (see "Delivery and shutdown" above).
 
 **Design**
 

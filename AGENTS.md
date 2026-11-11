@@ -35,24 +35,17 @@ that consume it.
 
 ## The single most important gotcha
 
-**Workspace members depend on each other by published version, redirected locally via a patch.**
+**Workspace members depend on each other with `{ version = "x", path = "../..." }`, and releases
+are automated — do not bump versions or `cargo publish` by hand.**
 
-`sologger/Cargo.toml` says `sologger_log_context = "0.2.4"`, not `{ path = ... }` — the manifests
-publish cleanly to crates.io that way. A `[patch.crates-io]` section in the root `Cargo.toml`
-redirects those requirements to the sibling directories, so local builds and tests exercise the code
-in this repo.
+The path makes local builds and tests use the sibling source; `cargo publish` strips it and keeps
+the version requirement. The path is also what tells cargo and release-plz the publish order.
+(An earlier layout used bare versions plus a root `[patch.crates-io]`; that made
+`cargo publish --workspace` order crates alphabetically, so it was removed — do not bring it back.)
 
-Two consequences:
-
-- **Do not remove that patch section.** Without it, every crate silently resolves to the crates.io
-  copies and local edits to the libraries stop reaching the binary and the WASM bundle.
-- **Version requirements still matter.** The patch only applies while each local crate's version
-  satisfies the dependent's requirement. When bumping a library's version, propagate the new
-  requirement into its dependents' manifests in the same change (see
-  `.claude/skills/release-crates/`), or the patch stops matching and resolution falls back to the
-  registry.
-
-Publishing is unaffected: patches are not included in packaged crates.
+Version bumps, the propagated requirements, `Cargo.lock` and per-crate `CHANGELOG.md` files come
+from the release-plz PR; merging it publishes. See `release-plz.toml` and
+`.claude/skills/release-crates/`.
 
 ## Feature flags
 
@@ -72,10 +65,16 @@ binary falls back to pretty console output — colored, CPI-indented — rather 
 `sologger/src/console_logger.rs`.
 
 When building the whole workspace you need both spellings, because `--workspace` resolves features
-across every member. That is why CI uses `--features 'enable_logstash logstash otel'`.
+across every member. That is why CI uses `--features 'enable_logstash enable_otel logstash otel enable_webhook webhook'`.
 
-Building with both transports at once compiles, but the README advises against running it that way —
-ship two binaries instead.
+Both transports can run in one process. The `log` crate allows a single global logger, so each
+transport *builds* its logger (`build_logstash_logger`, `build_logs_opentelemetry`) and
+`logger_lib::init_logger` installs them together behind `sologger_log_transport::fanout::FanoutLogger`,
+each keeping its own level. Do not call `init_logstash_logger` / `init_logs_opentelemetry` from the
+binary — those install a global logger and are for library users with a single transport. log4rs
+`refresh_rate` hot reload is done by `LogstashLogger::watch_config`, which restores the combined max
+level after each reload (log4rs resets it to its own). `sologger/tests/combined_transports_test.rs`
+covers the combination, which is why CI's test features include `enable_otel`.
 
 `sologger/src/lib.rs` uses `#[cfg_attr(feature = "solana_client_subscriber", path = "...")]` to map
 `solana_client_subscriber.rs` onto the module name `log_subscriber`. If you grep for `log_subscriber`
@@ -87,13 +86,14 @@ Verified working as of this writing (cargo 1.97.1, node 24.12.0, wasm-pack 0.14.
 
 ```bash
 # Fast feedback — matches the feature set CI tests with
-cargo check --workspace --features 'enable_logstash logstash otel'
-cargo test  --workspace --features 'enable_logstash logstash otel'
+cargo check --workspace --features 'enable_logstash enable_otel logstash otel enable_webhook webhook'
+cargo test  --workspace --features 'enable_logstash enable_otel logstash otel enable_webhook webhook'
 
 # What CI actually runs
-cargo build --release --features 'enable_logstash enable_otel'
-cargo clippy --all --features 'enable_logstash enable_otel'
-cargo llvm-cov --features 'enable_logstash logstash otel' --workspace --lcov --output-path lcov.info
+cargo build --locked --release --features 'enable_logstash enable_otel enable_webhook'
+cargo fmt --all --check
+cargo clippy --locked --all --features 'enable_logstash enable_otel enable_webhook' -- -D warnings
+cargo llvm-cov --locked --features 'enable_logstash enable_otel logstash otel enable_webhook webhook' --workspace --lcov --output-path lcov.info
 
 # Benchmarks (criterion)
 cargo bench -p sologger_log_context
@@ -105,6 +105,7 @@ cd sologger-log-transformer-wasm && wasm-pack build --target web
 # UI — note there is no `npm test` script defined
 cd sologger-ui && npm install && npm run dev
 cd sologger-ui && npx vitest run
+cd sologger-ui && npm run test:e2e   # Playwright; first run `npx playwright install chromium`
 ```
 
 ## Running the binary
@@ -130,16 +131,37 @@ Configs come in *pairs* — a `sologger-config.json` plus the transport config i
 | `config/otel-example/` | `opentelemetry-config.json` | OTel reference |
 | `config/file-example/` | `log4rs-config.yml` | file sink |
 | `config/webhook-example/` | `webhook-config.json` | webhook reference |
+| `config/combined-example/` | logstash-example's yml + otel-example's json | both transports in one binary |
 
 `SologgerConfig` (`sologger/src/sologger_config.rs`) is `#[serde(rename_all = "camelCase")]`, so JSON
-keys are `log4rsConfigLocation`, `rpcUrl`, `rpcHttpUrl`, `source`, `backfillTruncated`,
+keys are `log4rsConfigLocation`, `opentelemetryConfigLocation`, `rpcUrl`, `rpcHttpUrl`, `source`, `backfillTruncated`,
 `backfill`, `commitmentLevel`, `allWithVotes`, `webhookConfigLocation`. `programsSelector` is
 *not* part of that struct — it is parsed separately in `main.rs` into a `ProgramsSelector`. A
 `programs` array of `["*"]` means select-all. Paths inside a config are relative to the working
 directory you launch from, which is assumed to be the repo root.
 
-A transport whose config file is missing is *disabled with a notice*, and when no transport ends up
-active the binary falls back to pretty console output (it used to panic). The exception is a
+The binary runs until SIGINT/SIGTERM and never reads stdin, so it works detached (Docker without
+`-i`/`-t`, systemd, nohup). It used to wait on stdin and died at startup with "Error starting
+WebSocket for log subscription: unexpected end of file" whenever stdin was closed — that message
+did not mean a network problem. `sologger/tests/lifecycle_test.rs` guards this.
+
+On SIGINT/SIGTERM, `logger_lib::shutdown_transports` shuts down the OpenTelemetry providers before
+exiting, so batched logs/spans and metrics since the last export (default interval 60s) are
+delivered instead of dropped. It gives up after 5s (`SHUTDOWN_TIMEOUT` in `main.rs`) when the
+collector is unreachable. `OpenTelemetryLogBridge::flush()` is a no-op — flushing the `log` logger
+alone does not deliver anything. Covered by `sologger-log-transport/tests/otel_shutdown_tests.rs`.
+
+To test OTel end to end, run `otel/opentelemetry-collector-contrib` with an OTLP gRPC receiver
+on 4317 and `file` exporters for logs/traces/metrics, point `endpoint` at it, and set
+`OTEL_METRIC_EXPORT_INTERVAL=10000` to see periodic metric exports during a short run. After a
+SIGTERM, the last `sologger.transactions` value should equal the number of root `transaction` spans.
+
+A transport whose config file is missing or invalid (unparseable log4rs config; OpenTelemetry
+config that is not valid JSON or lacks `endpoint`/`logLevel`; unusable OTLP endpoint) is *disabled
+with a notice* naming the file and problem, and when no transport ends up active the binary falls
+back to pretty console output (it used to panic). In the OpenTelemetry config, `metricsEndpoint`,
+`tracesEndpoint` and `logConfig` are optional. The binary uses `load_otel_config`, which returns
+errors; `get_otel_config` still panics and exists for library compatibility. The exception is a
 `webhookConfigLocation` that is set but unreadable or invalid — that is still a startup panic.
 
 ## Generated artifacts and deployment
@@ -166,6 +188,19 @@ never lags, because `pages.yml` rebuilds and overwrites it during every deploy.
 Vite `base` is `/sologger/`, matched by the router's `createWebHistory('/sologger/')` — changing one
 without the other breaks deep links on Pages.
 
+Docker images (linux/amd64 + linux/arm64) are built on pull requests that touch them and pushed to
+Docker Hub only for a `v*` release tag, which must match the version in `sologger/Cargo.toml`
+(`.github/workflows/docker.yml`). A sologger release runs it from `release-plz.yml`, together with
+`release-binaries.yml` (Linux x86_64/arm64 archives + `SHA256SUMS` on the GitHub Release).
+
+The compose stacks (`docker-compose.yaml`, `docker-examples/*`) do not use those published images:
+each sologger service builds from the repo (`build.context` is the repo root, relative to the compose
+file) as `sologger-logstash:local` / `sologger-otel:local`, with `pull_policy: build`. Keep
+`.dockerignore` excluding `/target` and `node_modules` — the whole repo root is the build context.
+
+CI (`rust.yml`, `ui.yml`, `audit.yml`) runs on pull requests into `main` and into `v*`
+integration branches such as `v0.4.0`.
+
 `Cargo.lock` is tracked (this workspace produces a binary). Commit lockfile changes alongside the
 dependency change that caused them; do not regenerate it gratuitously.
 
@@ -175,11 +210,14 @@ Do not treat these as regressions you caused:
 
 - Test builds of `sologger-log-transformer` emit a few unused-import warnings
   (`from_confirmed_block`, `ConfirmedBlock`, `InstructionError`). The library builds themselves are
-  warning-free — `sologger-log-transport` is on OpenTelemetry 0.32 and must stay warning-free.
+  warning-free — `sologger-log-transport` is on OpenTelemetry 0.33 and must stay warning-free.
 - `cargo audit` (run weekly and on dependency changes by `.github/workflows/audit.yml`) passes with
   a handful of *warnings* — unmaintained/unsound advisories against crates pinned deep in the Solana
-  dependency tree (`bincode`, `rand`, `keccak`). Warnings do not fail the job; new *vulnerabilities*
-  do, and are usually fixable with a targeted `cargo update -p <crate>`.
+  dependency tree (`bincode`, `rand`). Warnings do not fail the job; new *vulnerabilities* do, and
+  are usually fixable with a targeted `cargo update -p <crate>`. Accepted exceptions live in
+  `.cargo/audit.toml`, each with its reason.
+- `sologger-log-transformer` allows `deprecated` in `log_context_transformer.rs` because the Solana
+  3.x status types are flagged ahead of 4.0. Drop that when upgrading the Solana crates.
 
 ## Conventions
 
@@ -193,8 +231,8 @@ Do not treat these as regressions you caused:
   `sologger-log-transport/tests/` hold the integration tests.
 - Public items on the parser types carry `///` docs — match that density when adding fields to
   `LogContext`.
-- Crate versions are bumped by hand and are not in lockstep. Publishing order matters because of the
-  crates.io dependency arrangement above — see `.claude/skills/release-crates/`.
+- Crate versions are not in lockstep; release-plz bumps only crates that changed. Tags are
+  `<crate>-v<version>` for libraries and `v<version>` for the `sologger` binary.
 
 ## Scope notes
 

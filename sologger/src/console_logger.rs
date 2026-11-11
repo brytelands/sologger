@@ -5,14 +5,43 @@
 use std::io::IsTerminal;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use log::{Level, LevelFilter, Log, Metadata, Record};
 use sologger_log_context::sologger_log_context::LogContext;
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
+static DIAGNOSTICS: DiagnosticsLogger = DiagnosticsLogger;
+
+/// Sends sologger's own warnings and status messages to stderr in console mode, where no
+/// transport has installed a logger and they would otherwise be discarded.
+struct DiagnosticsLogger;
+
+impl Log for DiagnosticsLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        let target = metadata.target();
+        let from_sologger = target == "sologger" || target.starts_with("sologger::");
+        metadata.level() <= Level::Warn || (from_sologger && metadata.level() <= Level::Info)
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            eprintln!("sologger {}: {}", record.level(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+fn install_diagnostics() {
+    if log::set_logger(&DIAGNOSTICS).is_ok() {
+        log::set_max_level(LevelFilter::Info);
+    }
+}
 
 /// Switches log output to pretty console rendering. Called by `init_logger` when no
 /// transport config is available.
 pub fn enable() {
     ENABLED.store(true, Ordering::Relaxed);
+    install_diagnostics();
 }
 
 pub fn is_enabled() -> bool {
@@ -63,8 +92,7 @@ pub fn render_batch(log_contexts: &[LogContext], color: bool) -> String {
 
     let mut start = 0;
     for end in 1..=log_contexts.len() {
-        if end == log_contexts.len()
-            || log_contexts[end].signature != log_contexts[start].signature
+        if end == log_contexts.len() || log_contexts[end].signature != log_contexts[start].signature
         {
             render_transaction(&mut out, &log_contexts[start..end], p);
             start = end;
@@ -103,9 +131,18 @@ fn render_transaction(out: &mut String, contexts: &[LogContext], p: &Palette) {
 fn render_invocation(out: &mut String, context: &LogContext, p: &Palette) {
     let indent = "  ".repeat(context.depth.max(1));
 
-    let mut line = format!("{}{}{}{}", indent, p.bold, short_id(&context.program_id), p.reset);
+    let mut line = format!(
+        "{}{}{}{}",
+        indent,
+        p.bold,
+        short_id(&context.program_id),
+        p.reset
+    );
     if !context.instruction_name.is_empty() {
-        line.push_str(&format!(" {}{}{}", p.cyan, context.instruction_name, p.reset));
+        line.push_str(&format!(
+            " {}{}{}",
+            p.cyan, context.instruction_name, p.reset
+        ));
     }
     if context.consumed_cu > 0 || context.max_cu > 0 {
         line.push_str(&format!(
@@ -162,7 +199,43 @@ mod tests {
     use sologger_log_context::programs_selector::ProgramsSelector;
     use sologger_log_context::sologger_log_context::LogContext;
 
-    use super::render_batch;
+    use super::{install_diagnostics, render_batch, DIAGNOSTICS};
+    use log::{Level, LevelFilter, Log, Metadata};
+
+    fn diagnostics_shows(level: Level, target: &str) -> bool {
+        DIAGNOSTICS.enabled(&Metadata::builder().level(level).target(target).build())
+    }
+
+    #[test]
+    fn diagnostics_show_warnings_from_any_crate() {
+        assert!(diagnostics_shows(Level::Warn, "sologger::backfill"));
+        assert!(diagnostics_shows(Level::Error, "hyper::client"));
+    }
+
+    #[test]
+    fn diagnostics_show_sologger_status_messages() {
+        assert!(diagnostics_shows(Level::Info, "sologger::backfill"));
+    }
+
+    #[test]
+    fn diagnostics_hide_dependency_info_messages() {
+        assert!(!diagnostics_shows(Level::Info, "hyper::client"));
+        assert!(!diagnostics_shows(
+            Level::Info,
+            "sologger_log_context::sologger_log_context"
+        ));
+    }
+
+    #[test]
+    fn diagnostics_hide_debug_messages() {
+        assert!(!diagnostics_shows(Level::Debug, "sologger::backfill"));
+    }
+
+    #[test]
+    fn install_diagnostics_turns_logging_on() {
+        install_diagnostics();
+        assert_eq!(log::max_level(), LevelFilter::Info);
+    }
 
     fn parse_fixture() -> Vec<LogContext> {
         let logs: Vec<String> = vec![

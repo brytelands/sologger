@@ -110,24 +110,19 @@
 </template>
 
 <script>
-import {onMounted} from 'vue';
 import init, {
   WasmLogContextTransformer
 } from '../../public/sologger-log-transformer-wasm/pkg/sologger_log_transformer_wasm.js';
 import {decodeWithIdl} from '../composables/useIdlDecoder';
 import {idlCandidatePrograms, mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
+import {getTransactionRequestBody} from '../composables/useTransactionRequest';
 import LogsTable from '../components/LogsTable.vue';
 import CuFlamegraph from '../components/CuFlamegraph.vue';
 
 export default {
   name: 'LookupView',
   components: {LogsTable, CuFlamegraph},
-  setup() {
-    onMounted(async () => {
-      await init();
-    });
-  },
   data() {
     return {
       rpcEnvironments: [
@@ -186,6 +181,8 @@ export default {
     }
   },
   created() {
+    // A deep link starts its lookup before the view mounts, so lookup() awaits this
+    this._wasmReady = init();
     const savedRpc = localStorage.getItem('sologger_lookupRpc');
     if (savedRpc) this.selectedRpc = savedRpc;
     const savedCustom = localStorage.getItem('sologger_lookupCustomRpc');
@@ -325,10 +322,8 @@ export default {
         this.$router.replace({query: {sig}});
       }
       try {
-        const body = JSON.stringify({
-          jsonrpc: '2.0', id: 1, method: 'getTransaction',
-          params: [sig, {encoding: 'json', maxSupportedTransactionVersion: 0}]
-        });
+        await this._wasmReady;
+        const body = getTransactionRequestBody(sig);
         const resp = await fetch(this.rpcUrl, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},

@@ -21,8 +21,8 @@ pub fn init(sologger_config: &SologgerConfig) {
         eprintln!("sologger: webhookConfigLocation not set — webhook transport disabled");
         return;
     }
-    let transport = WebhookTransport::from_config_path(location)
-        .expect("Failed to load webhook config");
+    let transport =
+        WebhookTransport::from_config_path(location).expect("Failed to load webhook config");
     let _ = TRANSPORT.set(Arc::new(transport));
 }
 

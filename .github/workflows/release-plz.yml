@@ -1,0 +1,133 @@
+name: Release-plz
+
+# Automated releases (config: release-plz.toml). On every push to main:
+#  - release-pr opens or refreshes the release PR: version bumps + CHANGELOG.md per crate.
+#  - when the pushed commit is that release PR being merged, release publishes the changed
+#    crates to crates.io in dependency order and tags them. A sologger release also gets a
+#    GitHub Release, Linux binaries (release-binaries.yml) and Docker images (docker.yml).
+#
+# Tags pushed with GITHUB_TOKEN do not trigger other workflows, so the binary and Docker
+# builds are called from here directly instead of reacting to the tag.
+#
+# One-time repository setup is described in .claude/skills/release-crates/SKILL.md.
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  # Only a merged release PR needs the release job, so the `release` environment's
+  # approval is requested for real releases instead of on every push to main.
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      is_release: ${{ steps.check.outputs.is_release }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head_ref="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].head.ref // ""')"
+          echo "Pushed commit came from branch: ${head_ref:-<none>}"
+          if [[ "$head_ref" == release-plz-* ]]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write # crates.io trusted publishing
+    outputs:
+      sologger_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+
+      # A CARGO_REGISTRY_TOKEN secret, when present, is used instead of trusted publishing.
+      # It is only needed until every crate has a trusted publisher on crates.io; delete
+      # the secret afterwards. An empty variable must not reach release-plz.
+      - name: Choose crates.io authentication
+        env:
+          TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [[ -n "$TOKEN" ]]; then
+            echo "CARGO_REGISTRY_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+            echo "Publishing with the CARGO_REGISTRY_TOKEN secret"
+          else
+            echo "Publishing with crates.io trusted publishing"
+          fi
+
+      - id: release-plz
+        uses: release-plz/action@b2baf303c463c223526d52a8a91b0777f052cf3f # v0.5.146
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: tag
+        env:
+          RELEASES: ${{ steps.release-plz.outputs.releases }}
+        run: |
+          tag="$(jq -r '.[] | select(.package_name == "sologger") | .tag' <<< "${RELEASES:-[]}")"
+          echo "sologger tag: ${tag:-<not released>}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  binaries:
+    needs: release
+    if: needs.release.outputs.sologger_tag != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-binaries.yml
+    with:
+      tag: ${{ needs.release.outputs.sologger_tag }}
+
+  docker:
+    needs: release
+    if: needs.release.outputs.sologger_tag != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker.yml
+    with:
+      tag: ${{ needs.release.outputs.sologger_tag }}
+    secrets: inherit
+
+  release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+      - uses: release-plz/action@b2baf303c463c223526d52a8a91b0777f052cf3f # v0.5.146
+        with:
+          command: release-pr
+        env:
+          # PRs opened with GITHUB_TOKEN do not trigger CI. A RELEASE_PLZ_TOKEN secret
+          # (fine-grained PAT: contents + pull requests read/write) makes CI run on them.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}

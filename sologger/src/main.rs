@@ -49,7 +49,7 @@ fn load_config() -> Result<(SologgerConfig, ProgramsSelector, IdlRegistry)> {
         .expect("Failed to read contents of sologger-config.json");
 
     let result: serde_json::Value = serde_json::from_str(&contents).unwrap();
-    trace!("SologgerConfig: {}", result.to_string());
+    trace!("SologgerConfig: {}", result);
     let programs_selector = create_programs_selector_from_config(&result);
     let idl_registry = create_idl_registry_from_config(&result);
     let sologger_config = serde_json::from_str(&contents).map_err(|_err| ConfigError::Loading)?;
@@ -115,6 +115,10 @@ fn create_programs_selector_from_config(config: &serde_json::Value) -> ProgramsS
     }
 }
 
+/// How long a stop waits for telemetry to flush. Fits inside Docker's default 10s grace.
+#[cfg(not(target_os = "windows"))]
+const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 #[cfg(not(target_os = "windows"))]
 fn spawn_signal_handler() -> Result<()> {
     let mut signals = signal_hook::iterator::Signals::new([
@@ -125,8 +129,9 @@ fn spawn_signal_handler() -> Result<()> {
     std::thread::spawn(move || {
         let mut stop_in_progress = false;
         for _sig in signals.forever() {
+            // Deliver buffered telemetry first; a second signal still exits immediately
             std::thread::spawn(move || {
-                log::logger().flush();
+                sologger::logger_lib::shutdown_transports(SHUTDOWN_TIMEOUT);
                 signal_hook::low_level::exit(0)
             });
             if stop_in_progress {

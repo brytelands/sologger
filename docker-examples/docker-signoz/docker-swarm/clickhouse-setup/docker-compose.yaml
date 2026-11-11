@@ -262,9 +262,13 @@ services:
         condition: on-failure
 
   sologger-otel:
-    image: sologger-otel
-    stdin_open: true
-    tty: true
+    # Built from this repository's source (Dockerfile-otel), not pulled from Docker Hub
+    # `docker stack deploy` ignores `build:` - run `docker compose build sologger-otel` first
+    # (and push the image to a registry every node can reach for a multi-node swarm)
+    image: sologger-otel:local
+    build:
+      context: ../../../..
+      dockerfile: Dockerfile-otel
     environment:
       SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
     volumes:

@@ -21,7 +21,7 @@ solana-rpc-client = "3.1"
 solana-rpc-client-api = "3.1"
 solana-transaction-status = "3.1"
 solana-sdk = "3.0"
-sologger_log_context = "0.3.0"
+sologger_log_context = { version = "0.3.0", path = "../sologger-log-context" }
 
 [dev-dependencies]
 criterion = "0.8"

@@ -1,0 +1,7 @@
+# Advisories accepted after review. Remove an entry once a dependency update resolves it.
+[advisories]
+ignore = [
+    # crypto-bigint 0.5.5, via solana-sdk -> k256: timing variability in constant-time operations.
+    # sologger never signs or handles private keys. Fixing it needs a Solana crates upgrade.
+    "RUSTSEC-2026-0387",
+]

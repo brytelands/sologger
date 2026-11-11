@@ -1,44 +1,151 @@
 name: Docker Publish
 
-# Builds and pushes the two transport images to Docker Hub. Manual trigger:
-# Actions tab -> Docker Publish -> Run workflow.
+# Builds the two transport images for linux/amd64 and linux/arm64 on native runners, and on
+# a release pushes both architectures under one multi-arch tag (<version> and latest).
+#
+# - Release: called by release-plz.yml with the new sologger tag (or a v* tag pushed by hand).
+# - Pull requests that could break the images: build only, nothing is pushed.
+# - Republish an existing release: Actions tab -> Docker Publish -> Run workflow, selecting
+#   that tag. This also moves `latest` to it. Running it on a branch only checks the build.
 #
 # Requires two repository secrets (Settings -> Secrets and variables -> Actions):
 #   DOCKERHUB_USERNAME - the Docker Hub account (brytelands)
 #   DOCKERHUB_TOKEN    - a Docker Hub access token with Read & Write scope
 on:
+  push:
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "v*" ]
+    paths:
+      - "Dockerfile-*"
+      - ".dockerignore"
+      - "Cargo.lock"
+      - "**/Cargo.toml"
+      - "config/docker/**"
+      - ".github/workflows/docker.yml"
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
   workflow_dispatch:
 
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - dockerfile: Dockerfile-logstash
-            image: brytelands/sologger-logstash
-          - dockerfile: Dockerfile-otel
-            image: brytelands/sologger-otel
-    steps:
-      - uses: actions/checkout@v4
+permissions:
+  contents: read
 
-      # Tag images with the sologger binary version alongside latest
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      # Publish only for a release tag, which must match the sologger version
       - name: Read sologger version
         id: version
-        run: echo "version=$(grep '^version' sologger/Cargo.toml | head -1 | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$INPUT_TAG"
+          if [[ -z "$tag" && "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="$GITHUB_REF_NAME"
+          fi
+          version="$(grep '^version' sologger/Cargo.toml | head -1 | cut -d'"' -f2)"
+          if [[ -n "$tag" && "${tag#v}" != "$version" ]]; then
+            echo "::error::Tag $tag does not match sologger version $version"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish=$([[ -n "$tag" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+  build:
+    needs: prepare
+    name: ${{ matrix.transport }} ${{ matrix.platform.arch }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        transport: [ logstash, otel ]
+        platform:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    env:
+      IMAGE: brytelands/sologger-${{ matrix.transport }}
+      PUBLISH: ${{ needs.prepare.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          persist-credentials: false
 
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: env.PUBLISH == 'true'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      # Releases push this architecture by digest only; the merge job tags the manifest list
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: build
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: |
-            ${{ matrix.image }}:latest
-            ${{ matrix.image }}:${{ steps.version.outputs.version }}
+          file: Dockerfile-${{ matrix.transport }}
+          platforms: linux/${{ matrix.platform.arch }}
+          outputs: ${{ env.PUBLISH == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=cacheonly' }}
+
+      - name: Export digest
+        if: env.PUBLISH == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.PUBLISH == 'true'
+        with:
+          name: digests-${{ matrix.transport }}-${{ matrix.platform.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: [ prepare, build ]
+    if: needs.prepare.outputs.publish == 'true'
+    name: publish ${{ matrix.transport }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        transport: [ logstash, otel ]
+    env:
+      IMAGE: brytelands/sologger-${{ matrix.transport }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.transport }}-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create the multi-arch tags
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create -t "$IMAGE:latest" -t "$IMAGE:$VERSION" \
+            $(printf "$IMAGE@sha256:%s " *)
+          docker buildx imagetools inspect "$IMAGE:$VERSION"

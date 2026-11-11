@@ -39,9 +39,9 @@ pub struct LogContext {
     pub transaction_error: String,
     ///The program ID of the program that produced the logs
     pub program_id: String,
-    ///The program ID of the parent program that invoked the program that produced the logs
+    ///The program ID of the parent program that invoked the program that produced the logs. For a selected program called by an unselected one, this is that direct caller
     pub parent_program_id: String,
-    ///The depth of the program invocation. This value is 1 for the first program invoked, 2 for the second program invoked, etc.
+    ///The depth of the program invocation. This value is 1 for the first program invoked, 2 for the second program invoked, etc. When specific programs are selected, depth counts from the outermost selected invocation, so recorded call trees have no gaps
     pub depth: usize,
     ///The unique ID of the program invocation. This value is a combination of the program ID, the slot and the instruction index.
     pub id: String,
@@ -108,14 +108,10 @@ impl LogContext {
         let capture = LOG_CONTEXT_PARSER.captures(log);
         let invoke_program_id = match capture {
             None => "".to_string(),
-            Some(capture) => {
-                let invoke_program_id = capture.name("invokeProgramId");
-                if invoke_program_id.is_some() {
-                    invoke_program_id.unwrap().as_str().to_string()
-                } else {
-                    "".to_string()
-                }
-            }
+            Some(capture) => match capture.name("invokeProgramId") {
+                Some(program_id) => program_id.as_str().to_string(),
+                None => "".to_string(),
+            },
         };
         invoke_program_id
     }
@@ -153,9 +149,7 @@ impl LogContext {
                 };
                 match capture.name("returnProgramId") {
                     None => "".to_string(),
-                    Some(x) => {
-                        return x.as_str().to_string();
-                    }
+                    Some(x) => x.as_str().to_string(),
                 }
             }
         }
@@ -185,7 +179,7 @@ impl LogContext {
 
     /// Parses the provided payload and returns a vector of LogContexts. The payload in this case is the raw JSON response as bytes from the Solana RPC log_subscription endpoint.
     pub fn parse_logs_from_raw_data(
-        payload: &Vec<u8>,
+        payload: &[u8],
         programs_selector: &ProgramsSelector,
     ) -> Vec<LogContext> {
         let response: RpcResponse = serde_json::from_slice(payload).unwrap();
@@ -230,18 +224,17 @@ impl LogContext {
         let mut start = true;
         let mut id = 0;
         let mut current_instruction = 0;
-        let mut current_depth = 0;
         let mut call_stack: Vec<String> = Vec::new();
         let mut call_ids: Vec<usize> = Vec::new();
-        let mut parent_program_id: String = "".to_string();
-        let mut current_program_id: String = "".to_string();
-        let mut end_parsing = false;
+        // Open invocations outside every selected program, so that a selected program
+        // called by an unselected one is still placed at its real call level
+        let mut unselected_callers: Vec<String> = Vec::new();
         for log in logs {
             let mut log_trimmed = "".to_string();
             if !LOG_CONTEXT_PARSER.is_match(log) {
                 trace!(
                     "Attempting to remove newlines and trim whitespace. No match found for: {} ",
-                    &log
+                    log
                 );
                 for line in log.lines() {
                     log_trimmed.push_str(line);
@@ -250,40 +243,31 @@ impl LogContext {
                 trace!("Trimmed log: {}", log_trimmed);
             }
 
-            if !programs_selector.select_all_programs {
-                let program_id = Self::get_invoke_program_id(log);
-                if !program_id.is_empty()
-                    && programs_selector.is_program_selected_string(&program_id)
-                {
-                    parent_program_id = current_program_id;
-                    current_program_id = program_id.clone();
-                }
-
-                if current_program_id.is_empty() {
-                    continue;
-                }
-
-                let end_program_id = Self::get_end_program_id(log);
-                end_parsing = current_program_id.is_empty() || current_program_id == end_program_id;
-            }
-
             let capture: Option<Captures> = if !log_trimmed.is_empty() {
                 LOG_CONTEXT_PARSER.captures(log_trimmed.as_str())
             } else {
                 LOG_CONTEXT_PARSER.captures(log)
             };
 
-            trace!(
-                "parse_log programId:{} slot:{} log:{}",
-                current_program_id,
-                slot,
-                log
-            );
+            if !programs_selector.select_all_programs && call_stack.is_empty() {
+                let starts_selected_program = capture
+                    .as_ref()
+                    .and_then(|capture| capture.name("invokeProgramId"))
+                    .is_some_and(|program_id| {
+                        programs_selector.is_program_selected_string(program_id.as_str())
+                    });
+                if !starts_selected_program {
+                    track_unselected_call(capture.as_ref(), &mut unselected_callers);
+                    continue;
+                }
+            }
+
+            trace!("parse_log slot:{} log:{}", slot, log);
 
             match capture {
                 None => {
-                    info!("Log not matched, adding to raw_logs: {}", &log_trimmed);
-                    info!("raw_logs: {:?}", &logs);
+                    info!("Log not matched, adding to raw_logs: {}", log_trimmed);
+                    info!("raw_logs: {:?}", logs);
 
                     result[call_ids[call_ids.len() - 1]]
                         .raw_logs
@@ -314,205 +298,179 @@ impl LogContext {
                     let system_program_log = capture.name("systemProgramLog");
                     let system_log_message = capture.name("systemLogMessage");
 
-                    match log_truncated {
-                        Some(_x) => {
-                            if !call_ids.is_empty() {
-                                let context_log = &mut result[call_ids[call_ids.len() - 1]];
-                                context_log.invoke_result = String::from("Log truncated");
-                            } else {
-                                let context_log = &mut result.last_mut().unwrap();
-                                context_log.invoke_result = String::from("Log truncated");
-                            }
+                    if let Some(_x) = log_truncated {
+                        if !call_ids.is_empty() {
+                            let context_log = &mut result[call_ids[call_ids.len() - 1]];
+                            context_log.invoke_result = String::from("Log truncated");
+                        } else {
+                            let context_log = &mut result.last_mut().unwrap();
+                            context_log.invoke_result = String::from("Log truncated");
+                        }
+                        break;
+                    }
+
+                    if let Some(x) = program_invoke {
+                        call_stack.push(invoke_program_id.unwrap().as_str().to_string());
+                        if !start {
+                            id += 1;
+                        };
+                        start = false;
+                        call_ids.push(id);
+                        let expected_level = unselected_callers.len() + call_stack.len();
+                        if level.is_some_and(|x| x.as_str() != expected_level.to_string()) {
+                            warn!(
+                                "Invoke depth mismatch, log:{}, expected level: {}",
+                                x.as_str(),
+                                expected_level
+                            );
                             break;
                         }
-                        None => {}
-                    }
-
-                    match program_invoke {
-                        Some(x) => {
-                            call_stack.push(invoke_program_id.unwrap().as_str().to_string());
-                            if !start {
-                                id += 1;
-                            };
-                            start = false;
-                            current_depth += 1;
-                            call_ids.push(id);
-                            if level.is_some_and(|x| {
-                                *x.as_str().to_string() != current_depth.to_string()
-                            }) {
-                                trace!("Invoke depth mismatch. This is most likely caused by finding a selected program ID log nested in a program that is not monitored, log:{}, expected: {}", x.as_str(), current_depth.to_string());
-                                break;
-                            }
-                            let program_id = call_stack[call_stack.len() - 1].clone();
-                            let unique_id: String =
-                                [program_id.as_str(), &slot.to_string(), &id.to_string()].join("-");
-                            let mut log_context = LogContext::new(
-                                program_id,
-                                call_stack.len(),
-                                unique_id,
-                                current_instruction,
-                                slot as usize,
-                                signature.to_string(),
-                            );
-                            if call_stack.len() > 1 {
-                                log_context.parent_program_id = call_stack[0].clone();
-                            }
-                            result.push(log_context);
-                            let result_len = result.len() - 1;
-                            result[result_len].raw_logs.push(log.clone());
+                        let program_id = call_stack[call_stack.len() - 1].clone();
+                        let unique_id: String =
+                            [program_id.as_str(), &slot.to_string(), &id.to_string()].join("-");
+                        let mut log_context = LogContext::new(
+                            program_id,
+                            call_stack.len(),
+                            unique_id,
+                            current_instruction,
+                            slot as usize,
+                            signature.to_string(),
+                        );
+                        if call_stack.len() > 1 {
+                            log_context.parent_program_id = call_stack[0].clone();
+                        } else if let Some(caller) = unselected_callers.last() {
+                            log_context.parent_program_id = caller.clone();
                         }
-                        None => {}
+                        result.push(log_context);
+                        let result_len = result.len() - 1;
+                        result[result_len].raw_logs.push(log.clone());
                     }
 
-                    match program_successful_result {
-                        Some(_x) => {
-                            let last_program = call_stack.pop();
-                            let last_call_index = call_ids.pop();
-                            if last_call_index.is_none() {
-                                warn!("callIds malformed");
-                            }
-                            if last_program
-                                .is_some_and(|x| x != success_result_program_id.unwrap().as_str())
-                            {
-                                warn!("[ProgramSuccess] callstack mismatch");
-                            }
-                            result[last_call_index.unwrap()].raw_logs.push(log.clone());
-                            current_depth -= 1;
-                            if current_depth == 0 {
-                                current_instruction += 1;
-                            }
+                    if let Some(_x) = program_successful_result {
+                        let last_program = call_stack.pop();
+                        let last_call_index = call_ids.pop();
+                        if last_call_index.is_none() {
+                            warn!("callIds malformed");
                         }
-                        None => {}
-                    }
-
-                    match program_failed_result {
-                        Some(_x) => {
-                            let last_program = call_stack.pop().unwrap();
-                            if failed_result_program_id.is_some_and(|x| x.as_str() != last_program)
-                            {
-                                warn!("[ProgramFailed] callstack mismatch")
-                            };
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .errors
-                                .push(failed_result_err.unwrap().as_str().to_string());
-                            result[call_ids[call_ids.len() - 1]].error_code =
-                                extract_error_code(failed_result_err.unwrap().as_str());
-                            result[call_ids[call_ids.len() - 1]].transaction_error =
-                                transaction_error.to_string();
-                            //TODO double check this pop
-                            call_ids.pop();
+                        if last_program
+                            .is_some_and(|x| x != success_result_program_id.unwrap().as_str())
+                        {
+                            warn!("[ProgramSuccess] callstack mismatch");
                         }
-                        None => {}
-                    }
-
-                    match program_complete_failed_result {
-                        Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .errors
-                                .push(failed_complete_error.unwrap().as_str().to_string());
-                            result[call_ids[call_ids.len() - 1]].transaction_error =
-                                transaction_error.to_string();
+                        result[last_call_index.unwrap()].raw_logs.push(log.clone());
+                        if call_stack.is_empty() {
+                            current_instruction += 1;
                         }
-                        None => {}
                     }
 
-                    match program_log {
-                        Some(_x) => {
-                            let message = log_message.unwrap().as_str();
-                            let context = &mut result[call_ids[call_ids.len() - 1]];
-                            context.raw_logs.push(log.clone());
-                            context.log_messages.push(message.to_string());
-                            if context.instruction_name.is_empty() {
-                                if let Some(name) = message.strip_prefix("Instruction: ") {
-                                    context.instruction_name = name.to_string();
-                                }
+                    if let Some(_x) = program_failed_result {
+                        let last_program = call_stack.pop().unwrap();
+                        if failed_result_program_id.is_some_and(|x| x.as_str() != last_program) {
+                            warn!("[ProgramFailed] callstack mismatch")
+                        };
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
+                        result[call_ids[call_ids.len() - 1]]
+                            .errors
+                            .push(failed_result_err.unwrap().as_str().to_string());
+                        result[call_ids[call_ids.len() - 1]].error_code =
+                            extract_error_code(failed_result_err.unwrap().as_str());
+                        result[call_ids[call_ids.len() - 1]].transaction_error =
+                            transaction_error.to_string();
+                        //TODO double check this pop
+                        call_ids.pop();
+                    }
+
+                    if let Some(_x) = program_complete_failed_result {
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
+                        result[call_ids[call_ids.len() - 1]]
+                            .errors
+                            .push(failed_complete_error.unwrap().as_str().to_string());
+                        result[call_ids[call_ids.len() - 1]].transaction_error =
+                            transaction_error.to_string();
+                    }
+
+                    if let Some(_x) = program_log {
+                        let message = log_message.unwrap().as_str();
+                        let context = &mut result[call_ids[call_ids.len() - 1]];
+                        context.raw_logs.push(log.clone());
+                        context.log_messages.push(message.to_string());
+                        if context.instruction_name.is_empty() {
+                            if let Some(name) = message.strip_prefix("Instruction: ") {
+                                context.instruction_name = name.to_string();
                             }
                         }
-                        None => {}
                     }
 
-                    match program_data {
-                        Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .data_logs
-                                .push(data.unwrap().as_str().to_string());
-                        }
-                        None => {}
+                    if let Some(_x) = program_data {
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
+                        result[call_ids[call_ids.len() - 1]]
+                            .data_logs
+                            .push(data.unwrap().as_str().to_string());
                     }
 
-                    match program_consumed {
-                        Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            let computer_numbers = extract_compute_numbers(&log);
-                            match computer_numbers {
-                                None => {}
-                                Some((consumed_cu, max_cu)) => {
-                                    result[call_ids[call_ids.len() - 1]].max_cu = max_cu;
-                                    result[call_ids[call_ids.len() - 1]].consumed_cu = consumed_cu;
-                                }
+                    if let Some(_x) = program_consumed {
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
+                        let computer_numbers = extract_compute_numbers(log);
+                        match computer_numbers {
+                            None => {}
+                            Some((consumed_cu, max_cu)) => {
+                                result[call_ids[call_ids.len() - 1]].max_cu = max_cu;
+                                result[call_ids[call_ids.len() - 1]].consumed_cu = consumed_cu;
                             }
                         }
-                        None => {}
                     }
 
-                    match program_consumption {
-                        Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                        }
-                        None => {}
+                    if let Some(_x) = program_consumption {
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
                     }
 
-                    match system_program_log {
-                        Some(_x) => {
-                            result[call_ids[call_ids.len() - 1]]
-                                .raw_logs
-                                .push(log.clone());
-                            result[call_ids[call_ids.len() - 1]]
-                                .errors
-                                .push(system_log_message.unwrap().as_str().to_string());
-                        }
-                        None => {}
+                    if let Some(_x) = system_program_log {
+                        result[call_ids[call_ids.len() - 1]]
+                            .raw_logs
+                            .push(log.clone());
+                        result[call_ids[call_ids.len() - 1]]
+                            .errors
+                            .push(system_log_message.unwrap().as_str().to_string());
                     }
 
-                    match program_return {
-                        Some(_x) => {
-                            if return_program_id
-                                .is_some_and(|x| x.as_str() != call_stack[call_stack.len() - 1])
-                            {
-                                warn!("[InvokeReturn]: callstack mismatch")
-                            }
-                            result[call_ids[call_ids.len() - 1]].invoke_result =
-                                return_message.unwrap().as_str().to_string();
+                    if let Some(_x) = program_return {
+                        if return_program_id
+                            .is_some_and(|x| x.as_str() != call_stack[call_stack.len() - 1])
+                        {
+                            warn!("[InvokeReturn]: callstack mismatch")
                         }
-                        None => {}
+                        result[call_ids[call_ids.len() - 1]].invoke_result =
+                            return_message.unwrap().as_str().to_string();
                     }
                 }
-            }
-            if end_parsing {
-                trace!("parse_logs for slot: {}", slot);
-                if current_depth > 0 {
-                    current_program_id = parent_program_id.clone();
-                } else {
-                    current_program_id = String::new();
-                }
-                continue;
             }
         }
 
         result
+    }
+}
+
+/// Keeps the list of open unselected invocations current for one skipped log line.
+fn track_unselected_call(capture: Option<&Captures>, unselected_callers: &mut Vec<String>) {
+    let Some(capture) = capture else {
+        return;
+    };
+    if let Some(program_id) = capture.name("invokeProgramId") {
+        unselected_callers.push(program_id.as_str().to_string());
+    } else if capture.name("programSuccessResult").is_some()
+        || capture.name("programFailedResult").is_some()
+    {
+        unselected_callers.pop();
     }
 }
 
@@ -573,7 +531,7 @@ mod tests {
         let duration_since_epoch = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let timestamp_nanos_start = duration_since_epoch.as_nanos(); // u128
+        let _timestamp_nanos_start = duration_since_epoch.as_nanos(); // u128
         let log_contexts = LogContext::parse_logs(
             &logs,
             "".to_string(),
@@ -585,7 +543,7 @@ mod tests {
         let duration_since_epoch_end = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
-        let timestamp_nanos_end = duration_since_epoch_end.as_nanos(); // u128
+        let _timestamp_nanos_end = duration_since_epoch_end.as_nanos(); // u128
 
         let context_len = log_contexts.len();
         assert_eq!(context_len, 3);
@@ -969,6 +927,144 @@ mod tests {
 
         let context_len = log_contexts.len();
         assert_eq!(context_len, 1);
+    }
+
+    const CALLER: &str = "9RX7oz3WN5VRTqekBBHBvEJFVMNRnrCmVy7S6B6S5oU7";
+    const SELECTED: &str = "AbcdefGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+    const OTHER: &str = "11111111111111111111111111111111";
+    const UNRELATED: &str = "ComputeBudget111111111111111111111111111111";
+
+    fn invoke(program: &str, level: usize) -> String {
+        format!("Program {program} invoke [{level}]")
+    }
+
+    fn success(program: &str) -> String {
+        format!("Program {program} success")
+    }
+
+    fn parse_selected(logs: &Vec<String>, programs: &[&str]) -> Vec<LogContext> {
+        let programs: Vec<String> = programs.iter().map(|p| p.to_string()).collect();
+        LogContext::parse_logs(
+            logs,
+            "".to_string(),
+            &ProgramsSelector::new(&programs),
+            1,
+            "SIG".to_string(),
+        )
+    }
+
+    #[test]
+    fn selected_program_called_by_unselected_program_is_recorded() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(SELECTED, 2),
+            "Program log: Instruction: Transfer".to_string(),
+            format!("Program {SELECTED} consumed 4645 of 263590 compute units"),
+            success(SELECTED),
+            success(CALLER),
+        ];
+
+        let contexts = parse_selected(&logs, &[SELECTED]);
+
+        assert_eq!(contexts.len(), 1);
+        assert_eq!(contexts[0].program_id, SELECTED);
+        assert_eq!(contexts[0].instruction_name, "Transfer");
+        assert_eq!(contexts[0].consumed_cu, 4645);
+        assert_eq!(contexts[0].depth, 1);
+        assert_eq!(contexts[0].parent_program_id, CALLER);
+    }
+
+    #[test]
+    fn repeated_nested_calls_stay_siblings() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(SELECTED, 2),
+            success(SELECTED),
+            invoke(SELECTED, 2),
+            success(SELECTED),
+            success(CALLER),
+        ];
+
+        let contexts = parse_selected(&logs, &[SELECTED]);
+
+        assert_eq!(contexts.len(), 2);
+        assert_eq!(contexts[0].depth, 1);
+        assert_eq!(contexts[1].depth, 1);
+    }
+
+    #[test]
+    fn nested_selected_program_keeps_children_but_not_later_siblings() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(SELECTED, 2),
+            invoke(OTHER, 3),
+            success(OTHER),
+            success(SELECTED),
+            invoke(OTHER, 2),
+            success(OTHER),
+            success(CALLER),
+        ];
+
+        let contexts = parse_selected(&logs, &[SELECTED]);
+
+        assert_eq!(contexts.len(), 2);
+        assert_eq!(contexts[0].program_id, SELECTED);
+        assert_eq!(contexts[1].program_id, OTHER);
+        assert_eq!(contexts[1].depth, 2);
+        assert_eq!(contexts[1].parent_program_id, SELECTED);
+    }
+
+    #[test]
+    fn program_return_outside_selection_does_not_shift_call_depth() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(OTHER, 2),
+            format!("Program return: {OTHER} AQID"),
+            success(OTHER),
+            invoke(SELECTED, 2),
+            success(SELECTED),
+            success(CALLER),
+        ];
+
+        let contexts = parse_selected(&logs, &[SELECTED]);
+
+        assert_eq!(contexts.len(), 1);
+        assert_eq!(contexts[0].program_id, SELECTED);
+    }
+
+    #[test]
+    fn nested_selected_program_failure_is_recorded() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(SELECTED, 2),
+            format!("Program {SELECTED} failed: custom program error: 0x1771"),
+            format!("Program {CALLER} failed: custom program error: 0x1771"),
+        ];
+
+        let contexts = parse_selected(&logs, &[SELECTED]);
+
+        assert_eq!(contexts.len(), 1);
+        assert_eq!(contexts[0].error_code, Some(6001));
+        assert_eq!(contexts[0].errors.len(), 1);
+    }
+
+    #[test]
+    fn unselected_instruction_after_selected_chain_is_not_recorded() {
+        let logs = vec![
+            invoke(CALLER, 1),
+            invoke(SELECTED, 2),
+            invoke(OTHER, 3),
+            success(OTHER),
+            success(SELECTED),
+            success(CALLER),
+            invoke(UNRELATED, 1),
+            success(UNRELATED),
+        ];
+
+        let contexts = parse_selected(&logs, &[CALLER, SELECTED, OTHER]);
+
+        assert_eq!(contexts.len(), 3);
+        assert!(contexts.iter().all(|c| c.program_id != UNRELATED));
     }
 
     #[test]

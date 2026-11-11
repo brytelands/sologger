@@ -10,9 +10,9 @@ pub async fn log_contexts_from_logs(log_contexts: &Vec<LogContext>) -> Result<()
     }
     for log_context in log_contexts {
         if log_context.has_errors() {
-            error!("{}", &log_context.to_json());
+            error!("{}", log_context.to_json());
         } else {
-            info!("{}", &log_context.to_json());
+            info!("{}", log_context.to_json());
         }
     }
     Ok(())

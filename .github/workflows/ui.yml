@@ -2,15 +2,18 @@ name: UI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "v*" ]
     paths:
       - "sologger-ui/**"
       - ".github/workflows/ui.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "v*" ]
     paths:
       - "sologger-ui/**"
       - ".github/workflows/ui.yml"
+
+permissions:
+  contents: read
 
 jobs:
   build-test:
@@ -29,3 +32,11 @@ jobs:
       - run: npm ci
       - run: npx vitest run
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-results
+          path: sologger-ui/test-results
+          retention-days: 7

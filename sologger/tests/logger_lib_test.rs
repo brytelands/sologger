@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use sologger::logger_lib::{init_logger};
+    use sologger::logger_lib::init_logger;
     use sologger::sologger_config::SologgerConfig;
 
     #[tokio::test]

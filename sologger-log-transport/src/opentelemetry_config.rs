@@ -9,12 +9,16 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct OpentelemetryConfig {
     ///OpenTelemetry configuration as Key/Value pairs. For a list of configuration options, see the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/otel/resource/semantic_conventions/)
+    ///Optional; empty by default.
+    #[serde(default)]
     pub log_config: HashMap<String, String>,
     ///The OTel endpoint to send logs to, used by opentelemetry_otlp
     pub endpoint: String,
-    ///The OTel endpoint to send metrics to
+    ///The OTel endpoint to send metrics to. Optional; empty falls back to `endpoint`.
+    #[serde(default)]
     pub metrics_endpoint: String,
-    ///The OTel endpoint to send traces to
+    ///The OTel endpoint to send traces to. Optional; empty falls back to `endpoint`.
+    #[serde(default)]
     pub traces_endpoint: String,
     ///Sets the global maximum log level.
     pub log_level: String,
@@ -81,7 +85,7 @@ pub fn test_key_value() {
     let config = serde_json::from_value::<OpentelemetryConfig>(config).unwrap();
     let key_values = config.key_values();
 
-    let key_value = key_values.get(0).unwrap();
+    let key_value = key_values.first().unwrap();
     assert_eq!(key_value.key.as_str(), "service.name");
     assert_eq!(key_value.value.as_str(), "basic-otlp-logging-example");
 }

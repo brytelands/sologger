@@ -8,8 +8,12 @@ version: '3.7'
 
 services:
   sologger-logstash:
-    image: brytelands/sologger-logstash:latest
-    tty: true
+    # Built from this repository's source (Dockerfile-logstash), not pulled from Docker Hub
+    image: sologger-logstash:local
+    build:
+      context: .
+      dockerfile: Dockerfile-logstash
+    pull_policy: build
     environment:
       SOLOGGER_APP_CONFIG_LOC: /config/sologger-config.json
       RUST_BACKTRACE: 1
