@@ -31,7 +31,7 @@ solana-transaction-status = { version = "3.1", optional = true }
 sologger_idl_decoder = { version = "0.1.1", path = "../sologger-idl-decoder" }
 sologger_log_context = { version = "0.3.1", path = "../sologger-log-context" }
 sologger_log_transformer = { version = "0.3.1", path = "../sologger-log-transformer" }
-sologger_log_transport = { version = "0.4.1", path = "../sologger-log-transport" }
+sologger_log_transport = { version = "0.5.0", path = "../sologger-log-transport" }
 tokio = { version = "1.49", features = ["full"] }
 tokio-metrics = { version = "0.4", optional = true }
 
