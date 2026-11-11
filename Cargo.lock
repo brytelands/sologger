@@ -4313,7 +4313,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_idl_decoder"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "bs58",
@@ -4326,7 +4326,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_log_context"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bs58",
  "console_error_panic_hook",
@@ -4343,7 +4343,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_log_transformer"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "criterion",
@@ -4356,7 +4356,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_log_transformer_wasm"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -4373,7 +4373,7 @@ dependencies = [
 
 [[package]]
 name = "sologger_log_transport"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "log",
