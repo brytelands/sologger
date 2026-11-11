@@ -9,12 +9,16 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct OpentelemetryConfig {
     ///OpenTelemetry configuration as Key/Value pairs. For a list of configuration options, see the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/otel/resource/semantic_conventions/)
+    ///Optional; empty by default.
+    #[serde(default)]
     pub log_config: HashMap<String, String>,
     ///The OTel endpoint to send logs to, used by opentelemetry_otlp
     pub endpoint: String,
-    ///The OTel endpoint to send metrics to
+    ///The OTel endpoint to send metrics to. Optional; empty falls back to `endpoint`.
+    #[serde(default)]
     pub metrics_endpoint: String,
-    ///The OTel endpoint to send traces to
+    ///The OTel endpoint to send traces to. Optional; empty falls back to `endpoint`.
+    #[serde(default)]
     pub traces_endpoint: String,
     ///Sets the global maximum log level.
     pub log_level: String,

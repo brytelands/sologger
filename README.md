@@ -14,6 +14,8 @@ sologger is a group of libraries and binaries that can be used to parse raw logs
 
 If you just want to run Sologger with a log mangement system, then you can use one of the following docker compose files to get up and running quickly.
 
+The compose files build sologger from this repository's source, so the first `docker compose up` compiles it and takes several minutes; later runs reuse Docker's build cache.
+
 - [sologger with Parseable](./docker-examples/docker-parseable/) This is the easiest way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
 - [sologger with Opensearch](./docker-examples/docker-opensearch/) This is the preferred way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
 
@@ -29,7 +31,7 @@ From v0.4.0, each release ships in three forms. Pick the transport you need, `lo
 ### Build
 
 **Building the source**
-There are two main features that can be enabled when building the binaries. The first is the Logstash feature which will enable the Logstash transport. The second is the OpenTelemetry feature which will enable the OpenTelemetry transport. Technically you can build with both features enabled, but this is not recommended. If you need both LogStash and OTel support, the recommended approach is to build two binaries with each feature enabled, and run each separately.
+There are two main features that can be enabled when building the binaries. The first is the Logstash feature which will enable the Logstash transport. The second is the OpenTelemetry feature which will enable the OpenTelemetry transport. You can enable both features in one binary: with both configs present, every log goes to LogStash and to OpenTelemetry, each at its own configured level.
 
 - Logstash: `enable_logstash`
 - OpenTelemetry: `enable_otel`
@@ -40,6 +42,9 @@ cargo build --features 'enable_logstash'
 
 #If you want to build the binaries with OpenTelemetry support, then run the following command:
 cargo build --features 'enable_otel'
+
+#If you want both, in one binary, then run the following command:
+cargo build --features 'enable_logstash enable_otel'
 
 cargo test --features 'enable_logstash logstash otel'
 ```
@@ -58,7 +63,7 @@ docker build --file 'Dockerfile-otel' --tag sologger-otel .
 
 There are two configuration files that you will need to configure to get up and running with Sologger. 
 The first is the sologger-config file. This file is used to configure the sologger binary.
-The second is the log4rs-config file. This file is used to configure the log4rs logger OR the opentelemetry-config file. This file is used to configure the logstash binary.
+The second is the transport config: a log4rs-config file for the LogStash transport, and/or an opentelemetry-config file for the OpenTelemetry transport. A binary built with both features uses both when both are set (`log4rsConfigLocation` and `opentelemetryConfigLocation`); see `config/combined-example/`. A transport whose config is missing or invalid is disabled with a notice, and with no transport left sologger prints pretty console output instead.
 
 By default, sologger will look for a config file named `sologger-config.json` in ./config/local/ directory. You can override this by setting the `SOLOGGER_APP_CONFIG_LOC` environment variable to the path of your config file. For example:
 
@@ -77,12 +82,14 @@ cargo run --features enable_logstash ./config/local/sologger-config.json
 Running the sologger image with docker.
 
 ```shell
-#Run the logstash image with and mount your specific log4rs config and sologger config 
-docker run -d -t --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json sologger-logstash
+#Run the logstash image and mount your specific log4rs config and sologger config
+docker run -d --mount type=bind,source="$(pwd)"/config/demo/log4rs-config.yml,target=/config/log4rs-config.yml --mount type=bind,source="$(pwd)"/config/demo/sologger-config.json,target=/config/sologger-config.json brytelands/sologger-logstash
 
-#Run the logstash image with and mount a volume your specific log4rs config and sologger config. Do this if you are overriding SOLOGGER_APP_CONFIG_LOC and specifying a different sologger config file name and/or location
-docker run -d -t -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json sologger-logstash
+#The same with volumes. The image reads /config/sologger-config.json; override SOLOGGER_APP_CONFIG_LOC to use a different path
+docker run -d -v "$(pwd)"/config/demo/log4rs-config.yml:/config/log4rs-config.yml -v "$(pwd)"/config/demo/sologger-config.json:/config/sologger-config.json brytelands/sologger-logstash
 ```
+
+sologger runs until it receives SIGINT or SIGTERM and does not read stdin, so it needs no `-i` or `-t` and runs fine under Docker, systemd or nohup. On `docker stop` (SIGTERM) it first delivers the OpenTelemetry logs, spans and metrics it is still buffering, waiting at most 5 seconds, within Docker's default 10-second grace period.
 
 ### Libraries
 

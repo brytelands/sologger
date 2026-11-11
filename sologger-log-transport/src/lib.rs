@@ -44,6 +44,7 @@
 //!with simple matching rules: errors only, a program allowlist, and instruction-name
 //!matching. See `WebhookConfig` for the config file shape.
 
+pub mod fanout;
 #[cfg(feature = "logstash")]
 pub mod logstash_lib;
 #[cfg(feature = "otel")]
