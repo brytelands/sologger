@@ -26,7 +26,7 @@ use sologger_log_transformer::log_context_transformer::{
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::AsyncReadExt;
+use tokio::task::JoinSet;
 
 const INITIAL_BACKOFF: Duration = Duration::from_secs(1);
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
@@ -233,25 +233,29 @@ pub async fn start_client(
     let subscriptions = build_subscriptions(sologger_config, program_selector);
     trace!("subscriptions: {:?}", subscriptions);
 
-    let mut join_handles = Vec::with_capacity(subscriptions.len());
+    let mut supervisors = JoinSet::new();
     for (key, kind) in subscriptions {
-        join_handles.push(tokio::spawn(supervise_subscription(
+        supervisors.spawn(supervise_subscription(
             sologger_config.rpc_url.clone(),
             key,
             kind,
             commitment_config,
             Arc::clone(&pipeline),
-        )));
+        ));
     }
 
-    // Wait for input or some application-specific shutdown condition.
-    tokio::io::stdin().read_u8().await?;
+    wait_for_supervisors(supervisors).await
+}
 
-    // The supervisors loop forever; aborting them drops the clients, which unsubscribes.
-    for handle in join_handles {
-        handle.abort();
+/// Runs until the process is stopped. Supervisors reconnect forever, so this only returns
+/// when one of them dies (a panic) — shutdown comes from the SIGINT/SIGTERM handler in
+/// `main`. It deliberately does not wait on stdin: stdin is closed under Docker without
+/// `-i`, systemd and nohup, which used to make sologger exit immediately at startup.
+async fn wait_for_supervisors(mut supervisors: JoinSet<()>) -> Result<()> {
+    while let Some(finished) = supervisors.join_next().await {
+        finished?;
+        warn!("a subscription supervisor stopped unexpectedly");
     }
-
     Ok(())
 }
 
