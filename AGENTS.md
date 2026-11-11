@@ -140,6 +140,11 @@ keys are `log4rsConfigLocation`, `rpcUrl`, `rpcHttpUrl`, `source`, `backfillTrun
 `programs` array of `["*"]` means select-all. Paths inside a config are relative to the working
 directory you launch from, which is assumed to be the repo root.
 
+The binary runs until SIGINT/SIGTERM and never reads stdin, so it works detached (Docker without
+`-i`/`-t`, systemd, nohup). It used to wait on stdin and died at startup with "Error starting
+WebSocket for log subscription: unexpected end of file" whenever stdin was closed — that message
+did not mean a network problem. `sologger/tests/lifecycle_test.rs` guards this.
+
 A transport whose config file is missing is *disabled with a notice*, and when no transport ends up
 active the binary falls back to pretty console output (it used to panic). The exception is a
 `webhookConfigLocation` that is set but unreadable or invalid — that is still a startup panic.
