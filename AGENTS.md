@@ -35,24 +35,17 @@ that consume it.
 
 ## The single most important gotcha
 
-**Workspace members depend on each other by published version, redirected locally via a patch.**
+**Workspace members depend on each other with `{ version = "x", path = "../..." }`, and releases
+are automated — do not bump versions or `cargo publish` by hand.**
 
-`sologger/Cargo.toml` says `sologger_log_context = "0.2.4"`, not `{ path = ... }` — the manifests
-publish cleanly to crates.io that way. A `[patch.crates-io]` section in the root `Cargo.toml`
-redirects those requirements to the sibling directories, so local builds and tests exercise the code
-in this repo.
+The path makes local builds and tests use the sibling source; `cargo publish` strips it and keeps
+the version requirement. The path is also what tells cargo and release-plz the publish order.
+(An earlier layout used bare versions plus a root `[patch.crates-io]`; that made
+`cargo publish --workspace` order crates alphabetically, so it was removed — do not bring it back.)
 
-Two consequences:
-
-- **Do not remove that patch section.** Without it, every crate silently resolves to the crates.io
-  copies and local edits to the libraries stop reaching the binary and the WASM bundle.
-- **Version requirements still matter.** The patch only applies while each local crate's version
-  satisfies the dependent's requirement. When bumping a library's version, propagate the new
-  requirement into its dependents' manifests in the same change (see
-  `.claude/skills/release-crates/`), or the patch stops matching and resolution falls back to the
-  registry.
-
-Publishing is unaffected: patches are not included in packaged crates.
+Version bumps, the propagated requirements, `Cargo.lock` and per-crate `CHANGELOG.md` files come
+from the release-plz PR; merging it publishes. See `release-plz.toml` and
+`.claude/skills/release-crates/`.
 
 ## Feature flags
 
@@ -173,8 +166,13 @@ never lags, because `pages.yml` rebuilds and overwrites it during every deploy.
 Vite `base` is `/sologger/`, matched by the router's `createWebHistory('/sologger/')` — changing one
 without the other breaks deep links on Pages.
 
-Docker images are built on pull requests that touch them and pushed to Docker Hub only from a
-`v*` tag, which must match the version in `sologger/Cargo.toml` (`.github/workflows/docker.yml`).
+Docker images (linux/amd64 + linux/arm64) are built on pull requests that touch them and pushed to
+Docker Hub only for a `v*` release tag, which must match the version in `sologger/Cargo.toml`
+(`.github/workflows/docker.yml`). A sologger release runs it from `release-plz.yml`, together with
+`release-binaries.yml` (Linux x86_64/arm64 archives + `SHA256SUMS` on the GitHub Release).
+
+CI (`rust.yml`, `ui.yml`, `audit.yml`) runs on pull requests into `main` and into `v*`
+integration branches such as `v0.4.0`.
 
 `Cargo.lock` is tracked (this workspace produces a binary). Commit lockfile changes alongside the
 dependency change that caused them; do not regenerate it gratuitously.
@@ -206,8 +204,8 @@ Do not treat these as regressions you caused:
   `sologger-log-transport/tests/` hold the integration tests.
 - Public items on the parser types carry `///` docs — match that density when adding fields to
   `LogContext`.
-- Crate versions are bumped by hand and are not in lockstep. Publishing order matters because of the
-  crates.io dependency arrangement above — see `.claude/skills/release-crates/`.
+- Crate versions are not in lockstep; release-plz bumps only crates that changed. Tags are
+  `<crate>-v<version>` for libraries and `v<version>` for the `sologger` binary.
 
 ## Scope notes
 

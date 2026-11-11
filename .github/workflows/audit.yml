@@ -12,7 +12,7 @@ on:
       - "sologger-ui/package-lock.json"
       - ".github/workflows/audit.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "v*" ]
     paths:
       - "Cargo.lock"
       - "**/Cargo.toml"

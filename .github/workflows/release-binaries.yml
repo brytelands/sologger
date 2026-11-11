@@ -1,0 +1,96 @@
+name: Release Binaries
+
+# Builds the sologger binary for Linux x86_64 and arm64, one per transport like the Docker
+# images, and attaches the archives plus SHA256SUMS to the tag's GitHub Release.
+# Called by release-plz.yml after a sologger release. To rebuild a release's assets:
+# Actions tab -> Release Binaries -> Run workflow, entering the tag (existing assets are
+# replaced).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.4.0"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  build:
+    name: ${{ matrix.transport }} ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        transport: [ logstash, otel ]
+        target: [ x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu ]
+        include:
+          # Ubuntu 22.04 keeps the glibc requirement low (2.35) for wider compatibility
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Check the tag matches the sologger version
+        run: |
+          version="$(grep '^version' sologger/Cargo.toml | head -1 | cut -d'"' -f2)"
+          if [[ "${TAG#v}" != "$version" ]]; then
+            echo "::error::Tag $TAG does not match sologger version $version"
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+
+      - name: Build
+        run: cargo build --locked --release -p sologger --features 'enable_${{ matrix.transport }}'
+
+      - name: Package
+        run: |
+          name="sologger-${{ matrix.transport }}-${TAG}-${{ matrix.target }}"
+          mkdir "$name"
+          cp target/release/sologger LICENSE README.md "$name/"
+          tar czf "$name.tar.gz" "$name"
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.transport }}-${{ matrix.target }}
+          path: sologger-*.tar.gz*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: dist
+        run: |
+          cat *.tar.gz.sha256 > SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$TAG" *.tar.gz SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"

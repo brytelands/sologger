@@ -1,21 +1,33 @@
 ---
 name: release-crates
-description: Bump versions and publish the sologger workspace crates to crates.io in dependency order. Use when asked to cut a release, publish a crate, or bump versions across the workspace — the ordering matters because workspace members depend on each other through crates.io.
+description: Cut a sologger release — crates.io publishes, the v<version> GitHub Release with Linux binaries, and Docker images — via the release-plz automation, or troubleshoot one. Use when asked to cut a release, publish a crate, bump versions, or check why a release did not go out.
 ---
 
 # Release the sologger crates
 
-This workspace has an unusual property that makes releases order-dependent: **members depend on each
-other by published version, not by path** — `sologger/Cargo.toml` reads
-`sologger_log_context = "0.2.4"`. (A `[patch.crates-io]` section in the root `Cargo.toml` redirects
-those requirements to local paths for development builds, but published packages carry only the
-version requirements.)
+Releases are automated with [release-plz](https://release-plz.dev) (`release-plz.toml`,
+`.github/workflows/release-plz.yml`). Do not run `cargo publish` by hand — publishing is
+irreversible (a version can be yanked, never replaced), and the workflow already orders, tags and
+packages everything. The one exception is the bootstrap in "One-time setup".
 
-That means a downstream crate cannot be published until its dependency's new version is already live
-on crates.io, and every version bump has to be hand-propagated into the dependents' manifests.
+## How a release flows
 
-Publishing is irreversible — a crates.io version can be yanked but never replaced or deleted.
-**Never run `cargo publish` without explicit confirmation for that specific crate and version.**
+1. Every push to `main` makes release-plz open or refresh a PR on a `release-plz-*` branch. It bumps
+   each crate changed since its last crates.io release, propagates the new requirements into the
+   dependents' `{ version, path }` entries, updates `Cargo.lock`, and writes the crate's
+   `CHANGELOG.md`. In CI it runs `cargo-semver-checks`, so a breaking library change becomes a
+   minor bump (0.x).
+2. Review the PR. Edit versions or changelog text in it if needed — release-plz keeps your edits.
+   Changelog entries land under "Other" unless commit messages use conventional prefixes
+   (`feat:`, `fix:`, `feat!:`).
+3. Merging it runs the `release` job (after approval on the `release` environment). It publishes
+   the changed crates leaves-first and tags them:
+   - libraries: `<crate>-v<version>`, no GitHub Release
+   - `sologger`: `v<version>` plus a GitHub Release, which then gets
+     - Linux binaries from `release-binaries.yml`: `sologger-{logstash,otel}-v<version>-{x86_64,aarch64}-unknown-linux-gnu.tar.gz` and `SHA256SUMS`
+     - Docker images from `docker.yml`: `brytelands/sologger-{logstash,otel}:{<version>,latest}` for linux/amd64 + linux/arm64
+
+Ordinary pushes to `main` never publish (`release_always = false`).
 
 ## Dependency graph
 
@@ -29,108 +41,55 @@ sologger_log_context  (no internal deps)
                         sologger_log_transport
 ```
 
-**Publish order:** `sologger_log_context` → `sologger_idl_decoder` → then
-`sologger_log_transformer`, `sologger_log_transformer_wasm`, `sologger_log_transport` in any
-order → then `sologger` last.
+Members depend on each other as `{ version = "x", path = "../..." }`. The path gives local builds
+the sibling source and gives cargo/release-plz the publish order; the version is what the
+published package keeps. Never replace these with bare versions plus a `[patch]` — that once made
+`cargo publish --workspace` order the crates alphabetically (`sologger` first) and fail.
 
-`sologger` itself has never been published to crates.io (the libraries have), and neither has
-`sologger_idl_decoder` (new in the Phase 2 work, locally at 0.1.0). Confirm with the user
-whether this release is meant to change that.
+## One-time setup (repository owner, outside the code)
 
-## Step 1 — establish the current state
+- **First publish of `sologger`.** crates.io trusted publishing cannot create a crate. For the
+  first release, add a `CARGO_REGISTRY_TOKEN` repository secret (crates.io token with
+  `publish-new` + `publish-update`, scoped to the six sologger crates). The workflow uses it when
+  present and falls back to trusted publishing when absent.
+- **Trusted publishing** (after `sologger` exists): on crates.io, for each of the six crates,
+  Settings → Trusted Publishing → GitHub: repository `brytelands/sologger`, workflow
+  `release-plz.yml`, environment `release`. Then delete the `CARGO_REGISTRY_TOKEN` secret.
+- **`release` environment** (Settings → Environments): add yourself as a required reviewer, so
+  nothing publishes without an approval click.
+- **Actions settings** → Workflow permissions: allow GitHub Actions to create pull requests.
+- **Optional `RELEASE_PLZ_TOKEN`** secret (fine-grained PAT: contents + pull requests read/write):
+  PRs opened with the default token do not trigger CI, so without it the release PR has no checks.
+- `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets (already used by `docker.yml`).
 
-```bash
-grep -H '^version' */Cargo.toml
-for c in sologger_log_context sologger_idl_decoder sologger_log_transformer \
-         sologger_log_transport sologger_log_transformer_wasm sologger; do
-  echo -n "$c published: "
-  curl -s "https://crates.io/api/v1/crates/$c" | python3 -c \
-    "import sys,json;print(json.load(sys.stdin).get('crate',{}).get('max_version','NOT PUBLISHED'))"
-done
-```
-
-Versions are **not** in lockstep — as of this writing: log_context locally 0.3.0 (published 0.2.4),
-idl_decoder locally 0.1.0 (never published), log_transformer 0.2.5, log_transformer_wasm 0.2.5,
-sologger 0.2.4, and log_transport locally at **0.4.0** (published: 0.2.3 — 0.3.0 carried the
-OpenTelemetry 0.32 migration; 0.4.0 adds Solana trace/metric export and the webhook transport;
-none of these have been published). Do not "harmonize" versions unless asked.
-
-Ask which crates are being released and at what versions. Only bump crates whose source actually
-changed; publishing an unchanged crate at a new version is noise.
-
-## Step 2 — bump, and propagate into dependents
-
-For each crate you bump, update **both** its own `version` and every dependent's requirement:
-
-| Bumping | Also update in |
-|---|---|
-| `sologger_log_context` | `sologger-idl-decoder/Cargo.toml`, `sologger-log-transformer/Cargo.toml`, `sologger-log-transformer-wasm/Cargo.toml`, `sologger-log-transport/Cargo.toml`, `sologger/Cargo.toml` |
-| `sologger_idl_decoder` | `sologger-log-transformer-wasm/Cargo.toml`, `sologger/Cargo.toml` |
-| `sologger_log_transformer` | `sologger/Cargo.toml` |
-| `sologger_log_transport` | `sologger/Cargo.toml` |
-
-Missing a propagation is the classic failure here: everything builds fine against the *old* published
-version and the release quietly ships nothing.
+## Checking a release locally
 
 ```bash
-grep -rn 'sologger_log' */Cargo.toml    # review every occurrence after editing
+cargo publish --workspace --dry-run --no-verify --allow-dirty  # prints the publish order
+cargo package --workspace --allow-dirty                        # builds each crate as packaged
 ```
 
-## Step 3 — verify locally before publishing anything
+`release-plz update` run in a scratch clone shows the version bumps the PR would make.
 
-The root `Cargo.toml` already carries a `[patch.crates-io]` section pointing the internal
-dependencies at their local directories, so the workspace tests exercise the code being released —
-**provided the patch still matches**. A patch entry only applies while the local crate's version
-satisfies the dependent's requirement, so after bumping, confirm nothing fell back to the registry:
+Each crate's `exclude` list drops `/tests`, `/benches`, `/docs` from the package; the resulting
+"ignoring test/benchmark" warnings are expected.
 
-```bash
-cargo tree --workspace | grep -c "crates.io.*sologger" ; # expect 0
-cargo tree -p sologger -i sologger_log_context           # expect a local path, not a registry copy
+## Re-running pieces
 
-cargo test  --workspace --features 'enable_logstash logstash otel'
-cargo clippy --all --features 'enable_logstash enable_otel'
-```
+- Binaries for an existing release: Actions → Release Binaries → Run workflow, tag `v<version>`
+  (replaces the assets).
+- Docker images for an existing tag: Actions → Docker Publish → Run workflow on that tag (also
+  moves `latest`).
+- A failed `release` job can be re-run from the Actions UI; release-plz skips crates whose version
+  is already on crates.io.
 
-Leave the patch section in place. It is not carried into published packages, and `cargo publish`
-verifies the packaged crate in isolation against the real registry — which is why publish order and
-index waits (Step 4) still matter.
+## After a release
 
-## Step 4 — dry run, then publish one crate at a time
-
-```bash
-cargo publish -p sologger_log_context --dry-run
-```
-
-Confirm with the user, then:
-
-```bash
-cargo publish -p sologger_log_context
-```
-
-Wait for the index to update (usually under a minute) before the next crate — the dependent's publish
-will fail with "no matching package named ... found" if you race it:
-
-```bash
-curl -s https://crates.io/api/v1/crates/sologger_log_context | python3 -c \
-  "import sys,json;print(json.load(sys.stdin)['crate']['max_version'])"
-```
-
-Repeat down the graph. Re-confirm before each `cargo publish`.
-
-Note each crate's `exclude` list drops `/tests`, `/benches`, `/docs`, `/.github` from the package —
-that is intentional; a `--dry-run` warning about missing test files is not a problem.
-
-## Step 5 — after publishing
-
-- Refresh the lockfile: `cargo update -p <crate>` — `Cargo.lock` is tracked, so commit the change.
 - If `sologger_log_context` or `sologger_log_transformer_wasm` changed, run the `wasm-sync` skill so
-  the committed dev copy under `sologger-ui/public/` matches. The live site takes care of itself —
-  the Pages workflow rebuilds WASM from source on the next push to `main`.
-- Docker images embed the binary; mention whether they need rebuilding
-  (`docker build -f Dockerfile-logstash --tag sologger-logstash .`).
-- Tag the release in git only if the user asks.
+  the committed dev copy under `sologger-ui/public/` matches (the Pages deploy rebuilds from source
+  regardless).
 
 ## Report
 
-List each crate published with its version, anything you bumped but deliberately did not publish,
-and what downstream artifacts (the committed WASM dev copy, Docker images) are now out of date.
+List each crate published with its version, the GitHub Release and its assets, the Docker tags, and
+anything that failed or was skipped.

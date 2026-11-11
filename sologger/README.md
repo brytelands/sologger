@@ -6,6 +6,16 @@ running on chain.
 
 Logs that contain errors will have the log level set to ERROR. All other logs will have the log level set to INFO.
 
+### Install
+
+```shell
+cargo install --locked sologger --features enable_logstash   # or enable_otel
+```
+
+Prebuilt Linux binaries (x86_64 and arm64) are attached to each
+[GitHub Release](https://github.com/brytelands/sologger/releases), and Docker images are published
+as `brytelands/sologger-logstash` and `brytelands/sologger-otel`.
+
 ### Quick Start
 
 **See the parent README for running with Docker. This is specific to the sologger binary.

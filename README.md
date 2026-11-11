@@ -17,6 +17,15 @@ If you just want to run Sologger with a log mangement system, then you can use o
 - [sologger with Parseable](./docker-examples/docker-parseable/) This is the easiest way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
 - [sologger with Opensearch](./docker-examples/docker-opensearch/) This is the preferred way to get up and running with Sologger. If you want to monitor specific programs, all you need to do is update the program IDs in the sologger-config.json file.
 
+### Install
+
+From v0.4.0, each release ships in three forms. Pick the transport you need, `logstash` or `otel`:
+
+- **Prebuilt Linux binaries** (x86_64 and arm64), attached to each [GitHub Release](https://github.com/brytelands/sologger/releases) with a `SHA256SUMS` file:
+  `sologger-<transport>-v<version>-<x86_64|aarch64>-unknown-linux-gnu.tar.gz`
+- **crates.io:** `cargo install --locked sologger --features enable_logstash` (or `enable_otel`)
+- **Docker** (linux/amd64 and linux/arm64): `docker pull brytelands/sologger-logstash` or `brytelands/sologger-otel`
+
 ### Build
 
 **Building the source**

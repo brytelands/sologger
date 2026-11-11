@@ -1,0 +1,21 @@
+# Release automation: https://release-plz.dev/docs/config
+#
+# On every push to main, .github/workflows/release-plz.yml opens (or refreshes) a release PR
+# that bumps versions from the commits since each crate's last release (cargo-semver-checks
+# turns breaking library changes into a minor bump on 0.x) and updates each crate's
+# CHANGELOG.md. Merging that PR publishes the changed crates to crates.io in dependency
+# order and tags them. A sologger release also gets a GitHub Release with Linux binaries
+# (release-binaries.yml) and multi-arch Docker images (docker.yml).
+
+[workspace]
+# Publish only when a release PR is merged, never on ordinary pushes to main.
+release_always = false
+# Libraries get crates.io + a `<crate>-v<version>` tag; only the binary gets a GitHub Release.
+git_release_enable = false
+
+[[package]]
+name = "sologger"
+# `v<version>` is what docker.yml and release-binaries.yml expect, and continues v0.3.0.
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_name = "sologger v{{ version }}"

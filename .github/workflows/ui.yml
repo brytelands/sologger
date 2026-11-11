@@ -2,12 +2,12 @@ name: UI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "v*" ]
     paths:
       - "sologger-ui/**"
       - ".github/workflows/ui.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "v*" ]
     paths:
       - "sologger-ui/**"
       - ".github/workflows/ui.yml"
