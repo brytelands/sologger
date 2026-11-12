@@ -43,7 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag }}
+          # Fully qualified: integration branches share the v<version> names of release tags,
+          # and a bare name checks out the branch
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || '' }}
           persist-credentials: false
 
       # Publish only for a release tag, which must match the sologger version
@@ -82,7 +84,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          # Fully qualified: integration branches share the v<version> names of release tags,
+          # and a bare name checks out the branch
+          ref: ${{ needs.prepare.outputs.tag && format('refs/tags/{0}', needs.prepare.outputs.tag) || '' }}
           persist-credentials: false
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

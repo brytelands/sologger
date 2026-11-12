@@ -199,6 +199,9 @@ Docker images (linux/amd64 + linux/arm64) are built on pull requests that touch 
 Docker Hub only for a `v*` release tag, which must match the version in `sologger/Cargo.toml`
 (`.github/workflows/docker.yml`). A sologger release runs it from `release-plz.yml`, together with
 `release-binaries.yml` (Linux x86_64/arm64 archives + `SHA256SUMS` on the GitHub Release).
+Both check out `refs/tags/<tag>`, never the bare tag name: release tags (`v0.4.1`) share their
+names with integration branches, and `actions/checkout` given a bare name picks the branch. That
+built the 0.4.0 artifacts from the `v0.4.0` branch and failed the 0.4.1 ones (version mismatch).
 
 The compose stacks (`docker-compose.yaml`, `docker-examples/*`) do not use those published images:
 each sologger service builds from the repo (`build.context` is the repo root, relative to the compose
