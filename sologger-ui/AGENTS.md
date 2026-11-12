@@ -10,7 +10,10 @@ Vue 3 + Vite single-page app for viewing and converting Solana logs in the brows
 - **Vite 6**, `base: '/sologger/'` (GitHub Pages). Router uses `createWebHistory('/sologger/')` — the
   two must stay in sync.
 - **PrimeVue 4** mounted with `theme: "none"`. There is no PrimeVue theme; styling comes from
-  Tailwind plus the hand-maintained per-component CSS in `src/assets/primevue/`.
+  Tailwind plus the hand-maintained per-component CSS in `src/assets/primevue/`. The only
+  PrimeVue component in use is Toast, so `src/assets/primevue/tailwind.css` imports just
+  `common` + `toast`; add an `@import` there when you start using another component
+  (importing all ~84 used to make the stylesheet ~677 kB instead of ~59 kB).
 - **Tailwind 3** + PostCSS, with `tailwindcss-primeui`.
 - **SlickGrid** for the log table, **Chart.js** (`vue-chartjs`) for stats; the CU flamegraph is
   hand-rolled SVG (`CuFlamegraph.vue`).
