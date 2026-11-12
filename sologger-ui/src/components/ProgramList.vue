@@ -11,7 +11,7 @@
         <span class="text-sm font-mono text-[var(--p-text-color)] truncate max-w-[150px] md:max-w-none">{{ program.id }}</span>
         <span
           class="text-xs text-[var(--p-text-muted)] whitespace-nowrap"
-          :title="program.status === 'awaiting' ? 'It may take several seconds for the first logs to arrive' : null"
+          :title="STATUS_TITLES[program.status] ?? null"
         >{{ statusLabel(program.status) }}</span>
         <button
           @click="$emit('removeProgramId', index)"
@@ -31,12 +31,21 @@ const STATUS_LABELS = {
   connecting: 'Connecting…',
   connected: 'Connected',
   awaiting: 'Awaiting logs…',
+  reconnecting: 'Reconnecting…',
   disconnected: 'Disconnected'
+};
+
+const STATUS_TITLES = {
+  awaiting: 'It may take several seconds for the first logs to arrive',
+  reconnecting: 'The connection dropped; retrying with increasing delays. Connect retries now.'
 };
 
 export default {
   props: ['programs'],
   emits: ['removeProgramId'],
+  data() {
+    return {STATUS_TITLES};
+  },
   methods: {
     statusLabel(status) {
       return STATUS_LABELS[status] ?? status;
@@ -59,6 +68,11 @@ export default {
 
 .status-dot--connecting {
   background: var(--p-primary-color);
+  animation: status-pulse 1.2s ease-in-out infinite;
+}
+
+.status-dot--reconnecting {
+  background: #f59e0b;
   animation: status-pulse 1.2s ease-in-out infinite;
 }
 

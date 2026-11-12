@@ -30,7 +30,9 @@ they are stale.
 src/main.js            App bootstrap; applies the stored theme to <html data-theme> before mount.
 src/router/index.js    Four routes: / (home), /convert, /lookup, /about.
 src/views/
-  HomeView.vue         ~1030 lines. Live WebSocket log stream, filters, IDL decode, exports.
+  HomeView.vue         ~900 lines. Live log stream (sockets live in useLogStream), filters,
+                       IDL decode, exports. The stream e2e tests stub the RPC socket with
+                       mockLogStream in e2e/ui.spec.js.
   ConvertView.vue      Paste raw logs -> structured output via the WASM module.
   LookupView.vue       Paste a signature -> getTransaction from a configurable RPC -> WASM parse
                        -> summary cards + CU flamegraph + LogsTable. Deep-linkable via ?sig=.
@@ -57,6 +59,12 @@ src/components/
                        HomeView's programStatuses computed ({id, status} objects).
   CollapsibleSection.vue  Card/bare section with a persisted open state
                           (localStorage sologger_section_<storageKey>).
+src/composables/useLogStream.js     createLogStream — HomeView's live logsSubscribe sockets (one per
+                                    program): de-duplicates transactions by signature (several
+                                    monitored programs report the same one), reconnects dropped
+                                    sockets with backoff, per-program reactive status. Takes the
+                                    WebSocket class as an option, so logStream.test.js drives it
+                                    with a fake socket and fake timers.
 src/composables/useTheme.js         Theme state, persisted to localStorage under key 'theme'.
 src/composables/useIdlDecoder.js    decodeWithIdl(idl, log) — instruction matching + event decoding
                                     via the WASM decode_program_data export, shared with tests.

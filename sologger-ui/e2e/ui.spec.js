@@ -182,6 +182,94 @@ test('home popular-program picker fills the Program ID and adds it', async ({ pa
   expect(errors).toEqual([]);
 });
 
+const ATA = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+const TOKEN_LOGS = [
+  `Program ${TOKEN} invoke [1]`,
+  'Program log: Instruction: Transfer',
+  `Program ${TOKEN} consumed 4645 of 200000 compute units`,
+  `Program ${TOKEN} success`,
+];
+const ATA_LOGS = [
+  `Program ${ATA} invoke [1]`,
+  `Program ${TOKEN} invoke [2]`,
+  'Program log: Instruction: InitializeAccount3',
+  `Program ${TOKEN} consumed 1000 of 190000 compute units`,
+  `Program ${TOKEN} success`,
+  `Program ${ATA} consumed 9000 of 200000 compute units`,
+  `Program ${ATA} success`,
+];
+
+/**
+ * A stand-in RPC for logsSubscribe: confirms each subscription and records the socket
+ * with the program it subscribed to, so a test can push notifications or drop it.
+ */
+async function mockLogStream(page) {
+  await mockNetwork(page);
+  const subscriptions = [];
+  await page.routeWebSocket(/^wss?:\/\/(?!localhost)/, ws => {
+    ws.onMessage(message => {
+      const request = JSON.parse(message);
+      if (request.method !== 'logsSubscribe') return;
+      const id = subscriptions.length + 1;
+      subscriptions.push({ ws, id, programId: request.params[0].mentions[0] });
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: id }));
+    });
+  });
+  return subscriptions;
+}
+
+function notify({ ws, id }, signature, logs) {
+  ws.send(JSON.stringify({
+    jsonrpc: '2.0',
+    method: 'logsNotification',
+    params: { subscription: id, result: { context: { slot: 42 }, value: { signature, err: null, logs } } },
+  }));
+}
+
+async function addProgram(page, programId) {
+  await page.getByPlaceholder('Enter Program ID').fill(programId);
+  await page.getByRole('button', { name: 'Add Program' }).click();
+}
+
+function programChip(page, programId) {
+  return page.locator('div', { has: page.getByRole('button', { name: `Stop monitoring ${programId}` }) }).last();
+}
+
+test('home counts a transaction once when two monitored programs report it', async ({ page }) => {
+  const errors = collectErrors(page);
+  const subscriptions = await mockLogStream(page);
+  await page.goto('');
+  await addProgram(page, TOKEN);
+  await addProgram(page, ATA);
+  await expect.poll(() => subscriptions.length).toBe(2);
+
+  for (const subscription of subscriptions) notify(subscription, 'SIG_SHARED', ATA_LOGS);
+  notify(subscriptions[0], 'SIG_TOKEN_ONLY', TOKEN_LOGS);
+
+  // ATA_LOGS parse into 2 records (ATA + its Token CPI), the second transaction into 1
+  await expect(summaryValue(page, 'Total Logs')).toHaveText('3');
+  await expect(summaryValue(page, 'Unique TXs')).toHaveText('2');
+  expect(errors).toEqual([]);
+});
+
+test('home reconnects a dropped connection and keeps streaming', async ({ page }) => {
+  const subscriptions = await mockLogStream(page);
+  await page.goto('');
+  await addProgram(page, TOKEN);
+  await expect.poll(() => subscriptions.length).toBe(1);
+  await expect(programChip(page, TOKEN)).toContainText('Awaiting logs');
+
+  await subscriptions[0].ws.close();
+  await expect(programChip(page, TOKEN)).toContainText('Reconnecting');
+  await expect.poll(() => subscriptions.length, { timeout: 10_000 }).toBe(2);
+  expect(subscriptions[1].programId).toBe(TOKEN);
+  await expect(programChip(page, TOKEN)).toContainText('Awaiting logs');
+
+  notify(subscriptions[1], 'SIG_AFTER_RECONNECT', TOKEN_LOGS);
+  await expect(summaryValue(page, 'Total Logs')).toHaveText('1');
+  await expect(programChip(page, TOKEN)).toContainText('Connected');
+});
+
 test('home program ID can still be typed by hand', async ({ page }) => {
   await mockNetwork(page);
   await page.goto('');
