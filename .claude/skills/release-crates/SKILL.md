@@ -82,6 +82,11 @@ Each crate's `exclude` list drops `/tests`, `/benches`, `/docs` from the package
   moves `latest`).
 - A failed `release` job can be re-run from the Actions UI; release-plz skips crates whose version
   is already on crates.io.
+- A release run that is stuck (e.g. stranded `queued` by a GitHub outage, so it can be neither
+  re-run nor cancelled): Actions → Release-plz → Run workflow on `main`. The manual run skips the
+  merged-release-PR check and goes straight to the `release` job (still behind the environment
+  approval); reject the stuck run if it ever starts. Do not open a dummy `release-plz-*` PR to
+  re-trigger — that was the workaround before this trigger existed.
 
 ## After a release
 
