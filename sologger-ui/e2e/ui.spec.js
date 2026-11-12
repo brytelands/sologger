@@ -453,6 +453,169 @@ test('lookup row detail and IDL decode dialogs are accessible and reopen', async
   expect(errors).toEqual([]);
 });
 
+async function lookupSuccessLogs(page) {
+  await mockNetwork(page);
+  await openLookup(page);
+  await page.getByPlaceholder('Transaction signature...').fill(SIG);
+  await page.getByRole('button', { name: 'Lookup' }).click();
+  await expect(page.locator('.slick-row').first()).toBeVisible();
+}
+
+/** A short description of the focused element, for comparing Tab sequences. */
+function focused(page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    const grid = document.querySelector('.slick-grid-container');
+    if (grid && el === grid.lastElementChild) return 'rows';
+    if (el.getAttribute('role') === 'columnheader') return `header:${el.textContent.trim()}`;
+    if (grid?.contains(el)) return `inside-grid:${el.className}`;
+    return `outside:${el.tagName.toLowerCase()}`;
+  });
+}
+
+const dialogOpen = page => page.getByRole('dialog').count().then(n => n > 0);
+
+/** Whether the scrolling header strip and the rows below it are scrolled to the same place. */
+function headersAligned(page) {
+  return page.evaluate(() => {
+    const header = document.querySelector('.slick-pane-header.slick-pane-right .slick-header');
+    const rows = document.querySelector('.slick-pane-top.slick-pane-right .slick-viewport');
+    return Math.abs(header.scrollLeft - rows.scrollLeft) <= 1;
+  });
+}
+
+/** WCAG contrast ratio between a link in the highlighted row and its cell's background. */
+function highlightedLinkContrast(page) {
+  return page.evaluate(() => {
+    const link = document.querySelector('.slick-cell.selected a');
+    const toRgb = css => css.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const luminance = ([r, g, b]) => {
+      const channel = v => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+    const fg = luminance(toRgb(getComputedStyle(link).color));
+    const bg = luminance(toRgb(getComputedStyle(link.closest('.slick-cell')).backgroundColor));
+    return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+  });
+}
+
+test('log grid Tab order: sortable headers, one stop for the rows, then out; nothing opens', async ({ page }) => {
+  const errors = collectErrors(page);
+  await lookupSuccessLogs(page);
+  await page.getByRole('button', { name: 'Columns' }).focus();
+
+  const stops = [];
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.press('Tab');
+    stops.push(await focused(page));
+    expect(await dialogOpen(page), `no dialog after Tab ${i + 1}`).toBe(false);
+    // Realigned within a frame of the header taking focus
+    await expect.poll(() => headersAligned(page), { message: `headers line up with their columns after Tab ${i + 1}`, timeout: 2000 }).toBe(true);
+  }
+  expect(stops).toEqual([
+    'header:Time', 'header:Level', 'header:Slot', 'header:Depth', 'header:Idx',
+    'header:Instruction', 'header:CU Used', 'header:Error Code', 'rows', stops[9],
+  ]);
+  expect(stops[9]).toMatch(/^outside:/);
+
+  await page.keyboard.press('Shift+Tab');
+  expect(await focused(page)).toBe('rows');
+  await page.keyboard.press('Shift+Tab');
+  expect(await focused(page)).toBe('header:Error Code');
+  expect(errors).toEqual([]);
+});
+
+test('log grid: arrows move between cells, Enter opens details with explorer links', async ({ page }) => {
+  await lookupSuccessLogs(page);
+  const rows = page.locator('.slick-grid-container > :last-child');
+  await page.getByRole('columnheader', { name: 'Error Code' }).focus();
+  await page.keyboard.press('Tab');
+  expect(await focused(page)).toBe('rows');
+  const live = page.locator('.logs-table-root [aria-live="polite"]');
+  await expect(live).toContainText('Enter opens details');
+
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  expect(await dialogOpen(page)).toBe(false);
+  await expect(live).toContainText(/Row \d of 2/);
+  expect(await highlightedLinkContrast(page), 'links stay readable in the highlighted row').toBeGreaterThanOrEqual(3);
+
+  await page.keyboard.press('Enter');
+  const detail = page.getByRole('dialog', { name: 'Log Detail' });
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole('link', { name: SIG })).toHaveAttribute('href', new RegExp(`/tx/${SIG}`));
+  await expect(detail.getByRole('link', { name: TOKEN }).or(detail.getByRole('link', { name: OUTER })).first())
+    .toHaveAttribute('href', /\/(account|address)\//);
+
+  await page.keyboard.press('Escape');
+  await expect(detail).toBeHidden();
+  await expect(rows).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  expect(await dialogOpen(page)).toBe(false);
+});
+
+test('log grid: a click opens details, a click on a link does not', async ({ page }) => {
+  await lookupSuccessLogs(page);
+  const popup = page.waitForEvent('popup');
+  await page.locator('.slick-cell a').first().click();
+  await (await popup).close();
+  expect(await dialogOpen(page)).toBe(false);
+
+  await page.locator('.slick-row').first().locator('.slick-cell').nth(1).click();
+  await expect(page.getByRole('dialog', { name: 'Log Detail' })).toBeVisible();
+});
+
+test('log grid: sortable headers sort from the keyboard and announce their order', async ({ page }) => {
+  await lookupSuccessLogs(page);
+  const header = page.getByRole('columnheader', { name: 'CU Used' });
+  const firstRowCu = () => page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.grid-canvas-right .slick-row')].sort((a, b) => a.offsetTop - b.offsetTop);
+    return rows[0].textContent;
+  });
+  await header.focus();
+  await expect(header).toHaveAttribute('aria-sort', 'none');
+  await page.keyboard.press('Enter');
+  await expect(header).toHaveAttribute('aria-sort', 'ascending');
+  expect(await firstRowCu()).toContain('4,645');
+  await page.keyboard.press(' ');
+  await expect(header).toHaveAttribute('aria-sort', 'descending');
+  expect(await firstRowCu()).toContain('90,232');
+  await expect(header).toBeFocused();
+});
+
+test('phone-width log cards open details from the keyboard', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockNetwork(page);
+  await openLookup(page);
+  await page.getByPlaceholder('Transaction signature...').fill(SIG);
+  await page.getByRole('button', { name: 'Lookup' }).click();
+  const card = page.getByRole('button', { name: /Program:/ }).first();
+  await expect(card).toBeVisible();
+
+  await card.focus();
+  await page.keyboard.press('Enter');
+  const detail = page.getByRole('dialog', { name: 'Log Detail' });
+  await expect(detail).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(card).toBeFocused();
+  await page.keyboard.press(' ');
+  await expect(detail).toBeVisible();
+});
+
+test('the Columns menu reports its state and closes with Escape', async ({ page }) => {
+  await lookupSuccessLogs(page);
+  const button = page.getByRole('button', { name: 'Columns' });
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+  await button.focus();
+  await page.keyboard.press('Enter');
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('checkbox', { name: 'Raw Logs' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('checkbox', { name: 'Raw Logs' })).toBeHidden();
+  await expect(button).toBeFocused();
+});
+
 test('home program ID can still be typed by hand', async ({ page }) => {
   await mockNetwork(page);
   await page.goto('');

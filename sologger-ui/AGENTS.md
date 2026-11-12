@@ -50,11 +50,20 @@ src/views/
                        opt-out checkbox, manual IDL upload still available.
   AboutView.vue
 src/components/
-  LogsTable.vue        ~690 lines. SlickGrid table, CPI depth rendering, mobile card view.
+  LogsTable.vue        ~880 lines. SlickGrid table, CPI depth rendering, mobile card view.
                        Its <style> is unscoped on purpose: SlickGrid injects cell HTML via
                        innerHTML, which scoped styles cannot reach — and everything a grid
                        formatter interpolates must go through its escapeHtml helper (log
                        content is attacker-controlled).
+                       Keyboard model (setUpKeyboardAccess / decorateHeaders): sortable
+                       headers are Tab stops (Enter/Space sort, aria-sort), the rows are one
+                       Tab stop (SlickGrid's last focus catcher; arrows move, Enter opens
+                       details, Tab leaves), cell links are tabindex=-1 and linked from the
+                       detail dialog instead, and an aria-live region announces the active
+                       cell. Details open on click/Enter only — never on selection, which
+                       follows the arrow keys. SlickGrid makes its panes/viewports tabbable
+                       and handles Tab itself; setUpKeyboardAccess undoes both, so keep it
+                       running after any grid re-init. Covered by the "log grid" e2e tests.
   StatsGrid.vue        Chart.js panels (CU consumption, log level distribution) plus the
                        latest-transaction CU flamegraph.
   CuFlamegraph.vue     SVG icicle of one transaction's CPI tree: depth = row, width = consumed
