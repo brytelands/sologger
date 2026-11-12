@@ -31,7 +31,9 @@ they are stale.
 
 ```
 src/main.js            App bootstrap; applies the stored theme to <html data-theme> before mount.
-src/router/index.js    Four routes: / (home), /convert, /lookup, /about.
+src/router/index.js    Four routes: / (home), /convert, /lookup, /about. Each view is lazy-loaded
+                       as its own chunk; router.onError turns a failed chunk load (a tab
+                       opened before a redeploy) into a full load of the target URL.
 src/views/
   HomeView.vue         ~900 lines. Live log stream (sockets live in useLogStream), filters,
                        IDL decode, exports. The stream e2e tests stub the RPC socket with

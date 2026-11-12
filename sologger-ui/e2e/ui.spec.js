@@ -369,6 +369,23 @@ test('convert keeps its button disabled until the parser has loaded', async ({ p
   await expect(button).toBeEnabled();
 });
 
+test('a view whose chunk fails to load (stale tab after a redeploy) loads by full navigation', async ({ page }) => {
+  await mockNetwork(page);
+  let blocked = 0;
+  // In the dev server the view is served as its own module, like a hashed chunk in a build
+  await page.route(/\/src\/views\/AboutView\.vue/, route => {
+    if (blocked++ === 0) return route.abort();
+    return route.continue();
+  });
+  await page.goto('');
+  await expect(page.getByRole('heading', { name: 'Solana Log Explorer' })).toBeVisible();
+
+  await page.locator('a[href="/sologger/about"]:visible').first().click();
+  await expect(page.getByRole('heading', { name: 'About Sologger' })).toBeVisible();
+  await expect(page).toHaveURL(/\/sologger\/about$/);
+  expect(blocked).toBeGreaterThanOrEqual(2);
+});
+
 test('navigation links reach every view', async ({ page }) => {
   await mockNetwork(page);
   await page.goto('');
