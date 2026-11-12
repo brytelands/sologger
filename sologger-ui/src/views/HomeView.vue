@@ -286,6 +286,7 @@ import {mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import {getTransactionRequestBody} from '../composables/useTransactionRequest';
 import {createLogStream} from '../composables/useLogStream';
+import {fetchAnchorIdl} from '../composables/useOnChainIdl';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
@@ -441,13 +442,8 @@ export default {
 
         // Attempt to fetch IDL for the program
         try {
-          const {Program} = await import('@coral-xyz/anchor');
-          const {Connection, PublicKey} = await import('@solana/web3.js');
-          const wsUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
-          const httpUrl = wsUrl.replace(/^wss?:\/\//, 'https://');
-          const connection = new Connection(httpUrl);
-          const pubkey = new PublicKey(programIdToAdd);
-          const idl = await Program.fetchIdl(pubkey, {connection});
+          const httpUrl = this.currentWsUrl().replace(/^wss?:\/\//, 'https://');
+          const idl = await fetchAnchorIdl(httpUrl, programIdToAdd);
           if (idl) {
             this.uploadedIdl = idl;
             this.idlFileName = `${programIdToAdd.substring(0, 8)}...-on-chain.json`;

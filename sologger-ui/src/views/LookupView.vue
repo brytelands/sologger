@@ -117,6 +117,7 @@ import {decodeWithIdl} from '../composables/useIdlDecoder';
 import {idlCandidatePrograms, mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import {getTransactionRequestBody} from '../composables/useTransactionRequest';
+import {fetchAnchorIdl} from '../composables/useOnChainIdl';
 import LogsTable from '../components/LogsTable.vue';
 import CuFlamegraph from '../components/CuFlamegraph.vue';
 
@@ -269,7 +270,7 @@ export default {
       }, {linkSuffix: this.linkSuffix, explorer}));
     },
     // Trace the transaction's programs to their published on-chain IDLs (Anchor stores
-    // the IDL at a deterministic PDA; Program.fetchIdl resolves and inflates it).
+    // the IDL at a deterministic address; fetchAnchorIdl reads and inflates it).
     // Returns how many new IDLs were registered with the transformer.
     async discoverOnChainIdls() {
       const known = new Set(Object.keys(this.autoIdls));
@@ -279,12 +280,8 @@ export default {
 
       let found = 0;
       try {
-        const {Program} = await import('@coral-xyz/anchor');
-        const {Connection, PublicKey} = await import('@solana/web3.js');
-        const connection = new Connection(this.rpcUrl);
-
         const results = await Promise.allSettled(candidates.map(async programId => {
-          const idl = await Program.fetchIdl(new PublicKey(programId), {connection});
+          const idl = await fetchAnchorIdl(this.rpcUrl, programId);
           return {programId, idl};
         }));
         for (const result of results) {

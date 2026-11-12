@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { deflateSync } from 'node:zlib';
 
 const SIG = '5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW';
 const OUTER = 'CLMM9tUoggJu2wagPkkqs9eFG4BWhVBZWkP1qv3Sp7tR';
@@ -32,7 +34,28 @@ const CORS = {
  * Stubs everything off-origin. JSON-RPC getTransaction behaves like a real node: without
  * maxSupportedTransactionVersion >= 1, a v1 transaction is rejected with -32015.
  */
-async function mockNetwork(page, { logs = SUCCESS_LOGS, err = null, result, rpcError } = {}) {
+/**
+ * Account data for a program's Anchor IDL account, as the program writes it: 8-byte
+ * discriminator, 32-byte authority, u32 LE length, zlib-compressed JSON.
+ */
+function anchorIdlAccountBase64(idl) {
+  const compressed = deflateSync(Buffer.from(JSON.stringify(idl)));
+  const data = Buffer.alloc(8 + 32 + 4 + compressed.length);
+  data.writeUInt32LE(compressed.length, 40);
+  compressed.copy(data, 44);
+  return data.toString('base64');
+}
+
+const CPMM = 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C';
+// Where Anchor keeps CPMM's IDL (computed with @coral-xyz/anchor's idlAddress)
+const CPMM_IDL_ADDRESS = '3HD1FNEKoNh5aYfvw3VrNWy6WwrEtS6JYx1RmFTE7DMC';
+const CPMM_IDL = JSON.parse(readFileSync(new URL('../src/tests/CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C-idl.json', import.meta.url), 'utf8'));
+
+/**
+ * `accounts` maps an address to base64 account data that getAccountInfo returns; every
+ * other account does not exist.
+ */
+async function mockNetwork(page, { logs = SUCCESS_LOGS, err = null, result, rpcError, accounts = {} } = {}) {
   const requests = [];
   await page.routeWebSocket(/^wss?:\/\/(?!localhost)/, () => {});
   await page.route(url => url.hostname !== 'localhost', async route => {
@@ -41,6 +64,13 @@ async function mockNetwork(page, { logs = SUCCESS_LOGS, err = null, result, rpcE
     if (request.method() !== 'POST') return route.fulfill({ status: 204 });
 
     const body = request.postDataJSON();
+    if (body.method === 'getAccountInfo') {
+      const data = accounts[body.params[0]];
+      const value = data
+        ? { data: [data, 'base64'], executable: false, lamports: 1, owner: CPMM, rentEpoch: 0, space: 0 }
+        : null;
+      return route.fulfill({ json: { jsonrpc: '2.0', id: body.id, result: { context: { slot: 1 }, value } }, headers: CORS });
+    }
     if (body.method !== 'getTransaction') {
       return route.fulfill({ json: { jsonrpc: '2.0', id: body.id, result: null }, headers: CORS });
     }
@@ -314,6 +344,40 @@ for (const os of ['light', 'dark']) {
     });
   }
 }
+
+test('home loads a program\'s on-chain IDL when it is added', async ({ page }) => {
+  const errors = collectErrors(page);
+  await mockNetwork(page, { accounts: { [CPMM_IDL_ADDRESS]: anchorIdlAccountBase64(CPMM_IDL) } });
+  await page.goto('');
+  await addProgram(page, CPMM);
+  await expect(page.getByText(`On-chain IDL loaded for ${CPMM.substring(0, 8)}...`)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('home says when a program has no on-chain IDL', async ({ page }) => {
+  await mockNetwork(page);
+  await page.goto('');
+  await addProgram(page, CPMM);
+  await expect(page.getByText(`No on-chain IDL found for ${CPMM.substring(0, 8)}...`)).toBeVisible();
+});
+
+test('lookup discovers the on-chain IDL of a program in the transaction', async ({ page }) => {
+  const errors = collectErrors(page);
+  await mockNetwork(page, {
+    logs: [
+      `Program ${CPMM} invoke [1]`,
+      'Program log: Instruction: SwapBaseInput',
+      `Program ${CPMM} consumed 30000 of 200000 compute units`,
+      `Program ${CPMM} success`,
+    ],
+    accounts: { [CPMM_IDL_ADDRESS]: anchorIdlAccountBase64(CPMM_IDL) },
+  });
+  await page.goto('lookup');
+  await page.getByPlaceholder('Transaction signature...').fill(SIG);
+  await page.getByRole('button', { name: 'Lookup' }).click();
+  await expect(page.getByText(`On-chain IDL loaded for ${CPMM.substring(0, 8)}…`)).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test('home program ID can still be typed by hand', async ({ page }) => {
   await mockNetwork(page);

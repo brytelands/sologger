@@ -32,6 +32,10 @@ npm run dev
 The app runs entirely in the browser and connects to the Solana RPC you pick in it (devnet by default). It does not
 talk to a running sologger service.
 
+Open it on `localhost` or over HTTPS. Browsers only allow the cryptography used to locate programs' on-chain IDLs on
+secure origins, so on a plain-HTTP address such as `http://192.168.1.10:8080` everything works except automatic IDL
+loading (you can still upload an IDL file).
+
 ## Tests
 
 ```shell

@@ -17,9 +17,12 @@ Vue 3 + Vite single-page app for viewing and converting Solana logs in the brows
 - **Tailwind 3** + PostCSS, with `tailwindcss-primeui`.
 - **SlickGrid** for the log table, **Chart.js** (`vue-chartjs`) for stats; the CU flamegraph is
   hand-rolled SVG (`CuFlamegraph.vue`).
-- **@coral-xyz/anchor** only for fetching on-chain IDLs (`Program.fetchIdl`). IDL event decoding is
-  done by the Rust decoder (`sologger-idl-decoder`) through the WASM module — the BorshCoder path
-  was retired in Phase 6.3.
+- **On-chain IDLs** are fetched by `src/composables/useOnChainIdl.js` (one `getAccountInfo`
+  call, then `DecompressionStream`), with `@solana/addresses` deriving Anchor's IDL account
+  address. `@coral-xyz/anchor` / `@solana/web3.js` were removed — do not add them back for
+  this. Address derivation uses `crypto.subtle`, which browsers only expose on HTTPS or
+  localhost; elsewhere the fetch fails and the UI says so. IDL event decoding is done by the
+  Rust decoder (`sologger-idl-decoder`) through the WASM module.
 - **Vitest** for tests, `environment: 'node'`, only matching `src/tests/**/*.test.js`. The suite
   loads the committed WASM build via `initSync` and exercises the real decoder.
 
@@ -42,7 +45,7 @@ src/views/
   LookupView.vue       Paste a signature -> getTransaction from a configurable RPC -> WASM parse
                        -> summary cards + CU flamegraph + LogsTable. Deep-linkable via ?sig=.
                        Traces the transaction's programs to their published on-chain IDLs
-                       (Program.fetchIdl, capped candidate list from idlCandidatePrograms) and
+                       (fetchAnchorIdl, capped candidate list from idlCandidatePrograms) and
                        re-parses with them, so events/error names decode with zero setup;
                        opt-out checkbox, manual IDL upload still available.
   AboutView.vue
@@ -70,6 +73,9 @@ src/composables/useLogStream.js     createLogStream — HomeView's live logsSubs
                                     sockets with backoff, per-program reactive status. Takes the
                                     WebSocket class as an option, so logStream.test.js drives it
                                     with a fake socket and fake timers.
+src/composables/useOnChainIdl.js    fetchAnchorIdl(rpcUrl, programId) — reads a program's Anchor
+                                    IDL account; anchorIdlAddress is checked against Anchor's own
+                                    results in onChainIdl.test.js.
 src/composables/useTheme.js         Theme state, persisted to localStorage under key 'theme'.
 src/composables/useIdlDecoder.js    decodeWithIdl(idl, log) — instruction matching + event decoding
                                     via the WASM decode_program_data export, shared with tests.
