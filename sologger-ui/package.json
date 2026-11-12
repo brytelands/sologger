@@ -10,7 +10,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/addresses": "^8.6.0",
     "chart.js": "^4.5.1",
     "primevue": "^4.5.4",
     "slickgrid": "^5.18.2",
@@ -22,7 +22,6 @@
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@vitejs/plugin-vue": "^5.2.4",
-    "@vue/test-utils": "^2.4.6",
     "autoprefixer": "^10.4.24",
     "postcss": "^8.5.6",
     "postcss-custom-media": "^11.0.6",
@@ -31,9 +30,5 @@
     "tailwindcss": "^3.4.19",
     "vite": "^6.4.1",
     "vitest": "^4.0.18"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.9",
-    "utf-8-validate": "^6.0.5"
   }
 }

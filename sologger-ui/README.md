@@ -1,5 +1,46 @@
-# Vue 3 + Vite
+# Sologger UI
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+A browser app for watching and analyzing Solana program logs: a live log stream per program, transaction lookup with a
+compute-unit flamegraph, and raw-log conversion. Logs are parsed in the browser by sologger's Rust parser compiled to
+WebAssembly.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+The hosted version is at <https://brytelands.github.io/sologger/>.
+
+## Run it locally
+
+**With Docker** (no Node.js needed), from the repository root:
+
+```shell
+docker compose up sologger-ui
+```
+
+Then open <http://localhost:8080/sologger/>. Or without compose:
+
+```shell
+docker build -t sologger-ui:local sologger-ui
+docker run --rm -p 8080:8080 sologger-ui:local
+```
+
+**With Node.js** (for development, with hot reload):
+
+```shell
+cd sologger-ui
+npm install
+npm run dev
+```
+
+The app runs entirely in the browser and connects to the Solana RPC you pick in it (devnet by default). It does not
+talk to a running sologger service.
+
+Open it on `localhost` or over HTTPS. Browsers only allow the cryptography used to locate programs' on-chain IDLs on
+secure origins, so on a plain-HTTP address such as `http://192.168.1.10:8080` everything works except automatic IDL
+loading (you can still upload an IDL file).
+
+## Tests
+
+```shell
+npx vitest run         # unit tests
+npm run test:e2e       # Playwright; first run `npx playwright install chromium`
+```
+
+See [AGENTS.md](./AGENTS.md) for how the app is put together.

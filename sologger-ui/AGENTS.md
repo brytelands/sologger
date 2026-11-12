@@ -10,13 +10,19 @@ Vue 3 + Vite single-page app for viewing and converting Solana logs in the brows
 - **Vite 6**, `base: '/sologger/'` (GitHub Pages). Router uses `createWebHistory('/sologger/')` — the
   two must stay in sync.
 - **PrimeVue 4** mounted with `theme: "none"`. There is no PrimeVue theme; styling comes from
-  Tailwind plus the hand-maintained per-component CSS in `src/assets/primevue/`.
+  Tailwind plus the hand-maintained per-component CSS in `src/assets/primevue/`. The only
+  PrimeVue component in use is Toast, so `src/assets/primevue/tailwind.css` imports just
+  `common` + `toast`; add an `@import` there when you start using another component
+  (importing all ~84 used to make the stylesheet ~677 kB instead of ~59 kB).
 - **Tailwind 3** + PostCSS, with `tailwindcss-primeui`.
 - **SlickGrid** for the log table, **Chart.js** (`vue-chartjs`) for stats; the CU flamegraph is
   hand-rolled SVG (`CuFlamegraph.vue`).
-- **@coral-xyz/anchor** only for fetching on-chain IDLs (`Program.fetchIdl`). IDL event decoding is
-  done by the Rust decoder (`sologger-idl-decoder`) through the WASM module — the BorshCoder path
-  was retired in Phase 6.3.
+- **On-chain IDLs** are fetched by `src/composables/useOnChainIdl.js` (one `getAccountInfo`
+  call, then `DecompressionStream`), with `@solana/addresses` deriving Anchor's IDL account
+  address. `@coral-xyz/anchor` / `@solana/web3.js` were removed — do not add them back for
+  this. Address derivation uses `crypto.subtle`, which browsers only expose on HTTPS or
+  localhost; elsewhere the fetch fails and the UI says so. IDL event decoding is done by the
+  Rust decoder (`sologger-idl-decoder`) through the WASM module.
 - **Vitest** for tests, `environment: 'node'`, only matching `src/tests/**/*.test.js`. The suite
   loads the committed WASM build via `initSync` and exercises the real decoder.
 
@@ -28,33 +34,61 @@ they are stale.
 
 ```
 src/main.js            App bootstrap; applies the stored theme to <html data-theme> before mount.
-src/router/index.js    Four routes: / (home), /convert, /lookup, /about.
+src/router/index.js    Four routes: / (home), /convert, /lookup, /about. Each view is lazy-loaded
+                       as its own chunk; router.onError turns a failed chunk load (a tab
+                       opened before a redeploy) into a full load of the target URL.
 src/views/
-  HomeView.vue         ~1030 lines. Live WebSocket log stream, filters, IDL decode, exports.
+  HomeView.vue         ~900 lines. Live log stream (sockets live in useLogStream), filters,
+                       IDL decode, exports. The stream e2e tests stub the RPC socket with
+                       mockLogStream in e2e/ui.spec.js.
   ConvertView.vue      Paste raw logs -> structured output via the WASM module.
   LookupView.vue       Paste a signature -> getTransaction from a configurable RPC -> WASM parse
                        -> summary cards + CU flamegraph + LogsTable. Deep-linkable via ?sig=.
                        Traces the transaction's programs to their published on-chain IDLs
-                       (Program.fetchIdl, capped candidate list from idlCandidatePrograms) and
+                       (fetchAnchorIdl, capped candidate list from idlCandidatePrograms) and
                        re-parses with them, so events/error names decode with zero setup;
                        opt-out checkbox, manual IDL upload still available.
   AboutView.vue
 src/components/
-  LogsTable.vue        ~690 lines. SlickGrid table, CPI depth rendering, mobile card view.
+  LogsTable.vue        ~880 lines. SlickGrid table, CPI depth rendering, mobile card view.
                        Its <style> is unscoped on purpose: SlickGrid injects cell HTML via
                        innerHTML, which scoped styles cannot reach — and everything a grid
                        formatter interpolates must go through its escapeHtml helper (log
                        content is attacker-controlled).
+                       Keyboard model (setUpKeyboardAccess / decorateHeaders): sortable
+                       headers are Tab stops (Enter/Space sort, aria-sort), the rows are one
+                       Tab stop (SlickGrid's last focus catcher; arrows move, Enter opens
+                       details, Tab leaves), cell links are tabindex=-1 and linked from the
+                       detail dialog instead, and an aria-live region announces the active
+                       cell. Details open on click/Enter only — never on selection, which
+                       follows the arrow keys. SlickGrid makes its panes/viewports tabbable
+                       and handles Tab itself; setUpKeyboardAccess undoes both, so keep it
+                       running after any grid re-init. Covered by the "log grid" e2e tests.
   StatsGrid.vue        Chart.js panels (CU consumption, log level distribution) plus the
                        latest-transaction CU flamegraph.
   CuFlamegraph.vue     SVG icicle of one transaction's CPI tree: depth = row, width = consumed
                        CU, hue = program (fixed first-appearance order, "Other" past eight,
                        validated palette for both themes). Layout math in useCuFlamegraph.js.
-  ProgramIdForm.vue    Program ID entry.
+  ProgramIdForm.vue    Program ID entry, plus a "Popular programs" picker (POPULAR_PROGRAMS:
+                       six well-known programs with steady devnet traffic, same IDs on
+                       mainnet) that fills the field; the user still clicks Add Program.
   ProgramList.vue      Monitored-program chips: status dot + label + remove, fed by
                        HomeView's programStatuses computed ({id, status} objects).
+  ModalDialog.vue      Every dialog uses it (mount with v-if, close on its `close` event):
+                       role="dialog" + aria-modal named by its title, focus moved in and
+                       trapped, Escape/backdrop close, focus returned on close. Don't hand-roll
+                       .modal-overlay markup.
   CollapsibleSection.vue  Card/bare section with a persisted open state
                           (localStorage sologger_section_<storageKey>).
+src/composables/useLogStream.js     createLogStream — HomeView's live logsSubscribe sockets (one per
+                                    program): de-duplicates transactions by signature (several
+                                    monitored programs report the same one), reconnects dropped
+                                    sockets with backoff, per-program reactive status. Takes the
+                                    WebSocket class as an option, so logStream.test.js drives it
+                                    with a fake socket and fake timers.
+src/composables/useOnChainIdl.js    fetchAnchorIdl(rpcUrl, programId) — reads a program's Anchor
+                                    IDL account; anchorIdlAddress is checked against Anchor's own
+                                    results in onChainIdl.test.js.
 src/composables/useTheme.js         Theme state, persisted to localStorage under key 'theme'.
 src/composables/useIdlDecoder.js    decodeWithIdl(idl, log) — instruction matching + event decoding
                                     via the WASM decode_program_data export, shared with tests.
@@ -95,7 +129,11 @@ npm run build      # -> dist/
 npm run preview    # builds, then serves
 npx vitest run     # there is no `npm test` script
 npm run test:e2e   # Playwright; first run `npx playwright install chromium`
+docker compose up sologger-ui   # from the repo root: Dockerfile + nginx.conf here, :8080/sologger/
 ```
+
+The Docker image serves the build under `/sologger/` because of the base path; if you change
+`base`, change the `COPY` destination in `Dockerfile` and the locations in `nginx.conf` too.
 
 Publishing to GitHub Pages is automatic: `.github/workflows/pages.yml` builds fresh WASM + the UI
 and deploys `dist/` on every push to `main` that touches this directory — see the `deploy-ui` skill.

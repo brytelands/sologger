@@ -11,62 +11,53 @@
       </div>
 
       <!-- Mainnet Warning Modal -->
-      <div v-if="showMainnetWarning" class="modal-overlay" @click.self="cancelMainnet">
-        <div class="modal-panel">
-          <div class="modal-header">
-            <span class="font-semibold text-base">⚠️ Mainnet Warning</span>
-            <button @click="cancelMainnet" class="btn btn-secondary" aria-label="Close">✕</button>
-          </div>
-          <div class="modal-body">
-            <p class="text-[var(--p-text-color)] mb-3">
-              Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop
-              connections frequently.
-              We strongly recommend using a <strong>private RPC provider</strong>.
-            </p>
-            <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
-            <div class="flex flex-col gap-2 mb-4">
-              <a href="https://helius.dev" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">Helius</span>
-                <span class="text-xs text-[var(--p-text-muted)]">helius.dev — Solana-native, generous free tier</span>
-              </a>
-              <a href="https://quicknode.com" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">QuickNode</span>
-                <span class="text-xs text-[var(--p-text-muted)]">quicknode.com — Multi-chain, fast global nodes</span>
-              </a>
-              <a href="https://ironforge.cloud" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">Ironforge</span>
-                <span class="text-xs text-[var(--p-text-muted)]">ironforge.cloud — Solana-focused infrastructure</span>
-              </a>
-            </div>
-            <p class="text-[var(--p-text-muted)] text-xs mb-4">
-              To use a private RPC, select <strong>Custom URL</strong> and enter your WebSocket endpoint (wss://...).
-            </p>
-            <div class="flex gap-2 justify-end">
-              <button @click="cancelMainnet" class="btn btn-secondary">Cancel</button>
-              <button @click="confirmMainnet" class="btn btn-warning">Continue with Public Mainnet</button>
-            </div>
-          </div>
+      <ModalDialog v-if="showMainnetWarning" title="Mainnet Warning" icon="⚠️" close-text="✕" @close="cancelMainnet">
+        <p class="text-[var(--p-text-color)] mb-3">
+          Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop
+          connections frequently.
+          We strongly recommend using a <strong>private RPC provider</strong>.
+        </p>
+        <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
+        <div class="flex flex-col gap-2 mb-4">
+          <a href="https://helius.dev" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">Helius</span>
+            <span class="text-xs text-[var(--p-text-muted)]">helius.dev — Solana-native, generous free tier</span>
+          </a>
+          <a href="https://quicknode.com" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">QuickNode</span>
+            <span class="text-xs text-[var(--p-text-muted)]">quicknode.com — Multi-chain, fast global nodes</span>
+          </a>
+          <a href="https://ironforge.cloud" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">Ironforge</span>
+            <span class="text-xs text-[var(--p-text-muted)]">ironforge.cloud — Solana-focused infrastructure</span>
+          </a>
         </div>
-      </div>
+        <p class="text-[var(--p-text-muted)] text-xs mb-4">
+          To use a private RPC, select <strong>Custom URL</strong> and enter your WebSocket endpoint (wss://...).
+        </p>
+        <div class="flex gap-2 justify-end">
+          <button @click="cancelMainnet" class="btn btn-secondary">Cancel</button>
+          <button @click="confirmMainnet" class="btn btn-warning">Continue with Public Mainnet</button>
+        </div>
+      </ModalDialog>
 
       <!-- IDL Decoded Data Modal -->
-      <div v-if="idlDecodedData" class="modal-overlay" @click.self="idlDecodedData = null">
-        <div class="modal-panel modal-panel--wide">
-          <div class="modal-header">
-            <span class="font-semibold text-base">🔍 IDL Decoded Instruction Data</span>
-            <button @click="idlDecodedData = null" class="btn btn-secondary">✕ Close</button>
+      <ModalDialog
+          v-if="idlDecodedData"
+          title="IDL Decoded Instruction Data"
+          icon="🔍"
+          wide
+          body-class="modal-body--rows"
+          @close="idlDecodedData = null"
+      >
+        <template v-if="parsedIdlDecodedData">
+          <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
+            <span class="detail-label">{{ key }}</span>
+            <span class="detail-value">{{ formatIdlDetailValue(value) }}</span>
           </div>
-          <div class="modal-body modal-body--rows">
-            <template v-if="parsedIdlDecodedData">
-              <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
-                <span class="detail-label">{{ key }}</span>
-                <span class="detail-value">{{ formatIdlDetailValue(value) }}</span>
-              </div>
-            </template>
-            <pre v-else class="idl-decoded-pre">{{ idlDecodedData }}</pre>
-          </div>
-        </div>
-      </div>
+        </template>
+        <pre v-else class="idl-decoded-pre">{{ idlDecodedData }}</pre>
+      </ModalDialog>
 
       <!-- Program ID Form -->
       <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
@@ -285,11 +276,14 @@ import {decodeWithIdl as decodeLogWithIdl} from '../composables/useIdlDecoder';
 import {mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import {getTransactionRequestBody} from '../composables/useTransactionRequest';
+import {createLogStream} from '../composables/useLogStream';
+import {fetchAnchorIdl} from '../composables/useOnChainIdl';
 import ProgramIdForm from '../components/ProgramIdForm.vue';
 import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
 import LogsTable from '../components/LogsTable.vue';
 import CollapsibleSection from '../components/CollapsibleSection.vue';
+import ModalDialog from '../components/ModalDialog.vue';
 
 export default {
   name: 'App',
@@ -298,7 +292,8 @@ export default {
     ProgramList,
     StatsGrid,
     LogsTable,
-    CollapsibleSection
+    CollapsibleSection,
+    ModalDialog
   },
   setup() {
     const toast = useToast();
@@ -311,9 +306,6 @@ export default {
   },
   data() {
     return {
-      websockets: new Map(),
-      connectingWebsockets: new Set(),
-      receivingMessages: false,
       newProgramId: '',
       programIds: [],
       isPaused: false,
@@ -344,13 +336,7 @@ export default {
   },
   computed: {
     programStatuses() {
-      return this.programIds.map(id => {
-        let status;
-        if (this.connectingWebsockets.has(id)) status = 'connecting';
-        else if (this.websockets.has(id)) status = this.receivingMessages ? 'connected' : 'awaiting';
-        else status = 'disconnected';
-        return {id, status};
-      });
+      return this.programIds.map(id => ({id, status: this.stream.statusOf(id)}));
     },
     filteredLogs() {
       let logs = this.parsedLogs;
@@ -444,18 +430,13 @@ export default {
       if (this.newProgramId && !this.programIds.includes(this.newProgramId)) {
         const programIdToAdd = this.newProgramId;
         this.programIds.push(programIdToAdd);
-        await this.connectWebSocketForProgram(programIdToAdd);
+        this.connectWebSocketForProgram(programIdToAdd);
         this.newProgramId = '';
 
         // Attempt to fetch IDL for the program
         try {
-          const {Program} = await import('@coral-xyz/anchor');
-          const {Connection, PublicKey} = await import('@solana/web3.js');
-          const wsUrl = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
-          const httpUrl = wsUrl.replace(/^wss?:\/\//, 'https://');
-          const connection = new Connection(httpUrl);
-          const pubkey = new PublicKey(programIdToAdd);
-          const idl = await Program.fetchIdl(pubkey, {connection});
+          const httpUrl = this.currentWsUrl().replace(/^wss?:\/\//, 'https://');
+          const idl = await fetchAnchorIdl(httpUrl, programIdToAdd);
           if (idl) {
             this.uploadedIdl = idl;
             this.idlFileName = `${programIdToAdd.substring(0, 8)}...-on-chain.json`;
@@ -488,9 +469,8 @@ export default {
       }
     },
 
-    async removeProgramId(index) {
-      const programId = this.programIds[index];
-      await this.disconnectWebSocketForProgram(programId);
+    removeProgramId(index) {
+      this.disconnectWebSocketForProgram(this.programIds[index]);
       this.programIds.splice(index, 1);
     },
     handleCustomUrlChange() {
@@ -527,7 +507,7 @@ export default {
       const url = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
       console.log(`Switching to environment: ${url}`);
 
-      if (this.websockets.size > 0) {
+      if (this.stream.activePrograms().length > 0) {
         await this.reconnectToNewEnvironment();
       }
     },
@@ -549,7 +529,7 @@ export default {
       // Restore program IDs
       this.programIds = currentPrograms;
 
-      // Reconnect all websockets to new environment
+      // Reconnect every program to the new environment
       await this.startAllWebSockets();
     },
     togglePause() {
@@ -608,195 +588,88 @@ export default {
         if (match) this.selectedEnvironment = match.url;
       }
     },
-    updateTable(eventData) {
-
+    currentWsUrl() {
+      return this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
+    },
+    // Called once per transaction, however many monitored programs it mentions: the
+    // stream de-duplicates by signature.
+    handleTransaction({signature, slot, err, logs}) {
+      this.lastUpdateTime = new Date().toLocaleTimeString();
       if (this.isPaused) return;
-
-      if (eventData.method === 'logsNotification') {
-        const transformer = this.getTransformer();
-
-        const logs = eventData.params.result.value.logs;
-        const slot = eventData.params.result.context.slot;
-        const signature = eventData.params.result.value.signature;
-        const err = eventData.params.result.value.err === null ? null : eventData.params.result.value.err;
-
-        try {
-          const parsedLogs = transformer.from_rpc_logs_response({
-            signature,
-            err,
-            logs
-          }, BigInt(slot));
-
-          let sanitizedLogs = [];
-          parsedLogs.forEach((solana_log) => {
-            const sanitizedLog = {
-              signature: sanitizeLogMessage(signature),
-              slot,
-              solana: JSON.parse(sanitizeLogMessage(solana_log))
-            };
-
-            sanitizedLogs.push(sanitizedLog);
-          });
-
-          try {
-            const newParsedLogs = sanitizedLogs.map(log => this.parseLog(log));
-            this.parsedLogs.unshift(...newParsedLogs);
-            if (this.parsedLogs.length > this.maxLogs) {
-              const removeCount = Math.ceil(this.maxLogs * 0.2);
-              this.parsedLogs = this.parsedLogs.slice(0, this.parsedLogs.length - removeCount);
-            }
-            this.lastUpdateTime = new Date().toLocaleTimeString();
-          } catch (error) {
-            console.error('Error parsing logs:', error);
-          }
-
-        } catch (error) {
-          console.log('Error parsing logs', {
-            error: sanitizeLogMessage(error.message),
-            signature: sanitizeLogMessage(signature),
-            slot
-          });
-        }
-      }
-
-    },
-    async startAllWebSockets() {
-      console.log('Starting WebSockets for all programs');
       try {
-        // First disconnect any existing connections
-        await this.disconnectWebSocket();
-
-        // Start new connections for all program IDs
-        const connectionPromises = this.programIds.map(programId =>
-            this.connectWebSocketForProgram(programId)
-        );
-
-        await Promise.all(connectionPromises);
-        console.log('All WebSocket connections established');
+        const parsedLogs = this.getTransformer().from_rpc_logs_response({signature, err, logs}, BigInt(slot));
+        const newParsedLogs = parsedLogs.map(solanaLog => this.parseLog({
+          signature: sanitizeLogMessage(signature),
+          slot,
+          solana: JSON.parse(sanitizeLogMessage(solanaLog))
+        }));
+        this.parsedLogs.unshift(...newParsedLogs);
+        if (this.parsedLogs.length > this.maxLogs) {
+          const removeCount = Math.ceil(this.maxLogs * 0.2);
+          this.parsedLogs = this.parsedLogs.slice(0, this.parsedLogs.length - removeCount);
+        }
       } catch (error) {
-        console.error('Error starting WebSocket connections:', error);
-      }
-    },
-
-    async connectWebSocketForProgram(programId) {
-      if (this.websockets.has(programId)) {
-        console.log(`WebSocket already exists for program: ${programId}`);
-        return;
-      }
-
-      const url = this.selectedEnvironment === 'custom' ? this.customUrl : this.selectedEnvironment;
-      console.log(`Connecting WebSocket for program: ${programId} on ${url}`);
-      this.connectingWebsockets.add(programId);
-
-      return new Promise((resolve, reject) => {
-        const ws = new WebSocket(url);
-        const setupMessageHandler = () => {
-          let hasReceivedMessage = false;
-
-          return (event) => {
-            const eventData = JSON.parse(event.data);
-
-            // Check if this is the subscription confirmation message
-            if (eventData.result !== undefined && !hasReceivedMessage) {
-              hasReceivedMessage = true;
-              this.connectingWebsockets.delete(programId);
-              console.log(`Received first message for program: ${programId}`);
-            }
-
-            if (eventData.params?.result?.value) {
-              this.receivingMessages = true;
-              this.lastUpdateTime = new Date().toLocaleTimeString();
-              this.updateTable(eventData);
-            }
-          };
-        };
-
-        ws.onopen = () => {
-          const subscribeMessage = {
-            jsonrpc: '2.0',
-            id: Date.now(),
-            method: 'logsSubscribe',
-            params: [
-              {mentions: [programId]},
-              {commitment: 'finalized', encoding: 'json'}
-            ]
-          };
-          ws.send(JSON.stringify(subscribeMessage));
-          console.log(`WebSocket connected and subscribed for program: ${programId}`);
-          this.websockets.set(programId, ws);
-          this.toast.add({
-            severity: 'success',
-            summary: 'Connected',
-            detail: `Subscribed to ${programId.substring(0, 8)}...`,
-            life: 3000
-          });
-          resolve();
-        };
-
-        ws.onmessage = setupMessageHandler();
-
-        ws.onerror = (error) => {
-          console.error(`WebSocket error for program ${programId}:`, error);
-          this.websockets.delete(programId);
-          this.connectingWebsockets.delete(programId);
-          this.toast.add({
-            severity: 'error',
-            summary: 'Connection Error',
-            detail: `Failed to connect for ${programId.substring(0, 8)}...`,
-            life: 4000
-          });
-          reject(error);
-        };
-
-        ws.onclose = () => {
-          console.log(`WebSocket connection closed for program: ${programId}`);
-          this.websockets.delete(programId);
-          this.connectingWebsockets.delete(programId);
-          this.toast.add({
-            severity: 'warn',
-            summary: 'Disconnected',
-            detail: `WebSocket closed for ${programId.substring(0, 8)}...`,
-            life: 3000
-          });
-        };
-      });
-    },
-
-    async disconnectWebSocket() {
-      console.log('Disconnecting all WebSockets');
-      const closePromises = Array.from(this.websockets.keys()).map(programId =>
-          this.disconnectWebSocketForProgram(programId)
-      );
-      await Promise.all(closePromises);
-      this.websockets.clear();
-      console.log('All WebSocket connections closed');
-    },
-
-    async disconnectWebSocketForProgram(programId) {
-      const ws = this.websockets.get(programId);
-      if (ws) {
-        await new Promise(resolve => {
-          ws.onclose = () => {
-            console.log(`WebSocket disconnected for program: ${programId}`);
-            this.connectingWebsockets.delete(programId);
-            resolve();
-          };
-          ws.close();
-          this.websockets.delete(programId);
+        console.warn('Error parsing logs', {
+          error: sanitizeLogMessage(String(error?.message ?? error)),
+          signature: sanitizeLogMessage(signature),
+          slot
         });
       }
     },
-    async clearAll() {
-      await this.disconnectWebSocket();
+    handleStreamEvent(event) {
+      const program = `${event.programId.substring(0, 8)}...`;
+      switch (event.type) {
+        case 'connected':
+          this.toast.add({severity: 'success', summary: 'Connected', detail: `Subscribed to ${program}`, life: 3000});
+          break;
+        case 'reconnected':
+          this.toast.add({severity: 'success', summary: 'Reconnected', detail: `Resubscribed to ${program}`, life: 3000});
+          break;
+        case 'reconnecting':
+          // One notice per outage; the program's status chip shows the retries after that
+          if (event.attempt === 1) {
+            this.toast.add({severity: 'warn', summary: 'Connection Lost', detail: `Reconnecting to ${program}`, life: 4000});
+          }
+          break;
+        case 'rejected': {
+          // A refused custom URL is echoed in the message; keep its API key masked
+          const message = this.customUrl
+              ? event.message.replaceAll(this.customUrl, this.maskedCustomUrl)
+              : event.message;
+          this.toast.add({
+            severity: 'error',
+            summary: 'Connection Error',
+            detail: `Could not subscribe to ${program}: ${message}`,
+            life: 6000
+          });
+          break;
+        }
+      }
+    },
+    startAllWebSockets() {
+      const url = this.currentWsUrl();
+      for (const programId of this.programIds) {
+        // Connect retries a program that is waiting out its reconnect backoff right away
+        if (this.stream.statusOf(programId) === 'reconnecting') this.stream.disconnect(programId);
+        this.stream.connect(url, programId);
+      }
+    },
+    connectWebSocketForProgram(programId) {
+      this.stream.connect(this.currentWsUrl(), programId);
+    },
+    disconnectWebSocket() {
+      this.stream.disconnectAll();
+    },
+    disconnectWebSocketForProgram(programId) {
+      this.stream.disconnect(programId);
+    },
+    clearAll() {
+      this.stream.disconnectAll();
       this.parsedLogs = [];
       this.programIds = [];
       this.lastUpdateTime = '-';
-      this.websockets.clear();
-      this.connectingWebsockets.clear();
       this.uploadedIdl = null;
       this.idlFileName = '';
-      console.log('Cleared all data and connections');
-
     },
 
     triggerDownload(content, filename, mimeType) {
@@ -950,6 +823,12 @@ export default {
     }
   },
   created() {
+    // Not in data(): the stream exposes its own reactive status, and its sockets and
+    // timers must not be proxied
+    this.stream = createLogStream({
+      onTransaction: tx => this.handleTransaction(tx),
+      onEvent: event => this.handleStreamEvent(event)
+    });
     this.loadFromLocalStorage();
     this.loadFromUrl();
   },
@@ -976,7 +855,8 @@ export default {
     }
   },
   beforeUnmount() {
-    this.disconnectWebSocket();
+    // Also cancels pending reconnects, so nothing reconnects after leaving the page
+    this.stream.disconnectAll();
   }
 };
 </script>

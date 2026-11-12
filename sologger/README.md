@@ -142,7 +142,8 @@ endpoint. Point `webhookConfigLocation` in sologger-config.json at a webhook con
   everything.
 
 See `config/webhook-example/` for a ready-made pair. Deliveries happen off the ingestion path;
-failures are logged and dropped, not retried.
+failures are logged and dropped, not retried. A `webhookConfigLocation` that is missing or invalid
+disables the webhook with a notice at startup; sologger keeps running.
 
 ```shell
 cargo run --features enable_webhook ./config/webhook-example/sologger-config.json
@@ -185,6 +186,13 @@ addition to shipping logs. Enable them in the OpenTelemetry config file:
   "enableMetrics": true
 }
 ```
+
+**Log attributes:** each exported log record keeps the record's JSON as its body and also carries its fields as
+attributes, so a backend can filter without parsing JSON: `solana.signature`, `solana.slot`, `solana.program_id`,
+`solana.depth`, `solana.instruction_index`, `solana.compute_units.consumed` and `solana.compute_units.max`, plus, when
+present, `solana.parent_program_id`, `solana.instruction`, `solana.invoke_result`, `solana.transaction_error`,
+`solana.error_code` and `solana.error_name`. They use the same names as the span attributes. Records of failed
+transactions are `ERROR`, the rest `INFO`. LogStash output is unchanged.
 
 **Traces:** one trace per transaction, one span per program invocation, parented by CPI depth — a Jaeger/SigNoz
 waterfall of the call tree, with program ID, instruction name, compute units and error details as span attributes.

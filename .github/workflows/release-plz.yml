@@ -9,10 +9,17 @@ name: Release-plz
 # Tags pushed with GITHUB_TOKEN do not trigger other workflows, so the binary and Docker
 # builds are called from here directly instead of reacting to the tag.
 #
+# Run it by hand (Actions -> Release-plz -> Run workflow, on main) when a release run got
+# stuck or failed: it goes straight to the release job, still behind the `release`
+# environment approval. Crate versions already on crates.io are skipped, so it publishes
+# only what is missing. If the crates went out but the binaries or Docker images did not,
+# run release-binaries.yml / docker.yml by hand with the tag instead.
+#
 # One-time repository setup is described in .claude/skills/release-crates/SKILL.md.
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,6 +39,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "::error::Run the release from main, not $GITHUB_REF"
+              exit 1
+            fi
+            echo "Manual run: releasing whatever on main is not yet published"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           head_ref="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].head.ref // ""')"
           echo "Pushed commit came from branch: ${head_ref:-<none>}"
           if [[ "$head_ref" == release-plz-* ]]; then
@@ -109,6 +125,8 @@ jobs:
     secrets: inherit
 
   release-pr:
+    # A manual run only retries the release; the release PR is refreshed on pushes
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write

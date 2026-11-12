@@ -95,17 +95,9 @@
     </div>
 
     <!-- IDL decode modal (same shape as HomeView's) -->
-    <div v-if="idlDecodedData" class="modal-overlay" @click.self="idlDecodedData = null">
-      <div class="modal-panel modal-panel--wide">
-        <div class="modal-header">
-          <span class="font-semibold text-base">IDL Decode</span>
-          <button @click="idlDecodedData = null" class="btn btn-secondary">✕ Close</button>
-        </div>
-        <div class="modal-body">
-          <pre class="text-xs whitespace-pre-wrap">{{ idlDecodedData }}</pre>
-        </div>
-      </div>
-    </div>
+    <ModalDialog v-if="idlDecodedData" title="IDL Decode" wide @close="idlDecodedData = null">
+      <pre class="text-xs whitespace-pre-wrap">{{ idlDecodedData }}</pre>
+    </ModalDialog>
   </div>
 </template>
 
@@ -117,12 +109,14 @@ import {decodeWithIdl} from '../composables/useIdlDecoder';
 import {idlCandidatePrograms, mapLogContext} from '../composables/useLogMapper';
 import {sanitizeLogMessage} from '../composables/useLogSanitizer';
 import {getTransactionRequestBody} from '../composables/useTransactionRequest';
+import {fetchAnchorIdl} from '../composables/useOnChainIdl';
 import LogsTable from '../components/LogsTable.vue';
 import CuFlamegraph from '../components/CuFlamegraph.vue';
+import ModalDialog from '../components/ModalDialog.vue';
 
 export default {
   name: 'LookupView',
-  components: {LogsTable, CuFlamegraph},
+  components: {LogsTable, CuFlamegraph, ModalDialog},
   data() {
     return {
       rpcEnvironments: [
@@ -269,7 +263,7 @@ export default {
       }, {linkSuffix: this.linkSuffix, explorer}));
     },
     // Trace the transaction's programs to their published on-chain IDLs (Anchor stores
-    // the IDL at a deterministic PDA; Program.fetchIdl resolves and inflates it).
+    // the IDL at a deterministic address; fetchAnchorIdl reads and inflates it).
     // Returns how many new IDLs were registered with the transformer.
     async discoverOnChainIdls() {
       const known = new Set(Object.keys(this.autoIdls));
@@ -279,12 +273,8 @@ export default {
 
       let found = 0;
       try {
-        const {Program} = await import('@coral-xyz/anchor');
-        const {Connection, PublicKey} = await import('@solana/web3.js');
-        const connection = new Connection(this.rpcUrl);
-
         const results = await Promise.allSettled(candidates.map(async programId => {
-          const idl = await Program.fetchIdl(new PublicKey(programId), {connection});
+          const idl = await fetchAnchorIdl(this.rpcUrl, programId);
           return {programId, idl};
         }));
         for (const result of results) {

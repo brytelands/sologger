@@ -11,7 +11,15 @@
           <input type="checkbox" v-model="autoScroll" class="accent-[var(--p-primary-color)]" />
           Auto-scroll
         </label>
-        <button @click="toggleColumnPicker" class="btn btn-secondary">Columns ▾</button>
+        <button
+            ref="columnsButton"
+            type="button"
+            @click="toggleColumnPicker"
+            @keydown.esc="closeColumnPicker"
+            :aria-expanded="String(showColumnPicker)"
+            aria-controls="logs-column-picker"
+            class="btn btn-secondary"
+        >Columns<span aria-hidden="true"> ▾</span></button>
         <button
             @click="prevPage"
             :disabled="currentPage === 0"
@@ -26,7 +34,7 @@
     </div>
 
     <!-- Column picker dropdown -->
-    <div v-if="showColumnPicker" class="column-picker-dropdown">
+    <div v-if="showColumnPicker" id="logs-column-picker" class="column-picker-dropdown" @keydown.esc="closeColumnPicker">
       <div v-for="col in allColumns" :key="col.id" class="column-picker-item">
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" :checked="isColumnVisible(col.id)" @change="toggleColumn(col.id)" />
@@ -34,6 +42,10 @@
         </label>
       </div>
     </div>
+
+    <!-- What the keyboard is on in the grid, for screen readers: SlickGrid keeps focus on a
+         hidden element rather than on the cell itself -->
+    <div class="sr-only" aria-live="polite">{{ gridAnnouncement }}</div>
 
     <div v-if="!isMobile" class="slick-grid-wrapper">
       <div ref="gridContainer" class="slick-grid-container" style="height: calc(100vh - 350px); width: 100%;"></div>
@@ -66,7 +78,11 @@
           :key="idx"
           class="mobile-log-card"
           :class="{ 'mobile-log-card--error': log.level === 'Error' }"
+          role="button"
+          tabindex="0"
           @click="selectedRow = log"
+          @keydown.enter.prevent="selectedRow = log"
+          @keydown.space.prevent="selectedRow = log"
       >
         <div class="mobile-log-card__header">
           <span class="mobile-log-card__time">{{ log.timestamp }}</span>
@@ -95,27 +111,28 @@
     </div>
 
     <!-- Row detail modal -->
-    <div v-if="selectedRow" class="modal-overlay" @click.self="selectedRow = null">
-      <div class="modal-panel modal-panel--wide">
-        <div class="modal-header">
-          <span class="font-semibold text-base">Log Detail</span>
-          <div class="flex gap-2">
-            <button
-              v-if="uploadedIdl"
-              @click="$emit('decode-with-idl', selectedRow); selectedRow = null"
-              class="btn btn-info"
-            >🔍 Decode with IDL</button>
-            <button @click="selectedRow = null" class="btn btn-secondary">✕ Close</button>
-          </div>
-        </div>
-        <div class="modal-body modal-body--rows">
-          <div v-for="col in allColumns" :key="col.id" class="detail-row">
-            <span class="detail-label">{{ col.name }}</span>
-            <span class="detail-value">{{ formatDetailValue(col.field, selectedRow[col.field]) }}</span>
-          </div>
-        </div>
+    <ModalDialog v-if="selectedRow" title="Log Detail" wide body-class="modal-body--rows" @close="closeDetail">
+      <template #actions>
+        <button
+          v-if="uploadedIdl"
+          type="button"
+          @click="$emit('decode-with-idl', selectedRow); closeDetail()"
+          class="btn btn-info"
+        ><span aria-hidden="true">🔍 </span>Decode with IDL</button>
+      </template>
+      <div v-for="col in allColumns" :key="col.id" class="detail-row">
+        <span class="detail-label">{{ col.name }}</span>
+        <span class="detail-value">
+          <a
+              v-if="detailLink(col.field, selectedRow[col.field])"
+              :href="detailLink(col.field, selectedRow[col.field])"
+              target="_blank"
+              rel="noopener"
+          >{{ formatDetailValue(col.field, selectedRow[col.field]) }}</a>
+          <template v-else>{{ formatDetailValue(col.field, selectedRow[col.field]) }}</template>
+        </span>
       </div>
-    </div>
+    </ModalDialog>
   </div>
 </template>
 
@@ -123,6 +140,7 @@
 import { SlickGrid, SlickRowSelectionModel } from 'slickgrid';
 import 'slickgrid/dist/styles/css/slick.grid.css';
 import 'slickgrid/dist/styles/css/slick-default-theme.css';
+import ModalDialog from './ModalDialog.vue';
 
 const ALL_COLUMNS = [
   {
@@ -142,7 +160,7 @@ const ALL_COLUMNS = [
       const sig = String(value?.signature ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'tx');
-      return `<a href="${escapeHtml(base + sig + suffix)}" target="_blank" rel="noopener" class="truncate-cell" title="${escapeHtml(sig)}">${escapeHtml(sig.substring(0, 8))}...</a>`;
+      return `<a href="${escapeHtml(base + sig + suffix)}" tabindex="-1" target="_blank" rel="noopener" class="truncate-cell" title="${escapeHtml(sig)}">${escapeHtml(sig.substring(0, 8))}...</a>`;
     }
   },
   {
@@ -151,7 +169,7 @@ const ALL_COLUMNS = [
       const slot = String(value?.slot ?? value ?? '');
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'block');
-      return `<a href="${escapeHtml(base + slot + suffix)}" target="_blank" rel="noopener">${escapeHtml(slot)}</a>`;
+      return `<a href="${escapeHtml(base + slot + suffix)}" tabindex="-1" target="_blank" rel="noopener">${escapeHtml(slot)}</a>`;
     }
   },
   {
@@ -163,7 +181,7 @@ const ALL_COLUMNS = [
       const depth = Number(dataContext.depth) || 0;
       const indentStyle = depth > 0 ? `padding-left:${depth * 12}px;` : '';
       const childClass = depth > 0 ? ' cpi-child' : '';
-      return `<a href="${escapeHtml(base + pid + suffix)}" target="_blank" rel="noopener" class="truncate-cell${childClass}" style="${indentStyle}" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
+      return `<a href="${escapeHtml(base + pid + suffix)}" tabindex="-1" target="_blank" rel="noopener" class="truncate-cell${childClass}" style="${indentStyle}" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
     }
   },
   {
@@ -173,7 +191,7 @@ const ALL_COLUMNS = [
       const suffix = value?.linkSuffix ?? '';
       const base = explorerBase(value?.explorer, 'account');
       if (!pid) return '<span class="cu-na">—</span>';
-      return `<a href="${escapeHtml(base + pid + suffix)}" target="_blank" rel="noopener" class="truncate-cell cpi-parent" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
+      return `<a href="${escapeHtml(base + pid + suffix)}" tabindex="-1" target="_blank" rel="noopener" class="truncate-cell cpi-parent" title="${escapeHtml(pid)}">${escapeHtml(pid.substring(0, 8))}...</a>`;
     }
   },
   {
@@ -272,6 +290,9 @@ function explorerBase(explorer, type) {
   return (EXPLORER_URLS[explorer] ?? EXPLORER_URLS.solscan)[type];
 }
 
+// Fields shown as explorer links in the grid, and so in the detail dialog too
+const DETAIL_LINK_TYPES = {signature: 'tx', slot: 'block', programId: 'account', parentProgramId: 'account'};
+
 // Cell content comes from on-chain program logs — attacker-controlled strings. Everything a
 // formatter interpolates into grid HTML must pass through here.
 function escapeHtml(value) {
@@ -299,6 +320,7 @@ function renderJsonArrayCell(cellNode, value) {
 }
 
 export default {
+  components: {ModalDialog},
   props: ['parsedLogs', 'uploadedIdl'],
   emits: ['decode-with-idl'],
   data() {
@@ -310,6 +332,7 @@ export default {
       showColumnPicker: false,
       hiddenColumns: new Set(DEFAULT_HIDDEN),
       selectedRow: null,
+      gridAnnouncement: '',
       allColumns: ALL_COLUMNS,
       sortColumns: [],
       isMobile: window.innerWidth < 768,
@@ -328,6 +351,24 @@ export default {
     }
   },
   methods: {
+    closeDetail() {
+      this.selectedRow = null;
+    },
+    openDetail(row) {
+      const item = this.grid.getDataItem(row);
+      if (item) this.selectedRow = item;
+    },
+    detailLink(field, value) {
+      const type = DETAIL_LINK_TYPES[field];
+      const id = value?.[field];
+      if (!type || id === undefined || id === null || id === '') return null;
+      return explorerBase(value.explorer, type) + id + (value.linkSuffix ?? '');
+    },
+    closeColumnPicker() {
+      if (!this.showColumnPicker) return;
+      this.showColumnPicker = false;
+      this.$refs.columnsButton.focus();
+    },
     formatProgramId(programId) {
       const pid = programId?.programId ?? programId ?? '';
       return String(pid).substring(0, 12) + (String(pid).length > 12 ? '...' : '');
@@ -366,6 +407,7 @@ export default {
       if (this.grid) {
         this.grid.setColumns(this.visibleColumns);
         this.grid.render();
+        this.decorateHeaders();
       }
     },
     toggleColumnPicker() {
@@ -400,14 +442,22 @@ export default {
 
       this.grid = new SlickGrid(this.$refs.gridContainer, data, this.visibleColumns, options);
 
-      // Row selection model
+      // Row selection model: highlights the active row. Details open on a click or Enter,
+      // not on selection, which also follows the arrow keys.
       const selectionModel = new SlickRowSelectionModel();
       this.grid.setSelectionModel(selectionModel);
-      this.grid.onSelectedRowsChanged.subscribe((e, args) => {
-        if (args.rows.length > 0) {
-          this.selectedRow = this.grid.getDataItem(args.rows[0]);
+      this.grid.onClick.subscribe((e, args) => {
+        const target = (e.getNativeEvent?.() ?? e).target;
+        if (target?.closest?.('a')) return; // an explorer link opens on its own
+        this.openDetail(args.row);
+      });
+      this.grid.onKeyDown.subscribe((e, args) => {
+        if (e.key === 'Enter' && args.row !== undefined && args.row !== null && args.row >= 0) {
+          this.openDetail(args.row);
+          e.stopImmediatePropagation();
         }
       });
+      this.grid.onActiveCellChanged.subscribe((e, args) => this.announceCell(args.row, args.cell));
 
       // Column sorting
       this.grid.onSort.subscribe((e, args) => {
@@ -415,7 +465,84 @@ export default {
         const data = this.getSortedData();
         this.grid.setData(data, true);
         this.grid.render();
+        this.decorateHeaders();
       });
+
+      this.setUpKeyboardAccess();
+      this.decorateHeaders();
+    },
+    // Keyboard model (WAI-ARIA grid): sortable headers are Tab stops, the rows are one Tab
+    // stop, arrow keys move between cells, Enter opens the row's details, Tab leaves.
+    // SlickGrid makes its panes, viewports, canvases and cell links tabbable and moves
+    // between cells on Tab, so a keyboard user could not get past it.
+    setUpKeyboardAccess() {
+      const container = this.$refs.gridContainer;
+      // SlickGrid's focus catchers are the container's first and last children; the last
+      // one is the rows' Tab stop
+      const [leadingSink, ...rest] = [...container.children].filter(el => !el.classList.contains('slick-pane'));
+      const rowsStop = rest.at(-1);
+      for (const element of container.querySelectorAll('.slick-pane, .slick-viewport, .grid-canvas')) {
+        element.tabIndex = -1;
+      }
+      leadingSink.tabIndex = -1;
+      leadingSink.dataset.gridFocus = 'true';
+      rowsStop.dataset.gridFocus = 'true';
+
+      // Keep Tab from SlickGrid so the browser moves focus normally. SlickGrid parks focus
+      // on the leading catcher after Up/Left; treat it as the rows stop.
+      container.addEventListener('keydown', event => {
+        if (event.key !== 'Tab') return;
+        event.stopPropagation();
+        if (document.activeElement === leadingSink) rowsStop.focus();
+      }, true);
+
+      // Arriving by keyboard from outside the rows (a header or the page): start on a cell
+      // (arrow keys need an active one) and say how to use the grid. Ignore SlickGrid moving
+      // focus between its catchers while navigating.
+      rowsStop.addEventListener('focus', event => {
+        const fromRows = event.relatedTarget === leadingSink || event.relatedTarget?.closest?.('.grid-canvas');
+        if (fromRows || !rowsStop.matches(':focus-visible')) return;
+        if (!this.grid.getActiveCell() && this.grid.getDataLength() > 0) this.grid.setActiveCell(0, 0);
+        const cell = this.grid.getActiveCell();
+        this.announceCell(cell?.row, cell?.cell, 'Log rows: arrow keys move between cells, Enter opens details. ');
+      });
+    },
+    announceCell(row, cell, prefix = '') {
+      if (row === undefined || row === null || row < 0) {
+        this.gridAnnouncement = prefix.trim();
+        return;
+      }
+      const column = this.grid.getColumns()[cell];
+      const text = this.grid.getCellNode(row, cell)?.textContent.trim() || 'empty';
+      this.gridAnnouncement = `${prefix}${column?.name ?? ''}: ${text}. Row ${row + 1} of ${this.grid.getDataLength()}.`;
+    },
+    // Focusing a header scrolls the header strip by itself, leaving the columns misaligned
+    // with the rows. Scroll the rows to match; SlickGrid then re-syncs the headers from them.
+    alignRowsWithHeader(node) {
+      const side = node.closest('.slick-pane-right') ? 'right' : 'left';
+      const header = node.closest('.slick-header');
+      const rows = this.$refs.gridContainer.querySelector(`.slick-pane-top.slick-pane-${side} .slick-viewport`);
+      if (header && rows && rows.scrollLeft !== header.scrollLeft) rows.scrollLeft = header.scrollLeft;
+    },
+    // Sortable headers: focusable, sorted with Enter or Space (as a click), and aria-sort
+    // tells screen readers the current order. Headers are rebuilt when columns change.
+    decorateHeaders() {
+      const uid = this.grid.getUID();
+      for (const node of this.$refs.gridContainer.querySelectorAll('.slick-header-column')) {
+        const column = ALL_COLUMNS.find(c => uid + c.id === node.id);
+        if (!column?.sortable) continue;
+        node.tabIndex = 0;
+        const sort = this.sortColumns.find(s => (s.sortCol?.id ?? s.columnId) === column.id);
+        node.setAttribute('aria-sort', sort ? (sort.sortAsc ? 'ascending' : 'descending') : 'none');
+        if (node.dataset.keyboardSort) continue;
+        node.dataset.keyboardSort = 'true';
+        node.addEventListener('focus', () => requestAnimationFrame(() => this.alignRowsWithHeader(node)));
+        node.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          node.click();
+        });
+      }
     },
     getSortedData() {
       const data = this.paginatedLogs.map((row, i) => ({ id: i, ...row }));
@@ -479,6 +606,42 @@ export default {
 
 <style>
 /* Unscoped on purpose: SlickGrid renders cells via innerHTML, which scoped styles cannot reach. */
+
+/* Keyboard focus: sortable headers, the active cell while the rows have focus, cards */
+.slick-header-column:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: -2px;
+}
+
+/* The active cell sits in the highlighted (primary-colored) row, so outline it in the
+   row's contrast color */
+.slick-grid-container:has([data-grid-focus]:focus-visible) .slick-cell.active {
+  outline: 2px solid var(--p-primary-contrast-color);
+  outline-offset: -4px;
+}
+
+/* Links and colored values in the highlighted row take its contrast color; in their own
+   colors they can match the row's background */
+.slick-grid-container .slick-cell.selected a,
+.slick-grid-container .slick-cell.selected .cu-value,
+.slick-grid-container .slick-cell.selected .cu-na {
+  color: inherit !important;
+}
+
+.slick-grid-container .slick-cell.selected a {
+  text-decoration: underline;
+}
+
+/* Badges have translucent tints; give them the row's usual base in the highlighted row */
+.slick-grid-container .slick-cell.selected .level-badge,
+.slick-grid-container .slick-cell.selected .cpi-depth-badge {
+  background-color: var(--p-card-bg);
+}
+
+.mobile-log-card:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
+}
 .slick-grid-wrapper {
   border: 1px solid var(--p-card-border);
   border-radius: 0.5rem;

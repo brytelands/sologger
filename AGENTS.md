@@ -56,7 +56,7 @@ Three independent transports, and the flag names differ depending on which crate
 | `sologger` | `enable_logstash` | turns on `sologger_log_transport/logstash` |
 | `sologger` | `enable_otel` | turns on `sologger_log_transport/otel` |
 | `sologger` | `enable_webhook` | turns on `sologger_log_transport/webhook` |
-| `sologger` | `solana_client_subscriber` | **default on**; pulls in the Solana RPC/pubsub client |
+| `sologger` | `solana_client_subscriber` | **default on**; pulls in the Solana RPC/pubsub client. The binary (and the tests that launch it) require it; with `--no-default-features` only the library builds, which CI's clippy job checks |
 | `sologger` | `enable_tokio_rt_metrics` | tokio runtime metrics |
 | `sologger_log_transport` | `logstash`, `otel`, `webhook` | the underlying feature names |
 
@@ -76,9 +76,9 @@ binary — those install a global logger and are for library users with a single
 level after each reload (log4rs resets it to its own). `sologger/tests/combined_transports_test.rs`
 covers the combination, which is why CI's test features include `enable_otel`.
 
-`sologger/src/lib.rs` uses `#[cfg_attr(feature = "solana_client_subscriber", path = "...")]` to map
-`solana_client_subscriber.rs` onto the module name `log_subscriber`. If you grep for `log_subscriber`
-and find no such file, that is why.
+`sologger/src/lib.rs` uses `#[path = "solana_client_subscriber.rs"]` (only with the
+`solana_client_subscriber` feature) to map that file onto the module name `log_subscriber`. If you
+grep for `log_subscriber` and find no such file, that is why.
 
 ## Commands
 
@@ -161,8 +161,15 @@ config that is not valid JSON or lacks `endpoint`/`logLevel`; unusable OTLP endp
 with a notice* naming the file and problem, and when no transport ends up active the binary falls
 back to pretty console output (it used to panic). In the OpenTelemetry config, `metricsEndpoint`,
 `tracesEndpoint` and `logConfig` are optional. The binary uses `load_otel_config`, which returns
-errors; `get_otel_config` still panics and exists for library compatibility. The exception is a
-`webhookConfigLocation` that is set but unreadable or invalid — that is still a startup panic.
+errors; `get_otel_config` still panics and exists for library compatibility. A
+`webhookConfigLocation` that is set but unreadable or invalid disables the webhook the same way
+(`sologger/tests/webhook_config_test.rs`).
+
+`log_processor::log_log_context` attaches each `LogContext`'s fields to its `log` record as
+key-values (`solana.signature`, `solana.slot`, `solana.program_id`, …, the same names as the span
+attributes in `solana_telemetry`). The OpenTelemetry bridge exports them as log record
+attributes; the logstash appender ignores them. This needs `log`'s `kv` feature, which
+`sologger/Cargo.toml` enables.
 
 ## Generated artifacts and deployment
 
@@ -197,6 +204,12 @@ The compose stacks (`docker-compose.yaml`, `docker-examples/*`) do not use those
 each sologger service builds from the repo (`build.context` is the repo root, relative to the compose
 file) as `sologger-logstash:local` / `sologger-otel:local`, with `pull_policy: build`. Keep
 `.dockerignore` excluding `/target` and `node_modules` — the whole repo root is the build context.
+
+The root `docker-compose.yaml` also has a `sologger-ui` service: `sologger-ui/Dockerfile` builds the
+site with Node and serves `dist/` from unprivileged nginx at `http://localhost:8080/sologger/`
+(`sologger-ui/nginx.conf` falls back to `index.html` for client routes). Its build context is
+`sologger-ui/` alone, with its own `.dockerignore`. It uses the committed WASM in `public/`, so it
+lags parser changes until that is re-synced. Not published to Docker Hub.
 
 CI (`rust.yml`, `ui.yml`, `audit.yml`) runs on pull requests into `main` and into `v*`
 integration branches such as `v0.4.0`.
