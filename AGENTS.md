@@ -205,6 +205,12 @@ each sologger service builds from the repo (`build.context` is the repo root, re
 file) as `sologger-logstash:local` / `sologger-otel:local`, with `pull_policy: build`. Keep
 `.dockerignore` excluding `/target` and `node_modules` — the whole repo root is the build context.
 
+The root `docker-compose.yaml` also has a `sologger-ui` service: `sologger-ui/Dockerfile` builds the
+site with Node and serves `dist/` from unprivileged nginx at `http://localhost:8080/sologger/`
+(`sologger-ui/nginx.conf` falls back to `index.html` for client routes). Its build context is
+`sologger-ui/` alone, with its own `.dockerignore`. It uses the committed WASM in `public/`, so it
+lags parser changes until that is re-synced. Not published to Docker Hub.
+
 CI (`rust.yml`, `ui.yml`, `audit.yml`) runs on pull requests into `main` and into `v*`
 integration branches such as `v0.4.0`.
 

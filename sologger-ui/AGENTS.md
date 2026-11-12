@@ -97,7 +97,11 @@ npm run build      # -> dist/
 npm run preview    # builds, then serves
 npx vitest run     # there is no `npm test` script
 npm run test:e2e   # Playwright; first run `npx playwright install chromium`
+docker compose up sologger-ui   # from the repo root: Dockerfile + nginx.conf here, :8080/sologger/
 ```
+
+The Docker image serves the build under `/sologger/` because of the base path; if you change
+`base`, change the `COPY` destination in `Dockerfile` and the locations in `nginx.conf` too.
 
 Publishing to GitHub Pages is automatic: `.github/workflows/pages.yml` builds fresh WASM + the UI
 and deploys `dist/` on every push to `main` that touches this directory — see the `deploy-ui` skill.

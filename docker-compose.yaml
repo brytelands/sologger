@@ -18,3 +18,14 @@ services:
     volumes:
       - ./config/demo/sologger-config.json:/config/sologger-config.json
       - ./config/demo/log4rs-config.yml:/config/log4rs-config.yml
+
+  # The web UI at http://localhost:8080/sologger/ — run it alone with
+  # `docker compose up sologger-ui`. It runs in the browser and connects to the Solana RPC
+  # picked in the UI, independently of the sologger service above.
+  sologger-ui:
+    image: sologger-ui:local
+    build:
+      context: ./sologger-ui
+    pull_policy: build
+    ports:
+      - "8080:8080"
