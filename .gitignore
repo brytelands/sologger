@@ -2,3 +2,4 @@
 test-ledger
 /.idea
 /.claude/skills/
+node_modules/
