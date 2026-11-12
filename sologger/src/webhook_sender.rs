@@ -12,18 +12,21 @@ use crate::sologger_config::SologgerConfig;
 
 static TRANSPORT: OnceLock<Arc<WebhookTransport>> = OnceLock::new();
 
-/// Builds the webhook transport from the configured location. An empty location leaves
-/// the webhook disabled with a notice; a location that exists but fails to load is a
-/// hard config error, matching how the other transports treat broken configs.
+/// Builds the webhook transport from the configured location. An unset location, or one
+/// that cannot be read or parsed, leaves the webhook disabled with a notice naming the
+/// problem, the same way the logstash and OpenTelemetry transports treat broken configs.
 pub fn init(sologger_config: &SologgerConfig) {
     let location = &sologger_config.webhook_config_location;
     if location.is_empty() {
         eprintln!("sologger: webhookConfigLocation not set — webhook transport disabled");
         return;
     }
-    let transport =
-        WebhookTransport::from_config_path(location).expect("Failed to load webhook config");
-    let _ = TRANSPORT.set(Arc::new(transport));
+    match WebhookTransport::from_config_path(location) {
+        Ok(transport) => {
+            let _ = TRANSPORT.set(Arc::new(transport));
+        }
+        Err(err) => eprintln!("sologger: {:#} — webhook transport disabled", err),
+    }
 }
 
 /// Sends the matching records of a parsed batch, if a webhook is configured. Payloads

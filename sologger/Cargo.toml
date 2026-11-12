@@ -15,9 +15,32 @@ exclude = ["/tests", "/examples", "/benches", "/docs", "/target", "/.github", "/
 [lib]
 doctest = false
 
+# The binary subscribes over WebSocket, so it needs the default `solana_client_subscriber`
+# feature; without it only the library builds. The tests below launch the binary.
+[[bin]]
+name = "sologger"
+path = "src/main.rs"
+required-features = ["solana_client_subscriber"]
+
+[[test]]
+name = "lifecycle_test"
+required-features = ["solana_client_subscriber"]
+
+[[test]]
+name = "combined_transports_test"
+required-features = ["solana_client_subscriber"]
+
+[[test]]
+name = "otel_config_test"
+required-features = ["solana_client_subscriber"]
+
+[[test]]
+name = "webhook_config_test"
+required-features = ["solana_client_subscriber"]
+
 [dependencies]
 serde_derive = "1.0"
-log = "0.4"
+log = { version = "0.4", features = ["kv"] }
 bs58 = "0.5.1"
 futures-util = "0.3.31"
 anyhow = "1.0"

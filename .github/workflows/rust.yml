@@ -59,6 +59,8 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked --all --features 'enable_logstash enable_otel enable_webhook' -- -D warnings
+      # Without the default subscriber only the library builds; keep it compiling
+      - run: cargo clippy --locked -p sologger --no-default-features --features 'enable_logstash enable_otel enable_webhook' -- -D warnings
 
   msrv:
     name: MSRV (1.92.0)
