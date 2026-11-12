@@ -270,6 +270,51 @@ test('home reconnects a dropped connection and keeps streaming', async ({ page }
   await expect(programChip(page, TOKEN)).toContainText('Connected');
 });
 
+/**
+ * Relative luminance of a success toast's background (its translucent color blended over
+ * the page) and the contrast ratio of its detail text against it, per WCAG.
+ */
+function successToastColors(page) {
+  return page.evaluate(() => {
+    // Computed colors come back as rgb()/rgba() (0-255) or color(srgb ...) (0-1)
+    const parse = css => {
+      const srgb = css.match(/color\(srgb ([^)]+)\)/);
+      const parts = (srgb ?? css.match(/rgba?\(([^)]+)\)/))[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+      const [r, g, b] = parts.slice(0, 3).map(v => (srgb ? v * 255 : v));
+      return { r, g, b, a: parts[3] ?? 1 };
+    };
+    const luminance = ({ r, g, b }) => {
+      const channel = v => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+    const message = document.querySelector('.p-toast-message-success');
+    const toast = parse(getComputedStyle(message).backgroundColor);
+    const pageBg = parse(getComputedStyle(document.body).backgroundColor);
+    const blended = Object.fromEntries(['r', 'g', 'b'].map(k => [k, toast[k] * toast.a + pageBg[k] * (1 - toast.a)]));
+    const text = parse(getComputedStyle(message.querySelector('.p-toast-detail')).color);
+    const [bg, fg] = [luminance(blended), luminance(text)];
+    return { background: bg, contrast: (Math.max(bg, fg) + 0.05) / (Math.min(bg, fg) + 0.05) };
+  });
+}
+
+for (const os of ['light', 'dark']) {
+  for (const theme of ['light', 'dark']) {
+    test(`toasts follow the app's ${theme} theme and stay readable (OS ${os})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: os });
+      await page.addInitScript(t => localStorage.setItem('theme', t), theme);
+      await mockLogStream(page);
+      await page.goto('');
+      await addProgram(page, TOKEN);
+      await expect(page.locator('.p-toast-message-success')).toBeVisible();
+
+      const { background, contrast } = await successToastColors(page);
+      if (theme === 'dark') expect(background, 'toast background should be dark').toBeLessThan(0.2);
+      else expect(background, 'toast background should be light').toBeGreaterThan(0.6);
+      expect(contrast, 'detail text contrast (WCAG AA needs 4.5)').toBeGreaterThanOrEqual(4.5);
+    });
+  }
+}
+
 test('home program ID can still be typed by hand', async ({ page }) => {
   await mockNetwork(page);
   await page.goto('');

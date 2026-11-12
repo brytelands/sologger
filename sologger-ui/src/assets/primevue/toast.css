@@ -56,7 +56,7 @@
 }
 
 .p-toast-message-info .p-toast-detail {
-    @apply text-surface-700 dark:text-surface-0
+    @apply text-surface-700 dark:text-[var(--p-text-color)]
 }
 
 .p-toast-message-info .p-toast-close-button {
@@ -71,7 +71,7 @@
 }
 
 .p-toast-message-success .p-toast-detail {
-    @apply text-surface-700 dark:text-surface-0
+    @apply text-surface-700 dark:text-[var(--p-text-color)]
 }
 
 .p-toast-message-success .p-toast-close-button {
@@ -86,7 +86,7 @@
 }
 
 .p-toast-message-warn .p-toast-detail {
-    @apply text-surface-700 dark:text-surface-0
+    @apply text-surface-700 dark:text-[var(--p-text-color)]
 }
 
 .p-toast-message-warn .p-toast-close-button {
@@ -101,7 +101,7 @@
 }
 
 .p-toast-message-error .p-toast-detail {
-    @apply text-surface-700 dark:text-surface-0
+    @apply text-surface-700 dark:text-[var(--p-text-color)]
 }
 
 .p-toast-message-error .p-toast-close-button {
@@ -116,7 +116,7 @@
 }
 
 .p-toast-message-secondary .p-toast-detail {
-    @apply text-surface-700 dark:text-surface-0
+    @apply text-surface-700 dark:text-[var(--p-text-color)]
 }
 
 .p-toast-message-secondary .p-toast-close-button {
