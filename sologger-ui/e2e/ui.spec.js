@@ -379,6 +379,80 @@ test('lookup discovers the on-chain IDL of a program in the transaction', async 
   expect(errors).toEqual([]);
 });
 
+/** Whether keyboard focus is inside an open dialog. */
+function focusIsInDialog(page) {
+  return page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')));
+}
+
+/** Tabs forwards and backwards past the dialog's controls; focus must never leave it. */
+async function expectFocusTrapped(page) {
+  expect(await focusIsInDialog(page), 'focus moves into the dialog when it opens').toBe(true);
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press(key);
+      expect(await focusIsInDialog(page), `focus stays in the dialog after ${key} x${i + 1}`).toBe(true);
+    }
+  }
+}
+
+test('the mainnet warning is an accessible dialog: focus moves in and stays, Escape cancels', async ({ page }) => {
+  await mockNetwork(page);
+  await page.goto('');
+  const network = page.locator('select').filter({ has: page.locator('option', { hasText: 'Mainnet' }) });
+  await network.focus();
+  await network.selectOption({ label: 'Mainnet' });
+
+  const dialog = page.getByRole('dialog', { name: 'Mainnet Warning' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
+  await expectFocusTrapped(page);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(network).toHaveValue('wss://api.devnet.solana.com');
+  await expect(network, 'focus returns to what opened the dialog').toBeFocused();
+});
+
+test('lookup row detail and IDL decode dialogs are accessible and reopen', async ({ page }) => {
+  const errors = collectErrors(page);
+  await mockNetwork(page, {
+    logs: [
+      `Program ${CPMM} invoke [1]`,
+      'Program log: Instruction: SwapBaseInput',
+      `Program ${CPMM} consumed 30000 of 200000 compute units`,
+      `Program ${CPMM} success`,
+    ],
+    accounts: { [CPMM_IDL_ADDRESS]: anchorIdlAccountBase64(CPMM_IDL) },
+  });
+  await page.goto('lookup');
+  await page.getByPlaceholder('Transaction signature...').fill(SIG);
+  await page.getByRole('button', { name: 'Lookup' }).click();
+  await expect(page.getByText(`On-chain IDL loaded for ${CPMM.substring(0, 8)}…`)).toBeVisible();
+
+  const row = page.locator('.slick-row').first().locator('.slick-cell').nth(1);
+  const detail = page.getByRole('dialog', { name: 'Log Detail' });
+  await row.click();
+  await expect(detail).toBeVisible();
+  await expectFocusTrapped(page);
+  await page.keyboard.press('Escape');
+  await expect(detail).toBeHidden();
+
+  // The same row opens again after closing
+  await row.click();
+  await expect(detail).toBeVisible();
+  await detail.getByRole('button', { name: 'Close' }).click();
+  await expect(detail).toBeHidden();
+
+  await row.click();
+  await detail.getByRole('button', { name: /Decode with IDL/ }).click();
+  const decode = page.getByRole('dialog', { name: 'IDL Decode' });
+  await expect(decode).toBeVisible();
+  await expectFocusTrapped(page);
+  await page.keyboard.press('Escape');
+  await expect(decode).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
 test('home program ID can still be typed by hand', async ({ page }) => {
   await mockNetwork(page);
   await page.goto('');

@@ -11,62 +11,53 @@
       </div>
 
       <!-- Mainnet Warning Modal -->
-      <div v-if="showMainnetWarning" class="modal-overlay" @click.self="cancelMainnet">
-        <div class="modal-panel">
-          <div class="modal-header">
-            <span class="font-semibold text-base">⚠️ Mainnet Warning</span>
-            <button @click="cancelMainnet" class="btn btn-secondary" aria-label="Close">✕</button>
-          </div>
-          <div class="modal-body">
-            <p class="text-[var(--p-text-color)] mb-3">
-              Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop
-              connections frequently.
-              We strongly recommend using a <strong>private RPC provider</strong>.
-            </p>
-            <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
-            <div class="flex flex-col gap-2 mb-4">
-              <a href="https://helius.dev" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">Helius</span>
-                <span class="text-xs text-[var(--p-text-muted)]">helius.dev — Solana-native, generous free tier</span>
-              </a>
-              <a href="https://quicknode.com" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">QuickNode</span>
-                <span class="text-xs text-[var(--p-text-muted)]">quicknode.com — Multi-chain, fast global nodes</span>
-              </a>
-              <a href="https://ironforge.cloud" target="_blank" class="rpc-provider-link">
-                <span class="font-semibold">Ironforge</span>
-                <span class="text-xs text-[var(--p-text-muted)]">ironforge.cloud — Solana-focused infrastructure</span>
-              </a>
-            </div>
-            <p class="text-[var(--p-text-muted)] text-xs mb-4">
-              To use a private RPC, select <strong>Custom URL</strong> and enter your WebSocket endpoint (wss://...).
-            </p>
-            <div class="flex gap-2 justify-end">
-              <button @click="cancelMainnet" class="btn btn-secondary">Cancel</button>
-              <button @click="confirmMainnet" class="btn btn-warning">Continue with Public Mainnet</button>
-            </div>
-          </div>
+      <ModalDialog v-if="showMainnetWarning" title="Mainnet Warning" icon="⚠️" close-text="✕" @close="cancelMainnet">
+        <p class="text-[var(--p-text-color)] mb-3">
+          Monitoring Mainnet logs is resource-intensive. Public RPC endpoints have strict rate limits and may drop
+          connections frequently.
+          We strongly recommend using a <strong>private RPC provider</strong>.
+        </p>
+        <p class="text-[var(--p-text-muted)] text-sm mb-4">Popular providers with free tiers:</p>
+        <div class="flex flex-col gap-2 mb-4">
+          <a href="https://helius.dev" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">Helius</span>
+            <span class="text-xs text-[var(--p-text-muted)]">helius.dev — Solana-native, generous free tier</span>
+          </a>
+          <a href="https://quicknode.com" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">QuickNode</span>
+            <span class="text-xs text-[var(--p-text-muted)]">quicknode.com — Multi-chain, fast global nodes</span>
+          </a>
+          <a href="https://ironforge.cloud" target="_blank" class="rpc-provider-link">
+            <span class="font-semibold">Ironforge</span>
+            <span class="text-xs text-[var(--p-text-muted)]">ironforge.cloud — Solana-focused infrastructure</span>
+          </a>
         </div>
-      </div>
+        <p class="text-[var(--p-text-muted)] text-xs mb-4">
+          To use a private RPC, select <strong>Custom URL</strong> and enter your WebSocket endpoint (wss://...).
+        </p>
+        <div class="flex gap-2 justify-end">
+          <button @click="cancelMainnet" class="btn btn-secondary">Cancel</button>
+          <button @click="confirmMainnet" class="btn btn-warning">Continue with Public Mainnet</button>
+        </div>
+      </ModalDialog>
 
       <!-- IDL Decoded Data Modal -->
-      <div v-if="idlDecodedData" class="modal-overlay" @click.self="idlDecodedData = null">
-        <div class="modal-panel modal-panel--wide">
-          <div class="modal-header">
-            <span class="font-semibold text-base">🔍 IDL Decoded Instruction Data</span>
-            <button @click="idlDecodedData = null" class="btn btn-secondary">✕ Close</button>
+      <ModalDialog
+          v-if="idlDecodedData"
+          title="IDL Decoded Instruction Data"
+          icon="🔍"
+          wide
+          body-class="modal-body--rows"
+          @close="idlDecodedData = null"
+      >
+        <template v-if="parsedIdlDecodedData">
+          <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
+            <span class="detail-label">{{ key }}</span>
+            <span class="detail-value">{{ formatIdlDetailValue(value) }}</span>
           </div>
-          <div class="modal-body modal-body--rows">
-            <template v-if="parsedIdlDecodedData">
-              <div v-for="(value, key) in parsedIdlDecodedData" :key="key" class="detail-row">
-                <span class="detail-label">{{ key }}</span>
-                <span class="detail-value">{{ formatIdlDetailValue(value) }}</span>
-              </div>
-            </template>
-            <pre v-else class="idl-decoded-pre">{{ idlDecodedData }}</pre>
-          </div>
-        </div>
-      </div>
+        </template>
+        <pre v-else class="idl-decoded-pre">{{ idlDecodedData }}</pre>
+      </ModalDialog>
 
       <!-- Program ID Form -->
       <ProgramIdForm v-model="newProgramId" @addProgramId="addProgramId" class="mb-4"/>
@@ -292,6 +283,7 @@ import ProgramList from '../components/ProgramList.vue';
 import StatsGrid from '../components/StatsGrid.vue';
 import LogsTable from '../components/LogsTable.vue';
 import CollapsibleSection from '../components/CollapsibleSection.vue';
+import ModalDialog from '../components/ModalDialog.vue';
 
 export default {
   name: 'App',
@@ -300,7 +292,8 @@ export default {
     ProgramList,
     StatsGrid,
     LogsTable,
-    CollapsibleSection
+    CollapsibleSection,
+    ModalDialog
   },
   setup() {
     const toast = useToast();

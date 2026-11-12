@@ -95,27 +95,20 @@
     </div>
 
     <!-- Row detail modal -->
-    <div v-if="selectedRow" class="modal-overlay" @click.self="selectedRow = null">
-      <div class="modal-panel modal-panel--wide">
-        <div class="modal-header">
-          <span class="font-semibold text-base">Log Detail</span>
-          <div class="flex gap-2">
-            <button
-              v-if="uploadedIdl"
-              @click="$emit('decode-with-idl', selectedRow); selectedRow = null"
-              class="btn btn-info"
-            >🔍 Decode with IDL</button>
-            <button @click="selectedRow = null" class="btn btn-secondary">✕ Close</button>
-          </div>
-        </div>
-        <div class="modal-body modal-body--rows">
-          <div v-for="col in allColumns" :key="col.id" class="detail-row">
-            <span class="detail-label">{{ col.name }}</span>
-            <span class="detail-value">{{ formatDetailValue(col.field, selectedRow[col.field]) }}</span>
-          </div>
-        </div>
+    <ModalDialog v-if="selectedRow" title="Log Detail" wide body-class="modal-body--rows" @close="closeDetail">
+      <template #actions>
+        <button
+          v-if="uploadedIdl"
+          type="button"
+          @click="$emit('decode-with-idl', selectedRow); closeDetail()"
+          class="btn btn-info"
+        ><span aria-hidden="true">🔍 </span>Decode with IDL</button>
+      </template>
+      <div v-for="col in allColumns" :key="col.id" class="detail-row">
+        <span class="detail-label">{{ col.name }}</span>
+        <span class="detail-value">{{ formatDetailValue(col.field, selectedRow[col.field]) }}</span>
       </div>
-    </div>
+    </ModalDialog>
   </div>
 </template>
 
@@ -123,6 +116,7 @@
 import { SlickGrid, SlickRowSelectionModel } from 'slickgrid';
 import 'slickgrid/dist/styles/css/slick.grid.css';
 import 'slickgrid/dist/styles/css/slick-default-theme.css';
+import ModalDialog from './ModalDialog.vue';
 
 const ALL_COLUMNS = [
   {
@@ -299,6 +293,7 @@ function renderJsonArrayCell(cellNode, value) {
 }
 
 export default {
+  components: {ModalDialog},
   props: ['parsedLogs', 'uploadedIdl'],
   emits: ['decode-with-idl'],
   data() {
@@ -328,6 +323,12 @@ export default {
     }
   },
   methods: {
+    // Also clears the grid's row selection: the dialog opens when the selection changes,
+    // so a still-selected row could not be opened again
+    closeDetail() {
+      this.selectedRow = null;
+      this.grid?.setSelectedRows([]);
+    },
     formatProgramId(programId) {
       const pid = programId?.programId ?? programId ?? '';
       return String(pid).substring(0, 12) + (String(pid).length > 12 ? '...' : '');

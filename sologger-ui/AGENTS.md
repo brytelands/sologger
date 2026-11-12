@@ -65,6 +65,10 @@ src/components/
                        mainnet) that fills the field; the user still clicks Add Program.
   ProgramList.vue      Monitored-program chips: status dot + label + remove, fed by
                        HomeView's programStatuses computed ({id, status} objects).
+  ModalDialog.vue      Every dialog uses it (mount with v-if, close on its `close` event):
+                       role="dialog" + aria-modal named by its title, focus moved in and
+                       trapped, Escape/backdrop close, focus returned on close. Don't hand-roll
+                       .modal-overlay markup.
   CollapsibleSection.vue  Card/bare section with a persisted open state
                           (localStorage sologger_section_<storageKey>).
 src/composables/useLogStream.js     createLogStream — HomeView's live logsSubscribe sockets (one per
