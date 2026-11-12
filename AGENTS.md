@@ -178,7 +178,9 @@ The public site <https://brytelands.github.io/sologger/> is deployed by
 builds the WASM transformer **from current source**, overlays it into the UI, runs the UI tests,
 builds with Vite, and publishes `dist/` via `actions/deploy-pages`. The Pages source in the repo
 settings must be set to "GitHub Actions" for this to serve. There is no tracked copy of the built
-site.
+site. The workflow copies `index.html` to `404.html`: Pages serves that for any path it has no file
+for, which is how deep links such as `/sologger/lookup?sig=…` reach the app's router (with HTTP
+status 404). Without it they get GitHub's "Page not found".
 
 One committed artifact remains, deliberately:
 
