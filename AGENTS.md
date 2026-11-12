@@ -178,7 +178,9 @@ The public site <https://brytelands.github.io/sologger/> is deployed by
 builds the WASM transformer **from current source**, overlays it into the UI, runs the UI tests,
 builds with Vite, and publishes `dist/` via `actions/deploy-pages`. The Pages source in the repo
 settings must be set to "GitHub Actions" for this to serve. There is no tracked copy of the built
-site.
+site. The workflow copies `index.html` to `404.html`: Pages serves that for any path it has no file
+for, which is how deep links such as `/sologger/lookup?sig=…` reach the app's router (with HTTP
+status 404). Without it they get GitHub's "Page not found".
 
 One committed artifact remains, deliberately:
 
@@ -199,6 +201,9 @@ Docker images (linux/amd64 + linux/arm64) are built on pull requests that touch 
 Docker Hub only for a `v*` release tag, which must match the version in `sologger/Cargo.toml`
 (`.github/workflows/docker.yml`). A sologger release runs it from `release-plz.yml`, together with
 `release-binaries.yml` (Linux x86_64/arm64 archives + `SHA256SUMS` on the GitHub Release).
+Both check out `refs/tags/<tag>`, never the bare tag name: release tags (`v0.4.1`) share their
+names with integration branches, and `actions/checkout` given a bare name picks the branch. That
+built the 0.4.0 artifacts from the `v0.4.0` branch and failed the 0.4.1 ones (version mismatch).
 
 The compose stacks (`docker-compose.yaml`, `docker-examples/*`) do not use those published images:
 each sologger service builds from the repo (`build.context` is the repo root, relative to the compose

@@ -64,6 +64,11 @@ jobs:
         working-directory: sologger-ui
       - run: npm run build
         working-directory: sologger-ui
+      # GitHub Pages answers unknown paths with 404.html. Serving the app there lets its
+      # router handle deep links such as /sologger/lookup?sig=..., which otherwise get
+      # GitHub's "Page not found" (the HTTP status stays 404; browsers render the app).
+      - run: cp dist/index.html dist/404.html
+        working-directory: sologger-ui
 
       # The only place the browser suite runs against WASM built from current source
       - run: npx playwright install --with-deps chromium

@@ -42,7 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag }}
+          # Fully qualified: integration branches share the v<version> names of release tags,
+          # and a bare name checks out the branch
+          ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
 
       - name: Check the tag matches the sologger version
