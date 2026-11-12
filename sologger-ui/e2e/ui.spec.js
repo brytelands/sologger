@@ -164,6 +164,32 @@ test('home log replay requests a v1-capable transaction and adds rows', async ({
   expect(errors).toEqual([]);
 });
 
+test('home popular-program picker fills the Program ID and adds it', async ({ page }) => {
+  const errors = collectErrors(page);
+  await mockNetwork(page);
+  await page.goto('');
+  await expect(page.getByRole('heading', { name: 'Solana Log Explorer' })).toBeVisible();
+
+  const picker = page.getByLabel('Popular programs');
+  const input = page.getByPlaceholder('Enter Program ID');
+  await picker.selectOption({ label: 'SPL Token' });
+  await expect(input).toHaveValue(TOKEN);
+  await expect(picker).toHaveValue('', { message: 'picker resets so the same entry can be picked again' });
+
+  await page.getByRole('button', { name: 'Add Program' }).click();
+  await expect(page.getByRole('button', { name: `Stop monitoring ${TOKEN}` })).toBeVisible();
+  await expect(input).toHaveValue('');
+  expect(errors).toEqual([]);
+});
+
+test('home program ID can still be typed by hand', async ({ page }) => {
+  await mockNetwork(page);
+  await page.goto('');
+  await page.getByPlaceholder('Enter Program ID').fill(OUTER);
+  await page.getByRole('button', { name: 'Add Program' }).click();
+  await expect(page.getByRole('button', { name: `Stop monitoring ${OUTER}` })).toBeVisible();
+});
+
 async function convertAndAssert(page) {
   await page.locator('textarea').fill(SUCCESS_LOGS.join('\n'));
   await page.getByRole('button', { name: 'Convert Logs' }).click({ timeout: 5_000 });

@@ -50,7 +50,9 @@ src/components/
   CuFlamegraph.vue     SVG icicle of one transaction's CPI tree: depth = row, width = consumed
                        CU, hue = program (fixed first-appearance order, "Other" past eight,
                        validated palette for both themes). Layout math in useCuFlamegraph.js.
-  ProgramIdForm.vue    Program ID entry.
+  ProgramIdForm.vue    Program ID entry, plus a "Popular programs" picker (POPULAR_PROGRAMS:
+                       six well-known programs with steady devnet traffic, same IDs on
+                       mainnet) that fills the field; the user still clicks Add Program.
   ProgramList.vue      Monitored-program chips: status dot + label + remove, fed by
                        HomeView's programStatuses computed ({id, status} objects).
   CollapsibleSection.vue  Card/bare section with a persisted open state
